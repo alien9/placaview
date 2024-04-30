@@ -191,14 +191,20 @@ class PlacaView:
             parent=self.iface.mainWindow())
         self.add_action(
             icon_path, 
-            text="Configure",
+            text="Configure Mapillary Key",
             callback=self.ask_mapillary_key,
-            parent=self.iface.mainWindow()            
+            parent=self.iface.mainWindow()
         )
         self.add_action(
             icon_path, 
             text="Set Boundary",
             callback=self.ask_boundary_leyer,
+            parent=self.iface.mainWindow()            
+        )
+        self.add_action(
+            icon_path,
+            text="Download Signs",
+            callback=self.download_signs,
             parent=self.iface.mainWindow()            
         )
 
@@ -286,3 +292,6 @@ class PlacaView:
                                             0, False)
         if ok and layer:
             self.boundary=layer
+
+    def download_signs(self):
+        print("Download signs.")
