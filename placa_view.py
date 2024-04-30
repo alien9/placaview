@@ -23,8 +23,10 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QDialog, QInputDialog, QLineEdit
+from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit
 from qgis.core import QgsProject, QgsWkbTypes
+from qgis.PyQt.QtWidgets import QDialog, QLabel, QMessageBox
+
 # Initialize Qt resources from file resources.py
 from .resources import *
 
@@ -259,8 +261,8 @@ class PlacaView:
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             
+            
     def ask_mapillary_key(self):
-        print("will add the key")
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
                                 "Mapillary Key:", QLineEdit.Normal,
                                 self.mapillary_key)
@@ -274,15 +276,27 @@ class PlacaView:
                 fu.write(json.dumps(self.conf))
                 
     def ask_boundary_leyer(self):
-        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox, QMessageBox
         names = [layer.name() for layer in list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))]
         if not names:
             dlsg=QMessageBox(self.dockwidget)
             dlsg.setText("You need a polygon layer for boundary")
             dlsg.exec()
             return
-        layer, ok = QInputDialog().getItem(self.dockwidget, "Choose Boundary",
+        layer_name, ok = QInputDialog().getItem(self.dockwidget, "Choose Boundary",
                                             "Boundary Layer:", names,
                                             0, False)
-        if ok and layer:
-            self.boundary=layer
+        if ok and layer_name:
+            layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon] and x.name()==layer_name, QgsProject.instance().mapLayers().values()))
+            if layers:
+                self.set_boundary_layer(layers[0])
+                
+            
+    def set_boundary_layer(self, layer):
+        self.boundary=layer
+        self.dockwidget.findChild(QLabel, "boundary_label").setText(f"Boundary: {layer.name()}")
+
+
+    def get_first_polygonal_layer(self):
+        layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))
+        if len(layers)==1:
+            self.set_boundary_layer(layers[0])
