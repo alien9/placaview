@@ -83,9 +83,6 @@ class PlacaView:
         self.toolbar = self.iface.addToolBar(u'PlacaView')
         if self.toolbar:
             self.toolbar.setObjectName(u'PlacaView')
-
-        #print "** INITIALIZING PlacaView"
-
         self.pluginIsActive = False
         self.dockwidget = None
 
@@ -251,6 +248,7 @@ class PlacaView:
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
+            self.get_first_polygonal_layer()
             
     def ask_mapillary_key(self):
         print("will add the key")
