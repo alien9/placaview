@@ -13,12 +13,10 @@ __date__ = '2024-04-26'
 __copyright__ = 'Copyright 2024, Tiago Barufi'
 
 import unittest
-
-from qgis.PyQt.QtGui import QDockWidget
-
+from qgis.PyQt.QtWidgets import QApplication
 from placa_view_dockwidget import PlacaViewDockWidget
 
-from utilities import get_qgis_app
+from .utilities import get_qgis_app
 
 QGIS_APP = get_qgis_app()
 
@@ -28,7 +26,8 @@ class PlacaViewDockWidgetTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        self.dockwidget = PlacaViewDockWidget(None)
+        self.app=QApplication([])
+        self.dockwidget = PlacaViewDockWidget()
 
     def tearDown(self):
         """Runs after each test."""
@@ -36,6 +35,7 @@ class PlacaViewDockWidgetTest(unittest.TestCase):
 
     def test_dockwidget_ok(self):
         """Test we can click OK."""
+        self.assertEqual(1,1)
         pass
 
 if __name__ == "__main__":

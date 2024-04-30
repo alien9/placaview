@@ -22,7 +22,7 @@
  ***************************************************************************/
  This script initializes the plugin, making it known to QGIS.
 """
-
+from .placa_view import PlacaView
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
@@ -32,5 +32,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .placa_view import PlacaView
+    #from .placa_view import PlacaView
     return PlacaView(iface)

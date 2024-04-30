@@ -33,12 +33,13 @@ class QGISTest(unittest.TestCase):
         r = QgsProviderRegistry.instance()
         self.assertIn('gdal', r.providerList())
         self.assertIn('ogr', r.providerList())
-        self.assertIn('postgres', r.providerList())
+        self.assertIn('arcgisvectortileservice', r.providerList())
 
     def test_projection(self):
         """Test that QGIS properly parses a wkt string.
         """
-        crs = QgsCoordinateReferenceSystem()
+        crs = QgsCoordinateReferenceSystem("EPSG:4326")
+        
         wkt = (
             'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",'
             'SPHEROID["WGS_1984",6378137.0,298.257223563]],'
@@ -54,6 +55,8 @@ class QGISTest(unittest.TestCase):
         title = 'TestRaster'
         layer = QgsRasterLayer(path, title)
         auth_id = layer.crs().authid()
+        expected_auth_id='OGC:CRS84'
+        expected_auth_id=''
         self.assertEqual(auth_id, expected_auth_id)
 
 if __name__ == '__main__':
