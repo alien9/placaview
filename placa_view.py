@@ -274,20 +274,15 @@ class PlacaView:
                 fu.write(json.dumps(self.conf))
                 
     def ask_boundary_leyer(self):
-        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox
+        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox, QMessageBox
         names = [layer.name() for layer in list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))]
-        print(names)
         if not names:
-            dlsg=QDialog(self.dockwidget)
-            dlsg.setWindowTtitle("Alert")
-            l=QLabel("You must have a polygon type layer.")
-            dlsg.addWidget(l)
-            dlsg.addWidget(QDialogButtonBox(QDialogButtonBox.Ok))
+            dlsg=QMessageBox(self.dockwidget)
+            dlsg.setText("You need a polygon layer for boundary")
+            dlsg.exec()
             return
         layer, ok = QInputDialog().getItem(self.dockwidget, "Choose Boundary",
                                             "Boundary Layer:", names,
                                             0, False)
         if ok and layer:
             self.boundary=layer
-            
-        print(layer)
