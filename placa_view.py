@@ -23,10 +23,8 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit
+from qgis.PyQt.QtWidgets import QAction, QDialog, QInputDialog, QLineEdit, QLabel
 from qgis.core import QgsProject, QgsWkbTypes
-from qgis.PyQt.QtWidgets import QDialog, QLabel, QMessageBox
-
 # Initialize Qt resources from file resources.py
 from .resources import *
 
@@ -131,20 +129,7 @@ class PlacaView:
         :param callback: Function to be called when the action is triggered.
         :type callback: function
 
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
+        :param enabled_flag: A flag indicating if the action should be enabledinitGui
         :type status_tip: str
 
         :param parent: Parent widget for the new action. Defaults None.
@@ -193,14 +178,20 @@ class PlacaView:
             parent=self.iface.mainWindow())
         self.add_action(
             icon_path, 
-            text="Configure",
+            text="Configure Mapillary Key",
             callback=self.ask_mapillary_key,
-            parent=self.iface.mainWindow()            
+            parent=self.iface.mainWindow()
         )
         self.add_action(
             icon_path, 
             text="Set Boundary",
             callback=self.ask_boundary_leyer,
+            parent=self.iface.mainWindow()            
+        )
+        self.add_action(
+            icon_path,
+            text="Download Signs",
+            callback=self.download_signs,
             parent=self.iface.mainWindow()            
         )
 
@@ -261,8 +252,8 @@ class PlacaView:
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             
-            
     def ask_mapillary_key(self):
+        print("will add the key")
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
                                 "Mapillary Key:", QLineEdit.Normal,
                                 self.mapillary_key)
@@ -276,6 +267,7 @@ class PlacaView:
                 fu.write(json.dumps(self.conf))
                 
     def ask_boundary_leyer(self):
+        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox, QMessageBox
         names = [layer.name() for layer in list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))]
         if not names:
             dlsg=QMessageBox(self.dockwidget)
@@ -295,8 +287,10 @@ class PlacaView:
         self.boundary=layer
         self.dockwidget.findChild(QLabel, "boundary_label").setText(f"Boundary: {layer.name()}")
 
-
     def get_first_polygonal_layer(self):
         layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))
         if len(layers)==1:
             self.set_boundary_layer(layers[0])
+
+    def download_signs(self):
+        print("Download signs.")
