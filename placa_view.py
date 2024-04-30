@@ -23,14 +23,14 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QDialog, QInputDialog, QLineEdit
+from qgis.core import QgsProject, QgsWkbTypes
 # Initialize Qt resources from file resources.py
 from .resources import *
 
 # Import the code for the DockWidget
 from .placa_view_dockwidget import PlacaViewDockWidget
-import os.path
-
+import os.path, os,json
 
 class PlacaView:
     """QGIS Plugin Implementation."""
@@ -49,24 +49,40 @@ class PlacaView:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
 
-        # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'PlacaView_{}.qm'.format(locale))
+        #load mapillary key
+        self.mapillary_key=""
+        self.conf={}
+        pat = os.path.join(self.plugin_dir, "mapillary_key.txt")
+        if os.path.isfile(pat):
+            with open(pat, "r") as fu:
+                self.mapillary_key=fu.readlines().pop(0)
+        con = os.path.join(self.plugin_dir, "conf.json")
+        if os.path.isfile(con):
+            with open(con, "r") as fu:
+                self.conf=json.loads(fu.readlines().pop(0))
+                print(f"cargo {self.conf}")
 
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+        # initialize locale
+        loc=QSettings().value('locale/userLocale')
+        if loc:
+            locale = loc[0:2]
+            locale_path = os.path.join(
+                self.plugin_dir,
+                'i18n',
+                'PlacaView_{}.qm'.format(locale))
+
+            if os.path.exists(locale_path):
+                self.translator = QTranslator()
+                self.translator.load(locale_path)
+                QCoreApplication.installTranslator(self.translator)
 
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&Road Sign Database')
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'PlacaView')
-        self.toolbar.setObjectName(u'PlacaView')
+        if self.toolbar:
+            self.toolbar.setObjectName(u'PlacaView')
 
         #print "** INITIALIZING PlacaView"
 
@@ -173,6 +189,18 @@ class PlacaView:
             text=self.tr(u'Manage Road Signs'),
             callback=self.run,
             parent=self.iface.mainWindow())
+        self.add_action(
+            icon_path, 
+            text="Configure",
+            callback=self.ask_mapillary_key,
+            parent=self.iface.mainWindow()            
+        )
+        self.add_action(
+            icon_path, 
+            text="Set Boundary",
+            callback=self.ask_boundary_leyer,
+            parent=self.iface.mainWindow()            
+        )
 
     #--------------------------------------------------------------------------
 
@@ -230,3 +258,36 @@ class PlacaView:
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
+            
+    def ask_mapillary_key(self):
+        print("will add the key")
+        text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
+                                "Mapillary Key:", QLineEdit.Normal,
+                                self.mapillary_key)
+        self.conf["mapillary_key"]=text
+        if ok:
+            with open(os.path.join(self.plugin_dir, "mapillary_key.txt"), "w+") as fu:
+                fu.write(text)
+        if ok:
+            with open(os.path.join(self.plugin_dir, "app.json"), "w+") as fu:
+                import json
+                fu.write(json.dumps(self.conf))
+                
+    def ask_boundary_leyer(self):
+        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox
+        names = [layer.name() for layer in list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon,QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))]
+        print(names)
+        if not names:
+            dlsg=QDialog(self.dockwidget)
+            dlsg.setWindowTtitle("Alert")
+            l=QLabel("You must have a polygon type layer.")
+            dlsg.addWidget(l)
+            dlsg.addWidget(QDialogButtonBox(QDialogButtonBox.Ok))
+            return
+        layer, ok = QInputDialog().getItem(self.dockwidget, "Choose Boundary",
+                                            "Boundary Layer:", names,
+                                            0, False)
+        if ok and layer:
+            self.boundary=layer
+            
+        print(layer)
