@@ -25,7 +25,8 @@ from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPoin
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar
-from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer
+from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
+from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 
 
 # Initialize Qt resources from file resources.py
@@ -230,6 +231,18 @@ class PlacaView:
             callback=self.download_signs,
             parent=self.iface.mainWindow()
         )
+        self.add_action(
+            icon_path,
+            text="Save Signs",
+            callback=self.save_signs_layer,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
+            icon_path,
+            text="Load Signs",
+            callback=self.load_signs_layer,
+            parent=self.iface.mainWindow()
+        )
 
     # --------------------------------------------------------------------------
 
@@ -348,7 +361,6 @@ class PlacaView:
             return layers[0]
 
     def download_signs(self):
-        from qgis.core import QgsCoordinateTransform, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
         if not self.boundary:
             self.ask_boundary_layer()
         if not len(self.mapillary_key):
@@ -445,3 +457,13 @@ class PlacaView:
         QgsProject.instance().addMapLayer(vl)
         return vl
 
+    def save_signs_layer(self):
+        layer=self.get_point_layer_by_name("traffic signs")
+        print(QgsProject.instance().readPath("./"))
+        patty=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
+        _writer = QgsVectorFileWriter.writeAsVectorFormatV3(layer, patty, QgsCoordinateTransformContext(),QgsVectorFileWriter.SaveVectorOptions())
+
+    def load_signs_layer(self):
+        uri=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
+        layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
+        QgsProject.instance().addMapLayer(layer)
