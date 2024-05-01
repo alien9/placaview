@@ -361,6 +361,9 @@ class PlacaView:
             return layers[0]
 
     def download_signs(self):
+        if not self.conf.get("boundary"):
+            self.ask_boundary_layer()
+        self.boundary=self.get_boundary_by_name(self.conf.get("boundary"))
         if not self.boundary:
             self.ask_boundary_layer()
         if not len(self.mapillary_key):
