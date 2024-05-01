@@ -24,6 +24,13 @@ plugin content.</string>
       </property>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="boundary_label">
+      <property name="text">
+       <string>A boundary should be selected</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
  </widget>
