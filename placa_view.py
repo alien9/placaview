@@ -28,11 +28,12 @@ from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessa
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
+from qgis.PyQt import uic
 
 # Initialize Qt resources from file resources.py
 from .resources import *
 from .tools import *
-
+from .signs_filter import SignsFilter
 # Import the code for the DockWidget
 from .placa_view_dockwidget import PlacaViewDockWidget
 import os.path
@@ -234,6 +235,12 @@ class PlacaView:
             icon_path,
             text="Load Signs",
             callback=self.load_signs_layer,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
+            icon_path,
+            text="Filter Signs",
+            callback=self.load_signs_filter,
             parent=self.iface.mainWindow()
         )
     # --------------------------------------------------------------------------
@@ -485,3 +492,8 @@ class PlacaView:
         renderer = QgsCategorizedSymbolRenderer('value', categories) 
         layer.setRenderer(renderer)
         
+    def load_signs_filter(self):
+        fu=SignsFilter(
+            parent=self.iface.mainWindow()
+        )
+        fu.show()
