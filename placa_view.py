@@ -27,7 +27,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
-
+from qgis.core import QgsCategorizedSymbolRenderer
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -102,26 +102,19 @@ class PlacaView:
         return (xtile, ytile)
 
     def save_conf(self):
-        print("ewill save now", self.conf)
         with open(os.path.join(self.plugin_dir, "conf.json"), "w+") as fu:
             import json
             fu.write(json.dumps(self.conf))
 
     def set_conf(self, key, value):
-        print("settinhg conf..;")
         if not self.conf:
-            print("conf does not exist")
             self.load_conf()
-        print(self.conf)
         self.conf[key] = value
-        print("ll save now", self.conf)
         self.save_conf()
 
     def load_conf(self):
-        from qgis.core import QgsCoordinateTransform, QgsCoordinateReferenceSystem
         self.conf = {}
         con = os.path.join(self.plugin_dir, "conf.json")
-        print("loading...", con)
         if os.path.isfile(con):
             with open(con, "r") as fu:
                 self.conf = json.loads(fu.readlines().pop(0))
@@ -243,7 +236,6 @@ class PlacaView:
             callback=self.load_signs_layer,
             parent=self.iface.mainWindow()
         )
-
     # --------------------------------------------------------------------------
 
     def onClosePlugin(self):
@@ -302,7 +294,6 @@ class PlacaView:
             self.get_first_polygonal_layer()
 
     def ask_mapillary_key(self):
-        print("will add the key")
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
                                           "Mapillary Key:", QLineEdit.Normal,
                                           self.conf.get("mapillary_key", ""))
@@ -462,11 +453,35 @@ class PlacaView:
 
     def save_signs_layer(self):
         layer=self.get_point_layer_by_name("traffic signs")
-        print(QgsProject.instance().readPath("./"))
+        if not layer:
+            dlsg = QMessageBox(self.dockwidget)
+            dlsg.setText("Layer not Found")
+            dlsg.exec()
+            return
         patty=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(layer, patty, QgsCoordinateTransformContext(),QgsVectorFileWriter.SaveVectorOptions())
 
     def load_signs_layer(self):
+        from qgis.core import QgsStyle, QgsSymbol,QgsRendererCategory, QgsSvgMarkerSymbolLayer
         uri=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
         layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
         QgsProject.instance().addMapLayer(layer)
+        idx = layer.fields().indexOf('value')
+        values = list(layer.uniqueValues(idx))
+        categories=[] 
+        default_style = QgsStyle().defaultStyle()
+
+        color_ramp = default_style.colorRamp('Spectral') #Spectral color ramp
+        color_ramp.invert()
+        for value in sorted(values):
+            style={
+                "name":os.path.join(self.plugin_dir, f"styles/symbols/{value}.svg"), 
+                'size':6
+            }
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
+            category = QgsRendererCategory(value, symbol, str(value))
+            categories.append(category)
+        renderer = QgsCategorizedSymbolRenderer('value', categories) 
+        layer.setRenderer(renderer)
+        
