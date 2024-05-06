@@ -462,19 +462,19 @@ class PlacaView:
             dlsg.setText("Layer not Found")
             dlsg.exec()
             return
-        title = QgsProject.instance().title()
+        title = QgsProject.instance().fileName()
         patty=os.path.join(QgsProject.instance().readPath("./"), f"{title}_signs.gpkg")
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(layer, patty, QgsCoordinateTransformContext(),QgsVectorFileWriter.SaveVectorOptions())
 
     def load_signs_layer(self):
-        title = QgsProject.instance().title()
+        title = QgsProject.instance().fileName()
         uri=os.path.join(QgsProject.instance().readPath("./"), f"{title}_signs.gpkg")
-        layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
-        QgsProject.instance().addMapLayer(layer)
-        self.set_signs_style()
-        
+        if os.path.isfile(uri):
+            layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
+            QgsProject.instance().addMapLayer(layer)
+            self.set_signs_style()    
     
-    def set_signs_style(self):
+    def set_signs_style(self, filter=[]):
         layer=self.get_point_layer_by_name("traffic signs")
         idx = layer.fields().indexOf('value')
         values = list(layer.uniqueValues(idx))
@@ -491,13 +491,15 @@ class PlacaView:
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
             category = QgsRendererCategory(value, symbol, str(value))
+            if value not in filter:
+                category.setRenderState(False)
             categories.append(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories) 
         layer.setRenderer(renderer)
+        layer.reload()
     
     def apply_filter(self, value):
-        print("appplying")
-        print(value[0])
+        self.set_signs_style(value)
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
                 fu.write(f"{t}\n")

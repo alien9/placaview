@@ -1,7 +1,7 @@
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QDialog, QWidget,QPushButton, QListView, QListWidget, QListWidgetItem
+from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QDialog, QWidget,QPushButton, QListView, QListWidget, QListWidgetItem, QCheckBox
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
@@ -60,7 +60,6 @@ class SignsFilter(QDialog, FormClass):
     
     @pyqtSlot()
     def save_filter(self):
-        print("save_")
         widget=self.findChild(QListWidget, "listWidget")
         self.applyClicked.emit(list(self.selected_signs))
         self.close()
@@ -77,21 +76,33 @@ class SignsFilter(QDialog, FormClass):
         widget=self.findChild(QListWidget, "listWidget")
         for i in range(widget.count()):
             widget.item(i).setHidden(term not in widget.item(i).name)
+        c=self.findChild(QCheckBox, "select_all")
+        c.blockSignals(True)
+        c.setChecked(False)
+        c.blockSignals(False)
             
     @pyqtSlot()
     def toggle_selection(self):
-        print("toggling")
         widget=self.findChild(QListWidget, "listWidget")
         for i in range(widget.count()):
             if not widget.item(i).isHidden():
                 w=widget.itemWidget(widget.item(i))
                 w.setValue(not w.getValue())
     
+    def select_deselect_all(self, *args):
+        print(args)
+        widget=self.findChild(QListWidget, "listWidget")
+        for i in range(widget.count()):
+            if not widget.item(i).isHidden():
+                widget.itemWidget(widget.item(i)).setValue(args[0]==2)
+                
+    
             
     def connect_signals(self):
         self.findChild(QPushButton, "pushButton_ok").clicked.connect(self.save_filter)
         self.findChild(QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton, "pushButton_toggle_selection").clicked.connect(self.toggle_selection)
+        self.findChild(QCheckBox, "select_all").stateChanged.connect(self.select_deselect_all)
         self.findChild(QgsFilterLineEdit, "search_term").valueChanged.connect(self.filter_list)
     
     
