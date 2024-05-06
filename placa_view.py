@@ -28,11 +28,13 @@ from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessa
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
+from qgis.PyQt import uic
+from qgis.core import QgsStyle, QgsSymbol,QgsRendererCategory, QgsSvgMarkerSymbolLayer
 
 # Initialize Qt resources from file resources.py
 from .resources import *
 from .tools import *
-
+from .signs_filter import SignsFilter
 # Import the code for the DockWidget
 from .placa_view_dockwidget import PlacaViewDockWidget
 import os.path
@@ -236,6 +238,12 @@ class PlacaView:
             callback=self.load_signs_layer,
             parent=self.iface.mainWindow()
         )
+        self.add_action(
+            icon_path,
+            text="Filter Signs",
+            callback=self.load_signs_filter,
+            parent=self.iface.mainWindow()
+        )
     # --------------------------------------------------------------------------
 
     def onClosePlugin(self):
@@ -305,7 +313,7 @@ class PlacaView:
         from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox, QMessageBox
         if not self.dockwidget:
             self.run()
-        names = [layer.name() for layer in list(filter(lambda x: x.wkbType() in [
+        names = [layer.name() for layer in list(filter(lambda x: hasattr(x,'fields') and x.wkbType() in [
             QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))]
         if not names:
             dlsg = QMessageBox(self.dockwidget)
@@ -321,7 +329,7 @@ class PlacaView:
                                                 "Boundary Layer:", names,
                                                 layerindex, False)
         if ok and layer_name:
-            layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon] and x.name(
+            layers = list(filter(lambda x: hasattr(x,'fields') and x.wkbType() in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon] and x.name(
             ) == layer_name, QgsProject.instance().mapLayers().values()))
             if layers:
                 self.set_boundary_layer(layers[0])
@@ -334,19 +342,19 @@ class PlacaView:
         self.set_conf("boundary", layer.name())
 
     def get_first_polygonal_layer(self):
-        layers = list(filter(lambda x: x.wkbType() in [
+        layers = list(filter(lambda x: hasattr(x,'fields') and x.wkbType() in [
                       QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))
         if len(layers) == 1:
             self.set_boundary_layer(layers[0])
 
     def get_boundary_by_name(self, name):
-        layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon] and x.name(
+        layers = list(filter(lambda x: hasattr(x,'fields') and x.wkbType() in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon] and x.name(
         ) == name, QgsProject.instance().mapLayers().values()))
         if layers:
             return layers[0]
 
     def get_point_layer_by_name(self, name):
-        layers = list(filter(lambda x: x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name(
+        layers = list(filter(lambda x: hasattr(x,'fields') and x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name(
         ) == name, QgsProject.instance().mapLayers().values()))
         if layers:
             return layers[0]
@@ -391,9 +399,7 @@ class PlacaView:
                 for y in range(se[1], nw[1]):
                     work+=1
                     progress.setValue(work)
-                    print(type, x, y)
                     url = f"https://tiles.mapillary.com/maps/vtp/{type}/2/{z}/{x}/{y}?access_token={self.conf.get('mapillary_key')}"
-                    print(url)
                     r = requests.get(url)
                     if r.status_code == 403:
                         """Bad key"""
@@ -402,7 +408,6 @@ class PlacaView:
                         dlsg.exec()
                         return
                     features = vt_bytes_to_geojson(r.content, x, y, z)
-                    print(features)
                     for f in features["features"]:
                         # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
                         geometry = f.get("geometry")
@@ -417,9 +422,7 @@ class PlacaView:
                                 if bf.geometry().contains(geo):
                                     inside_boundary=True
                             if inside_boundary:
-                                print("INSIDED")
                                 fet.setGeometry(geo)
-
                                 fet.setAttributes([
                                     properties.get("id"),
                                     properties.get("first_seen_at"),
@@ -427,11 +430,12 @@ class PlacaView:
                                     properties.get("value")
                                 ])
                                 layer_provider.addFeatures([fet])
-                            else:
-                                print("no good")
             layer.commitChanges()
             layer.updateExtents()
         progress.close()
+        self.save_signs_layer()
+        QgsProject.instance().removeMapLayer(layer.id())
+        self.load_signs_layer()
         qgis.utils.iface.messageBar().clearWidgets()  
 
     def create_signals_vector_layer(self):
@@ -458,14 +462,20 @@ class PlacaView:
             dlsg.setText("Layer not Found")
             dlsg.exec()
             return
-        patty=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
+        title = QgsProject.instance().fileName()
+        patty=os.path.join(QgsProject.instance().readPath("./"), f"{title}_signs.gpkg")
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(layer, patty, QgsCoordinateTransformContext(),QgsVectorFileWriter.SaveVectorOptions())
 
     def load_signs_layer(self):
-        from qgis.core import QgsStyle, QgsSymbol,QgsRendererCategory, QgsSvgMarkerSymbolLayer
-        uri=os.path.join(QgsProject.instance().readPath("./"), "signs_ensured.gpkg")
-        layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
-        QgsProject.instance().addMapLayer(layer)
+        title = QgsProject.instance().fileName()
+        uri=os.path.join(QgsProject.instance().readPath("./"), f"{title}_signs.gpkg")
+        if os.path.isfile(uri):
+            layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
+            QgsProject.instance().addMapLayer(layer)
+            self.set_signs_style()    
+    
+    def set_signs_style(self, filter=[]):
+        layer=self.get_point_layer_by_name("traffic signs")
         idx = layer.fields().indexOf('value')
         values = list(layer.uniqueValues(idx))
         categories=[] 
@@ -481,7 +491,27 @@ class PlacaView:
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
             category = QgsRendererCategory(value, symbol, str(value))
+            if value not in filter:
+                category.setRenderState(False)
             categories.append(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories) 
         layer.setRenderer(renderer)
+        layer.reload()
+    
+    def apply_filter(self, value):
+        self.set_signs_style(value)
+        with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
+            for t in value:
+                fu.write(f"{t}\n")
+                
+    def read_filter(self):
+        with open(os.path.join(self.plugin_dir, f"filter.txt")) as fu:
+            value=list(map(lambda x: x[0: -1], fu.readlines()))
+        return value
+    
+    def load_signs_filter(self):
+        fu=SignsFilter(parent=self.iface.mainWindow(),filter=self.read_filter())
+        fu.applyClicked.connect(self.apply_filter)
+        fu.exec()
+        
         
