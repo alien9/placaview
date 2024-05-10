@@ -47,17 +47,13 @@ class SignsFilter(QDialog, FormClass):
     
     @pyqtSlot(str, bool)
     def signs_filter_item_changed(self, *args):
-        print("changed the sign filter")
-        print(args)
         if not args[1]:
             print("will remove"+args[0])
             self.selected_signs.remove(args[0])
         else:
             self.selected_signs.add(args[0])
             self.sign_names.sort()
-        print(args)
-        print(self.sign_names[0])
-    
+
     @pyqtSlot()
     def save_filter(self):
         widget=self.findChild(QListWidget, "listWidget")
