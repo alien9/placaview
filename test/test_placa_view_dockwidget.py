@@ -26,7 +26,7 @@ class PlacaViewDockWidgetTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        self.app=QApplication([])
+        #self.app=QApplication([])
         self.dockwidget = PlacaViewDockWidget()
 
     def tearDown(self):
@@ -39,7 +39,7 @@ class PlacaViewDockWidgetTest(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
-    suite = unittest.makeSuite(PlacaViewDialogTest)
+    suite = unittest.makeSuite(PlacaViewDockWidgetTest)
     runner = unittest.TextTestRunner(verbosity=2)
     runner.run(suite)
 
