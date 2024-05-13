@@ -54,6 +54,7 @@ import math
 class PlacaView:
     """QGIS Plugin Implementation."""
     boundary: QgsVectorLayer
+    roads_layer:QgsVectorLayer
     signs_layer: QgsVectorLayer
     current_sign_images: object
     
@@ -74,6 +75,7 @@ class PlacaView:
         # load mapillary key
         self.mapillary_key = ""
         self.boundary = None
+        self.roads_layer = None
         self.conf = {}
         pat = os.path.join(self.plugin_dir, "mapillary_key.txt")
         if os.path.isfile(pat):
@@ -136,6 +138,9 @@ class PlacaView:
         if self.conf.get("boundary", False):
             self.boundary = self.get_boundary_by_name(
                 self.conf.get("boundary"))
+        if self.conf.get("roads", False):
+            self.roads_layer = self.get_line_by_name(
+                self.conf.get("roads"))
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -231,6 +236,12 @@ class PlacaView:
             icon_path,
             text="Set Boundary",
             callback=self.ask_boundary_layer,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
+            icon_path,
+            text="Set Roads",
+            callback=self.ask_roads_layer,
             parent=self.iface.mainWindow()
         )
         self.add_action(
@@ -347,6 +358,12 @@ class PlacaView:
             self.get_first_polygonal_layer()
             self.dockwidget.findChild(QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(QPushButton, "pushButton_right").clicked.connect(self.page_up)
+            if self.roads_layer:
+                self.dockwidget.findChild(QLabel, "roads_label").setText(
+                f"Roads: {self.roads_layer.name()}")
+            if self.boundary:
+                self.dockwidget.findChild(QLabel, "boundary_label").setText(
+                f"Boundary: {self.boundary.name()}")
 
     def ask_mapillary_key(self):
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
@@ -355,9 +372,41 @@ class PlacaView:
         self.conf["mapillary_key"] = text
         if ok:
             self.set_conf("mapillary_key", text)
-
+            
+    def ask_roads_layer(self):
+        if not self.dockwidget:
+            self.run()
+        names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
+            QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString], QgsProject.instance().mapLayers().values()))]
+        if not names:
+            dlsg = QMessageBox(self.dockwidget)
+            dlsg.setText("You need a LineString layer for roads")
+            dlsg.exec()
+            return
+        layerindex = 0
+        bs = QgsProject.instance().mapLayersByName(self.conf.get("roads"))
+        if len(bs):
+            self.roads_layer = bs[0]
+            layername = self.roads_layer.name()
+            if layername in names:
+                layerindex = names.index(layername)
+        layer_name, ok = QInputDialog().getItem(self.dockwidget, "Choose Roads Layer",
+                                                "Roads Layer:", names,
+                                                layerindex, False)
+        if ok and layer_name:
+            layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
+            ) == layer_name, QgsProject.instance().mapLayers().values()))
+            if layers:
+                self.set_roads_layer(layers[0])
+                
+    def set_roads_layer(self, layer):
+        self.roads_layer: QgsVectorLayer = layer
+        if self.dockwidget:
+            self.dockwidget.findChild(QLabel, "roads_label").setText(
+                f"Roads: {layer.name()}")
+        self.set_conf("roads", layer.name())
+        
     def ask_boundary_layer(self):
-        from qgis.PyQt.QtWidgets import QDialog, QLabel, QDialogButtonBox, QMessageBox
         if not self.dockwidget:
             self.run()
         names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
@@ -389,12 +438,23 @@ class PlacaView:
             self.dockwidget.findChild(QLabel, "boundary_label").setText(
                 f"Boundary: {layer.name()}")
         self.set_conf("boundary", layer.name())
+        style=QgsStyle.defaultStyle()
+        style.importXml(os.path.join(self.plugin_dir, "styles/boundary.xml"))
+        renderer = QgsSingleSymbolRenderer(style.symbol("boundary"))
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
 
     def get_first_polygonal_layer(self):
         layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
                       QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon], QgsProject.instance().mapLayers().values()))
         if len(layers) == 1:
             self.set_boundary_layer(layers[0])
+
+    def get_line_by_name(self, name):
+        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
+        ) == name, QgsProject.instance().mapLayers().values()))
+        if layers:
+            return layers[0]
 
     def get_boundary_by_name(self, name):
         layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.Polygon, QgsWkbTypes.MultiPolygon] and x.name(
@@ -499,7 +559,8 @@ class PlacaView:
         pr.addAttributes([QgsField("id",  QVariant.Double),
                           QgsField("first_seen_at",  QVariant.Double),
                           QgsField("last_seen_at",  QVariant.Double),
-                          QgsField("value",  QVariant.String)
+                          QgsField("value",  QVariant.String),
+                          QgsField("road_id", QVariant.Double)
                           ])
         QgsProject.instance().addMapLayer(vl)
         return vl
@@ -534,7 +595,7 @@ class PlacaView:
             print(f"loadring {uri}")
             self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
             # self.signs_layer.startEditing()
-            self.signs_layer.styleChanged.connect(self.edit_selected)
+            #self.signs_layer.styleChanged.connect(self.edit_selected)
             QgsProject.instance().addMapLayer(self.signs_layer)
             self.set_signs_style(self.read_filter(), self.signs_layer)
             self.signs_layer.selectionChanged.connect(self.edit_selected)
@@ -543,7 +604,6 @@ class PlacaView:
             mapTool = QgsMapToolIdentifyFeature(mc)
             mapTool.setLayer(self.signs_layer)
             mc.setMapTool(mapTool)
-            mapTool.featureIdentified.connect(self.addedGeometry)
 
     def get_signs_photo_layer(self):
         """ get or create the photo layer"""
@@ -565,10 +625,9 @@ class PlacaView:
     def set_signs_style(self, filter=[], layer=None):
         print("starting signs style")
         if layer is None:
-            print("without layer")
             layer = self.get_point_layer_by_name("traffic signs")
-        layer.selectionChanged.connect(self.select_traffic_sign)
-        layer.featureAdded.connect(self.addedGeometry)
+        #layer.selectionChanged.connect(self.select_traffic_sign)
+        #layer.featureAdded.connect(self.addedGeometry)
         idx = layer.fields().indexOf('value')
         values = list(layer.uniqueValues(idx))
         categories = []
@@ -589,8 +648,8 @@ class PlacaView:
             categories.append(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories)
         layer.setRenderer(renderer)
-        layer.reload()
-        layer.selectionChanged.connect(self.select_traffic_sign)
+        layer.triggerRepaint()
+        #layer.selectionChanged.connect(self.select_traffic_sign)
 
     def apply_filter(self, value):
         self.set_signs_style(value)
@@ -620,8 +679,6 @@ class PlacaView:
         self.iface.mapCanvas().setMapTool(self.mapTool)
         
     def show_image(self, image_id):
-        print("will show image")
-        print(image_id)
         self.image_id=image_id
         r=requests.get(f"https://graph.mapillary.com/{image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
         if r.status_code==200:
@@ -631,41 +688,27 @@ class PlacaView:
             self.dockwidget.findChild(QWebView, "webView").load(url)
         image_layer = self.get_signs_photo_layer()
         categories = []
-
-        # default_style = QgsStyle().defaultStyle()
-
-        # color_ramp = default_style.colorRamp('Spectral')  # Spectral color ramp
-        # color_ramp.invert()
         print(image_layer.fields().names())
         idx = image_layer.fields().indexOf('id')
-        print("IDX IS ", idx)
-        values = list(image_layer.uniqueValues(idx))
-        print(image_layer.fields())
-        print("VALUESSSSE")
-        print(values)
-        
+        values = list(image_layer.uniqueValues(idx))      
         for value in values:
-            print(value, self.image_id, value==self.image_id, type(value), type(self.image_id))
-            symbol=QgsFillSymbol.createSimple({'color': 'lime', 
-                                    'outline_color': 'black'})
+            symbol=QgsFillSymbol.createSimple({'color': 'lime', 'outline_color': 'black'})
             if value==self.image_id:
                 symbol=QgsMarkerSymbol.createSimple({'color':'white'})
             else:
                 symbol=QgsMarkerSymbol.createSimple({'color':'black'})
-            
             category = QgsRendererCategory(value, symbol, str(value))
             categories.append(category)
         renderer = QgsCategorizedSymbolRenderer('id', categories)
         image_layer.setRenderer(renderer)
-        image_layer.triggerRepaint()
-
+        image_layer.triggerRepaint()      
         
     def display_sign(self, *args, **kwargs):
         if not self.dockwidget:
             self.run()
         self.dockwidget.show()
-        w:QWebView=self.dockwidget.findChild(QWebView, "webView")
         
+        w:QWebView=self.dockwidget.findChild(QWebView, "webView")
         w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
         map_feature_id = int(args[1].attribute("id"))

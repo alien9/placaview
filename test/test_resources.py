@@ -19,7 +19,9 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QApplication
 from qgis.utils import iface
 from .utilities import get_qgis_app
-from placa_view import * 
+from placa_view import *
+from qgis.PyQt.QtWidgets import *
+
 QGIS_APP = get_qgis_app()
 
 # dummy instance to replace qgis.utils.iface
@@ -55,7 +57,9 @@ class PlacaViewResourcesTest(unittest.TestCase):
         
     def test_ask_mapillary_key(self):
         """Testing if the dialog is created"""
+        self.assertIsNone(self.placaview.dockwidget.findChildren(QInputDialog))
         self.placaview.ask_mapillary_key()
+        
         pass
         #self.dockwidget.dockwidget.ask_mapillary_key()
         #self.assertFalse(1==2)
