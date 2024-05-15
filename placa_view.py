@@ -41,6 +41,7 @@ from qgis.PyQt.QtCore import *
 from .resources import *
 from .tools import *
 from .signs_filter import SignsFilter
+from .roads_selector import RoadsSelector
 from .signs_selector import SignsSelector, selectTool
 # Import the code for the DockWidget
 from .placa_view_dockwidget import PlacaViewDockWidget
@@ -141,6 +142,7 @@ class PlacaView:
         if self.conf.get("roads", False):
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
+        self.roads_field_name = self.conf.get("roads_field_name", False)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -390,21 +392,17 @@ class PlacaView:
             layername = self.roads_layer.name()
             if layername in names:
                 layerindex = names.index(layername)
-        layer_name, ok = QInputDialog().getItem(self.dockwidget, "Choose Roads Layer",
-                                                "Roads Layer:", names,
-                                                layerindex, False)
-        if ok and layer_name:
-            layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
-            ) == layer_name, QgsProject.instance().mapLayers().values()))
-            if layers:
-                self.set_roads_layer(layers[0])
-                
-    def set_roads_layer(self, layer):
-        self.roads_layer: QgsVectorLayer = layer
+        fu = RoadsSelector(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get("roads"), field=self.conf.get("roads_field_name"))
+        fu.applyClicked.connect(self.set_roads_layer)
+        fu.exec()
+                        
+    def set_roads_layer(self, layer, field):
+        self.roads_layer: QgsVectorLayer = self.get_line_by_name(layer)
         if self.dockwidget:
             self.dockwidget.findChild(QLabel, "roads_label").setText(
-                f"Roads: {layer.name()}")
-        self.set_conf("roads", layer.name())
+                f"Roads: {self.roads_layer.name()}")
+        self.set_conf("roads", self.roads_layer.name())
+        self.set_conf("roads_field_name", field)
         
     def ask_boundary_layer(self):
         if not self.dockwidget:
