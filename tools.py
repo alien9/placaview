@@ -1,9 +1,20 @@
 from urllib.parse import urlparse
 
-from mapbox_vector_tile import decode
-
-from vt2geojson.features import Layer
-
+try:
+    from mapbox_vector_tile import decode
+except ModuleNotFoundError:
+    print('Module mapbox-vector-tile not found. Installing from PyPi')
+    from pip._internal import main as pip
+    pip(['install', 'mapbox-vector-tile'])
+    from mapbox_vector_tile import decode
+   
+try:
+    from vt2geojson.features import Layer
+except ModuleNotFoundError:
+    print('Module vt2geojson not found. Installing from PyPi')
+    from pip._internal import main as pip
+    pip(['install', 'vt2geojson'])
+    from mapbox_vector_tile import decode
 
 def _is_url(uri: str) -> bool:
     """
