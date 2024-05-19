@@ -44,7 +44,8 @@ class RoadsSelector(QDialog, FormClass):
         f=[field.name() for field in layer.fields()]
         co.addItems(f)
         if self.field:
-            co.setCurrentIndex(f.index(self.field))
+            if self.field in f:
+                co.setCurrentIndex(f.index(self.field))
             
     def connect_signals(self):
         self.findChild(QPushButton, "pushButton_ok").clicked.connect(self.set_roads_layer)
