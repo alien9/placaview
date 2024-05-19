@@ -23,16 +23,19 @@ class SignsSelector(QgsMapToolIdentifyFeature):
         self.iface.mapCanvas().setMapTool(self)
         
     def active_changed(self, layer):
-        print("ACTIVE CHANGED")
-        self.layer.removeSelection()
+        try:
+            self.layer.removeSelection()
+        except:
+            #the layer doesnt exist anymore
+            pass
         if isinstance(layer, QgsVectorLayer) and layer.isSpatial():
             self.layer = layer
             self.setLayer(self.layer)
             
     def canvasReleaseEvent(self, mouseEvent):
-        print("canvas release")
-        results = self.identify(mouseEvent.x(), mouseEvent.y(), self.TopDownStopAtFirst, [self.layer], self.VectorLayer)
+        results = self.identify(mouseEvent.x(), mouseEvent.y(), self.TopDownStopAtFirst, [self.layer], self.VectorLayer)       
         if results:
+            print("RESULTS", results[0].mFeature.geometry())
             self.geomIdentified.emit(results[0].mLayer, results[0].mFeature)
             
     def canvasPressEvent(self, event):
@@ -45,21 +48,3 @@ class SignsSelector(QgsMapToolIdentifyFeature):
         self.layer.removeSelection()
         
         
-class selectTool(QgsMapToolIdentifyFeature):
-    def __init__(self, iface):
-        self.iface = iface
-        self.canvas = self.iface.mapCanvas()
-        self.layer = self.iface.activeLayer()
-        QgsMapToolIdentifyFeature.__init__(self, self.canvas, self.layer)
-        self.iface.currentLayerChanged.connect(self.active_changed)
-    def active_changed(self, layer):
-        self.layer.removeSelection()
-        if isinstance(layer, QgsVectorLayer) and layer.isSpatial():
-            self.layer = layer
-            self.setLayer(self.layer)
-    def canvasPressEvent(self, event):
-        found_features = self.identify(event.x(), event.y(), [self.layer], QgsMapToolIdentify.TopDownAll)
-        self.layer.selectByIds([f.mFeature.id() for f in found_features], QgsVectorLayer.AddToSelection)       
-    def deactivate(self):
-        self.layer.removeSelection()
-
