@@ -22,6 +22,7 @@
  ***************************************************************************/
  This script initializes the plugin, making it known to QGIS.
 """
+from qgis.gui import QgsFilterLineEdit
 from .placa_view import PlacaView
 
 # noinspection PyPep8Naming

@@ -31,6 +31,7 @@ from qgis.core import QgsCategorizedSymbolRenderer
 from qgis.PyQt import uic
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
 from qgis.gui import QgsMapToolIdentifyFeature
+from qgis.core import QgsSpatialIndex
 from qgis.core import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtWebKitWidgets import QWebView
@@ -371,9 +372,12 @@ class PlacaView:
             if self.roads_layer:
                 self.dockwidget.findChild(QLabel, "roads_label").setText(
                     f"Roads: {self.roads_layer.name()}")
-            if self.boundary:
-                self.dockwidget.findChild(QLabel, "boundary_label").setText(
-                    f"Boundary: {self.boundary.name()}")
+            try:
+                if self.boundary:
+                    self.dockwidget.findChild(QLabel, "boundary_label").setText(
+                        f"Boundary: {self.boundary.name()}")
+            except:
+                self.boundary=None
 
     def ask_mapillary_key(self):
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
@@ -387,7 +391,7 @@ class PlacaView:
         if not self.dockwidget:
             self.run()
         names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
-            QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString], QgsProject.instance().mapLayers().values()))]
+            QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.dataProvider().storageType() in ["ESRI Shapefile","GPKG"], QgsProject.instance().mapLayers().values()))]
         if not names:
             dlsg = QMessageBox(self.dockwidget)
             dlsg.setText("You need a LineString layer for roads")
@@ -510,8 +514,10 @@ class PlacaView:
         boundary_features = list(self.boundary.getFeatures())
         work = 0
         for type in types:
+            print("download type", type)
             output = {"type": "FeatureCollection", "features": []}
             for x in range(nw[0], se[0]):
+                print(x)
                 for y in range(se[1], nw[1]):
                     work += 1
                     progress.setValue(work)
@@ -523,7 +529,10 @@ class PlacaView:
                         dlsg.setText("Your Mapillary Key isn't valid")
                         dlsg.exec()
                         return
+                    print("1st")
+                    print(r.content)
                     features = vt_bytes_to_geojson(r.content, x, y, z)
+                    print(features)
                     for f in features["features"]:
                         # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
                         geometry = f.get("geometry")
@@ -603,7 +612,7 @@ class PlacaView:
             self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
             QgsProject.instance().addMapLayer(self.signs_layer)
             self.set_signs_style(self.read_filter(), self.signs_layer)
-            self.signs_layer.selectionChanged.connect(self.edit_selected)
+            #self.signs_layer.selectionChanged.connect(self.edit_selected)
             mapTool = None
             mc = self.iface.mapCanvas()
             mapTool = QgsMapToolIdentifyFeature(mc)
@@ -672,8 +681,10 @@ class PlacaView:
                 fu.write(f"{t}\n")
 
     def read_filter(self):
-        with open(os.path.join(self.plugin_dir, f"filter.txt")) as fu:
-            value = list(map(lambda x: x[0: -1], fu.readlines()))
+        value=[]
+        if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
+            with open(os.path.join(self.plugin_dir, f"filter.txt")) as fu:
+                value = list(map(lambda x: x[0: -1], fu.readlines()))
         return value
 
     def load_signs_filter(self):
@@ -813,9 +824,16 @@ class PlacaView:
         boulder:QgsGeometry = EquidistanceBuffer().buffer(
             signs_layer.getFeature(signs[0]).geometry(), 5, signs_layer.crs()
         )
+        print(boulder)
         roads_layer:QgsVectorLayer=self.get_line_by_name(self.conf.get("roads"))
+        print("will road")
+        print(roads_layer)
+        print("created indexxx")
         index = QgsSpatialIndex(roads_layer.getFeatures(), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
+        print("created indexxx")
+        print(boulder.boundingBox())
         for road in index.intersects(boulder.boundingBox()):
+            print(road)
             if boulder.intersects(roads_layer.getFeature(road).geometry()):
                 print(roads_layer.getFeature(road))
                 print(roads_layer.getFeature(road).attribute(self.conf.get("roads_field_name")))

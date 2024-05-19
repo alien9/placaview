@@ -28,8 +28,8 @@ class RoadsSelector(QDialog, FormClass):
         self.connect_signals()
         self.findChild(QComboBox, "roadsLayerComboBox").addItems(kwargs.get("roads"))
         if kwargs.get("road"):
-            self.findChild(QComboBox, "roadsLayerComboBox").setCurrentIndex(kwargs.get("roads").index(kwargs.get("road")))
-        print("FIELD", self.field)
+            if kwargs.get("road") in kwargs.get("roads"):
+                self.findChild(QComboBox, "roadsLayerComboBox").setCurrentIndex(kwargs.get("roads").index(kwargs.get("road")))
             
     @pyqtSlot()
     def set_roads_layer(self):
@@ -43,8 +43,6 @@ class RoadsSelector(QDialog, FormClass):
         co.clear()
         f=[field.name() for field in layer.fields()]
         co.addItems(f)
-        print(f)
-        print(f.index(self.field))
         if self.field:
             co.setCurrentIndex(f.index(self.field))
             
