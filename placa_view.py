@@ -369,9 +369,12 @@ class PlacaView:
                 QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
-            if self.roads_layer:
-                self.dockwidget.findChild(QLabel, "roads_label").setText(
-                    f"Roads: {self.roads_layer.name()}")
+            try:
+                if self.roads_layer:
+                    self.dockwidget.findChild(QLabel, "roads_label").setText(
+                        f"Roads: {self.roads_layer.name()}")
+            except:
+                self.roads_layer=None
             try:
                 if self.boundary:
                     self.dockwidget.findChild(QLabel, "boundary_label").setText(
@@ -644,53 +647,33 @@ class PlacaView:
 
     def get_selected_sign_layer(self):
         """ get or create the selected sign layer"""
+        print("GETTING SELECTED MARKERS")
         layer = self.get_point_layer_by_name("selected traffic sign")
         if not layer:
-            layer = QgsVectorLayer("Point", "selected traffic sign", "memory")
+            layer= QgsVectorLayer("Point", "selected traffic sign", "memory")
             pr = layer.dataProvider()
+            # Enter editing mode
             layer.startEditing()
-            # pr.addAttributes(self.get_standard_attributes())
+            # add fields
             pr.addAttributes([QgsField("value",  QVariant.String)])
             layer.updateFields()
-
-            signs_layer = self.get_signs_layer()
-            # get the name of the source layer's current style
-            style_name = signs_layer.styleManager().currentStyle()
-            # get the style by the name
-            style: QgsStyle = signs_layer.styleManager().style(style_name)
-            print("thoiso is the style")
-
-            # add the style to the target layer with a custom name (in this case: 'copied')
-            layer.styleManager().addStyle('copied', style)
-
-            # set the added style as the current style
-            layer.styleManager().setCurrentStyle('copied')
-
-            # propogate the changes to the QGIS GUI
-
-            symbol = signs_layer.renderer().sourceSymbol()
-            print(symbol)
-            # symbol.setSize(9)
-            style.renderer().updateSymbols(symbol)
-
-            layer.triggerRepaint()
-            layer.emitStyleChanged()
-            layer.endEditCommand()
             QgsProject.instance().addMapLayer(layer)
-            self.iface.setActiveLayer(self.get_signs_layer())
+            self.set_signs_style(self.read_filter(), layer, 10)
         return layer
 
-    def set_signs_style(self, filter=[], layer=None):
-        print("starting signs style")
+    def set_signs_style(self, filter=[], layer=None, size=6):
+        print("setting the style")
+        print(filter)
+        signs_layer= self.get_point_layer_by_name("traffic signs")
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
-        idx = layer.fields().indexOf('value')
-        values = list(layer.uniqueValues(idx))
+        idx = signs_layer.fields().indexOf('value')
+        values = list(signs_layer.uniqueValues(idx))
         categories = []
         for value in sorted(values):
             style = {
                 "name": os.path.join(self.plugin_dir, f"styles/symbols/{value}.svg"),
-                'size': 6
+                'size': size
             }
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
@@ -698,13 +681,13 @@ class PlacaView:
             if value not in filter:
                 category.setRenderState(False)
             categories.append(category)
+            print(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
-        # layer.selectionChanged.connect(self.select_traffic_sign)
 
     def apply_filter(self, value):
-        self.set_signs_style(value)
+        self.set_signs_style(value, self.read_filter())
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
                 fu.write(f"{t}\n")
@@ -768,7 +751,19 @@ class PlacaView:
         w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
         map_feature_id = int(args[1].attribute("id"))
+        ss_layer = self.get_selected_sign_layer()
         fid = int(args[1].attribute("fid"))
+        feature = self.get_signs_layer().getFeature(fid)
+        ss_layer.dataProvider().truncate()
+        ss_layer.startEditing()
+        f = QgsFeature()
+        f.setGeometry(feature.geometry())
+        f.setAttributes([feature["value"]])
+        ss_layer.addFeatures([f])
+        ss_layer.commitChanges()
+        ss_layer.triggerRepaint()
+        ss_layer.updateExtents()
+        ss_layer.triggerRepaint()
         url = f'https://graph.mapillary.com/{map_feature_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         fu = requests.get(
             url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
@@ -798,27 +793,7 @@ class PlacaView:
                         "images", {}).get("data", [])[0]["id"])
         self.current_sign_images = photos.get("images").get("data")
         self.current_sign_images_index = 0
-        ss_layer = self.get_selected_sign_layer()
-        feature = self.get_signs_layer().getFeature(fid)
-        print(feature)
-        print(fid)
-        print(feature)
-        print(feature.attributes())
-        print(feature.geometry())
-
-        print(next(self.get_signs_layer().getSelectedFeatures(), None))
-        ss_layer.dataProvider().truncate()
-        ss_layer.startEditing()
-        f = QgsFeature()
-        f.setGeometry(feature.geometry())
-        f.setAttributes([feature["value"]])
-        ss_layer.addFeatures([f])
-        ss_layer.commitChanges()
-        ss_layer.triggerRepaint()
-        ss_layer.updateExtents()
-        ss_layer.triggerRepaint()
-
-        print(ss_layer.extent())
+        
 
     def page_up(self):
         self.current_sign_images_index += 1
