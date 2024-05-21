@@ -23,8 +23,11 @@ class SignsSelector(QgsMapToolIdentifyFeature):
         self.iface.mapCanvas().setMapTool(self)
         
     def active_changed(self, layer):
-        print("ACTIVE CHANGED")
-        self.layer.removeSelection()
+        try:
+            self.layer.removeSelection()
+        except:
+            #the layer doesnt exist anymore
+            pass
         if isinstance(layer, QgsVectorLayer) and layer.isSpatial():
             self.layer = layer
             self.setLayer(self.layer)
