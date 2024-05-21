@@ -488,7 +488,7 @@ class PlacaView:
         self.boundary = self.get_boundary_by_name(self.conf.get("boundary"))
         if not self.boundary:
             self.ask_boundary_layer()
-        if not len(self.mapillary_key):
+        if not len(self.conf.get("mapillary_key", "")):
             self.ask_mapillary_key()
         if not self.boundary:
             return
@@ -517,7 +517,6 @@ class PlacaView:
         boundary_features = list(self.boundary.getFeatures())
         work = 0
         for type in types:
-            print("download type", type)
             output = {"type": "FeatureCollection", "features": []}
             for x in range(nw[0], se[0]):
                 print(x)
@@ -532,10 +531,7 @@ class PlacaView:
                         dlsg.setText("Your Mapillary Key isn't valid")
                         dlsg.exec()
                         return
-                    print("1st")
-                    print(r.content)
                     features = vt_bytes_to_geojson(r.content, x, y, z)
-                    print(features)
                     for f in features["features"]:
                         # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
                         geometry = f.get("geometry")
@@ -552,9 +548,6 @@ class PlacaView:
                                     inside_boundary = True
                             if inside_boundary:
                                 fet.setGeometry(geo)
-                                print(properties)
-                                print(fet.attributes())
-                                print([field.name() for field in layer.fields()])
                                 fet["id"] = properties.get("id")
                                 fet["first_seen_at"] = properties.get(
                                     "first_seen_at")
@@ -663,7 +656,6 @@ class PlacaView:
 
     def set_signs_style(self, filter=[], layer=None, size=6):
         print("setting the style")
-        print(filter)
         signs_layer= self.get_point_layer_by_name("traffic signs")
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
@@ -681,7 +673,6 @@ class PlacaView:
             if value not in filter:
                 category.setRenderState(False)
             categories.append(category)
-            print(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
@@ -722,7 +713,6 @@ class PlacaView:
         if r.status_code == 200:
             result = r.json()
             url = QUrl(result.get("thumb_256_url"))
-            print(url)
             self.dockwidget.findChild(QWebView, "webView").load(url)
         image_layer = self.get_signs_photo_layer()
         categories = []
@@ -785,9 +775,6 @@ class PlacaView:
                     ])
                     image_layer.dataProvider().addFeatures([fet])
                     image_layer.triggerRepaint()
-                    print([feat.id() for feat in image_layer.getFeatures()])
-                    print([feat.fields().names()
-                          for feat in image_layer.getFeatures()])
                 if len(photos.get("images", {}).get("data", [])):
                     self.show_image(photos.get(
                         "images", {}).get("data", [])[0]["id"])
@@ -797,10 +784,8 @@ class PlacaView:
 
     def page_up(self):
         self.current_sign_images_index += 1
-        print(self.current_sign_images)
         self.current_sign_images_index = self.current_sign_images_index % len(
             self.current_sign_images)
-        print(self.current_sign_images_index)
         self.show_image(
             self.current_sign_images[self.current_sign_images_index]["id"])
 
@@ -812,6 +797,7 @@ class PlacaView:
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_segment_roads(self):
+        print("will match now")
         signs_layer: QgsVectorLayer = self.get_signs_layer()
         if not "roads" in [f.name() for f in signs_layer.fields()]:
             signs_layer.dataProvider().addAttributes(
@@ -821,19 +807,14 @@ class PlacaView:
         if not len(signs):
             return
         boulder: QgsGeometry = EquidistanceBuffer().buffer(
-            signs_layer.getFeature(signs[0]).geometry(), 5, signs_layer.crs()
+            signs_layer.getFeature(signs[0]).geometry(), 35, signs_layer.crs()
         )
-        print(boulder)
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
-        print("will road")
-        print(roads_layer)
-        print("created indexxx")
         index = QgsSpatialIndex(roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
-        print("created indexxx")
-        print(boulder.boundingBox())
         for road in index.intersects(boulder.boundingBox()):
+            print("found a road")
             print(road)
             if boulder.intersects(roads_layer.getFeature(road).geometry()):
                 print(roads_layer.getFeature(road))
