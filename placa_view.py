@@ -655,7 +655,6 @@ class PlacaView:
             # get the style by the name
             style:QgsStyle = signs_layer.styleManager().style(style_name)
             print("thoiso is the style")
-            print(style.symbol)
 
             # add the style to the target layer with a custom name (in this case: 'copied')
             layer.styleManager().addStyle('copied', style)
