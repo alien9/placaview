@@ -563,6 +563,14 @@ class PlacaView:
         self.load_signs_layer()
         # qgis.utils.iface.messageBar().clearWidgets()
 
+    def get_standard_attributes(self):
+        return [QgsField("id",  QVariant.Double),
+                          QgsField("first_seen_at",  QVariant.Double),
+                          QgsField("last_seen_at",  QVariant.Double),
+                          QgsField("value",  QVariant.String),
+                          QgsField("road_id", QVariant.Double)
+                          ]
+
     def create_signals_vector_layer(self):
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
@@ -572,12 +580,7 @@ class PlacaView:
         # Enter editing mode
         vl.startEditing()
         # add fields
-        pr.addAttributes([QgsField("id",  QVariant.Double),
-                          QgsField("first_seen_at",  QVariant.Double),
-                          QgsField("last_seen_at",  QVariant.Double),
-                          QgsField("value",  QVariant.String),
-                          QgsField("road_id", QVariant.Double)
-                          ])
+        pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
         return vl
 
@@ -612,7 +615,6 @@ class PlacaView:
             self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
             QgsProject.instance().addMapLayer(self.signs_layer)
             self.set_signs_style(self.read_filter(), self.signs_layer)
-            #self.signs_layer.selectionChanged.connect(self.edit_selected)
             mapTool = None
             mc = self.iface.mapCanvas()
             mapTool = QgsMapToolIdentifyFeature(mc)
@@ -643,9 +645,27 @@ class PlacaView:
             layer = QgsVectorLayer("Point", "selected traffic sign", "memory")
             pr = layer.dataProvider()
             layer.startEditing()
-            # add fields
-            pr.addAttributes([QgsField("id",  QVariant.String)])
+            #pr.addAttributes(self.get_standard_attributes())
+            pr.addAttributes([QgsField("value",  QVariant.String)])
             layer.updateFields()
+            
+            signs_layer=self.get_signs_layer()
+            # get the name of the source layer's current style
+            style_name = signs_layer.styleManager().currentStyle()
+            # get the style by the name
+            style:QgsStyle = signs_layer.styleManager().style(style_name)
+            print("thoiso is the style")
+            print(style.symbol)
+
+            # add the style to the target layer with a custom name (in this case: 'copied')
+            layer.styleManager().addStyle('copied', style)
+
+            # set the added style as the current style
+            layer.styleManager().setCurrentStyle('copied')            
+
+            # propogate the changes to the QGIS GUI
+            layer.triggerRepaint()
+            layer.emitStyleChanged()
             layer.endEditCommand()
             QgsProject.instance().addMapLayer(layer)
             self.iface.setActiveLayer(self.get_signs_layer())
@@ -739,6 +759,7 @@ class PlacaView:
         w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
         map_feature_id = int(args[1].attribute("id"))
+        fid=int(args[1].attribute("fid"))
         url = f'https://graph.mapillary.com/{map_feature_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         fu = requests.get(
             url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
@@ -769,29 +790,26 @@ class PlacaView:
         self.current_sign_images = photos.get("images").get("data")
         self.current_sign_images_index = 0
         ss_layer=self.get_selected_sign_layer()
-        feature=self.get_signs_layer().getFeature(map_feature_id)
+        feature=self.get_signs_layer().getFeature(fid)
         print(feature)
-        print(map_feature_id)
+        print(fid)
         print(feature)
         print(feature.attributes())
+        print(feature.geometry())
         
         
         print(next(self.get_signs_layer().getSelectedFeatures(), None))
-        #ss_layer.dataProvider().truncate()
+        ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
-        ss_layer.addFeature(args[1])
+        f = QgsFeature()
+        f.setGeometry(feature.geometry())
+        f.setAttributes([feature["value"]])
+        ss_layer.addFeatures([f])
         ss_layer.commitChanges()
         ss_layer.triggerRepaint()
-        
-        pnt=args[1].geometry()
-        
-        print(pnt)
-        f = QgsFeature()
-        f.setGeometry(pnt)
-        f.setAttributes([]) #added line
-        ss_layer.addFeatures([f])
         ss_layer.updateExtents()
         ss_layer.triggerRepaint()
+        
         print(ss_layer.extent())
 
 
