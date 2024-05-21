@@ -716,7 +716,6 @@ class PlacaView:
             self.dockwidget.findChild(QWebView, "webView").load(url)
         image_layer = self.get_signs_photo_layer()
         categories = []
-        print(image_layer.fields().names())
         idx = image_layer.fields().indexOf('id')
         values = list(image_layer.uniqueValues(idx))
         for value in values:
@@ -765,8 +764,6 @@ class PlacaView:
             if "images" in photos:
                 for photo in photos.get("images", {}).get("data", []):
                     fet = QgsFeature()
-                    print("will minsert point at ")
-                    print(photo.get("geometry").get("coordinates"))
                     geo = QgsGeometry.fromPointXY(QgsPointXY(
                         photo.get("geometry").get("coordinates")[0], photo.get("geometry").get("coordinates")[1]))
                     fet.setGeometry(geo)
