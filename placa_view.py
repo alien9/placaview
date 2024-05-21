@@ -377,7 +377,7 @@ class PlacaView:
                     self.dockwidget.findChild(QLabel, "boundary_label").setText(
                         f"Boundary: {self.boundary.name()}")
             except:
-                self.boundary=None
+                self.boundary = None
 
     def ask_mapillary_key(self):
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
@@ -391,7 +391,7 @@ class PlacaView:
         if not self.dockwidget:
             self.run()
         names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
-            QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.dataProvider().storageType() in ["ESRI Shapefile","GPKG"], QgsProject.instance().mapLayers().values()))]
+            QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.dataProvider().storageType() in ["ESRI Shapefile", "GPKG"], QgsProject.instance().mapLayers().values()))]
         if not names:
             dlsg = QMessageBox(self.dockwidget)
             dlsg.setText("You need a LineString layer for roads")
@@ -539,6 +539,7 @@ class PlacaView:
                         properties = f.get("properties")
                         if geometry.get("type") == "Point":
                             fet = QgsFeature()
+                            fet.setFields(layer_provider.fields())
                             geo = QgsGeometry.fromPointXY(QgsPointXY(
                                 geometry.get("coordinates")[0], geometry.get("coordinates")[1]))
                             inside_boundary = False
@@ -548,12 +549,15 @@ class PlacaView:
                                     inside_boundary = True
                             if inside_boundary:
                                 fet.setGeometry(geo)
-                                fet.setAttributes([
-                                    properties.get("id"),
-                                    properties.get("first_seen_at"),
-                                    properties.get("last_seen_at"),
-                                    properties.get("value")
-                                ])
+                                print(properties)
+                                print(fet.attributes())
+                                print([field.name() for field in layer.fields()])
+                                fet["id"] = properties.get("id")
+                                fet["first_seen_at"] = properties.get(
+                                    "first_seen_at")
+                                fet["last_seen_at"] = properties.get(
+                                    "last_seen_at")
+                                fet["value"] = properties.get("value")
                                 layer_provider.addFeatures([fet])
             layer.commitChanges()
             layer.updateExtents()
@@ -565,11 +569,11 @@ class PlacaView:
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
-                          QgsField("first_seen_at",  QVariant.Double),
-                          QgsField("last_seen_at",  QVariant.Double),
-                          QgsField("value",  QVariant.String),
-                          QgsField("road_id", QVariant.Double)
-                          ]
+                QgsField("first_seen_at",  QVariant.Double),
+                QgsField("last_seen_at",  QVariant.Double),
+                QgsField("value",  QVariant.String),
+                QgsField("road_id", QVariant.Double)
+                ]
 
     def create_signals_vector_layer(self):
         vl = self.get_point_layer_by_name("traffic signs")
@@ -645,24 +649,30 @@ class PlacaView:
             layer = QgsVectorLayer("Point", "selected traffic sign", "memory")
             pr = layer.dataProvider()
             layer.startEditing()
-            #pr.addAttributes(self.get_standard_attributes())
+            # pr.addAttributes(self.get_standard_attributes())
             pr.addAttributes([QgsField("value",  QVariant.String)])
             layer.updateFields()
-            
-            signs_layer=self.get_signs_layer()
+
+            signs_layer = self.get_signs_layer()
             # get the name of the source layer's current style
             style_name = signs_layer.styleManager().currentStyle()
             # get the style by the name
-            style:QgsStyle = signs_layer.styleManager().style(style_name)
+            style: QgsStyle = signs_layer.styleManager().style(style_name)
             print("thoiso is the style")
 
             # add the style to the target layer with a custom name (in this case: 'copied')
             layer.styleManager().addStyle('copied', style)
 
             # set the added style as the current style
-            layer.styleManager().setCurrentStyle('copied')            
+            layer.styleManager().setCurrentStyle('copied')
 
             # propogate the changes to the QGIS GUI
+
+            symbol = signs_layer.renderer().sourceSymbol()
+            print(symbol)
+            # symbol.setSize(9)
+            style.renderer().updateSymbols(symbol)
+
             layer.triggerRepaint()
             layer.emitStyleChanged()
             layer.endEditCommand()
@@ -700,7 +710,7 @@ class PlacaView:
                 fu.write(f"{t}\n")
 
     def read_filter(self):
-        value=[]
+        value = []
         if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
             with open(os.path.join(self.plugin_dir, f"filter.txt")) as fu:
                 value = list(map(lambda x: x[0: -1], fu.readlines()))
@@ -758,7 +768,7 @@ class PlacaView:
         w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
         map_feature_id = int(args[1].attribute("id"))
-        fid=int(args[1].attribute("fid"))
+        fid = int(args[1].attribute("fid"))
         url = f'https://graph.mapillary.com/{map_feature_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         fu = requests.get(
             url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
@@ -788,15 +798,14 @@ class PlacaView:
                         "images", {}).get("data", [])[0]["id"])
         self.current_sign_images = photos.get("images").get("data")
         self.current_sign_images_index = 0
-        ss_layer=self.get_selected_sign_layer()
-        feature=self.get_signs_layer().getFeature(fid)
+        ss_layer = self.get_selected_sign_layer()
+        feature = self.get_signs_layer().getFeature(fid)
         print(feature)
         print(fid)
         print(feature)
         print(feature.attributes())
         print(feature.geometry())
-        
-        
+
         print(next(self.get_signs_layer().getSelectedFeatures(), None))
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
@@ -808,10 +817,8 @@ class PlacaView:
         ss_layer.triggerRepaint()
         ss_layer.updateExtents()
         ss_layer.triggerRepaint()
-        
+
         print(ss_layer.extent())
-
-
 
     def page_up(self):
         self.current_sign_images_index += 1
@@ -838,20 +845,22 @@ class PlacaView:
         signs = signs_layer.selectedFeatureIds()
         if not len(signs):
             return
-        boulder:QgsGeometry = EquidistanceBuffer().buffer(
+        boulder: QgsGeometry = EquidistanceBuffer().buffer(
             signs_layer.getFeature(signs[0]).geometry(), 5, signs_layer.crs()
         )
         print(boulder)
-        roads_layer:QgsVectorLayer=self.get_line_by_name(self.conf.get("roads"))
+        roads_layer: QgsVectorLayer = self.get_line_by_name(
+            self.conf.get("roads"))
         print("will road")
         print(roads_layer)
         print("created indexxx")
-        index = QgsSpatialIndex(roads_layer.getFeatures(), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
+        index = QgsSpatialIndex(roads_layer.getFeatures(
+        ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
         print("created indexxx")
         print(boulder.boundingBox())
         for road in index.intersects(boulder.boundingBox()):
             print(road)
             if boulder.intersects(roads_layer.getFeature(road).geometry()):
                 print(roads_layer.getFeature(road))
-                print(roads_layer.getFeature(road).attribute(self.conf.get("roads_field_name")))
-
+                print(roads_layer.getFeature(road).attribute(
+                    self.conf.get("roads_field_name")))
