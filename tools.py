@@ -14,7 +14,7 @@ except ModuleNotFoundError:
     print('Module vt2geojson not found. Installing from PyPi')
     import pip
     pip.main(['install', 'vt2geojson'])
-    from mapbox_vector_tile import decode
+    from vt2geojson.features import Layer
 
 def _is_url(uri: str) -> bool:
     """
