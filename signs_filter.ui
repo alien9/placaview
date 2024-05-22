@@ -31,11 +31,7 @@
                     </widget>
                 </item>
                 <item>
-                    <widget class="QgsFilterLineEdit" name="search_term">
-                        <property name="qgisRelation" stdset="0">
-                            <string notr="true" />
-                        </property>
-                    </widget>
+                <layout class="QHBoxLayout" name="searchLayout"></layout>
                 </item>
                 <item>
                     <layout class="QHBoxLayout" name="horizontalLayout">

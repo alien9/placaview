@@ -28,6 +28,9 @@ class SignsFilter(QDialog, FormClass):
         print(self.selected_signs)
         self.setWindowTitle("Signs Filter")
         self.setupUi(self)
+        self.search_term=QgsFilterLineEdit()
+        layout=self.findChild(QHBoxLayout, "searchLayout")
+        layout.addWidget(self.search_term)
         for name in self.get_signs():
             widget=self.findChild(QListWidget, "listWidget")
             item = QListWidgetItem(widget)
@@ -66,8 +69,8 @@ class SignsFilter(QDialog, FormClass):
     @pyqtSlot()
     def filter_list(self, *args, **kwargs):
         print("filtering list")
-        term=self.findChild(QgsFilterLineEdit, 'search_term').value()
-        print(f"value {self.findChild(QgsFilterLineEdit, 'search_term').value()}")        
+        term=self.search_term.value()
+        print(f"value {self.search_term.value()}")        
         filtered_list = set(filter(lambda x: term in x, self.get_signs()))
         widget=self.findChild(QListWidget, "listWidget")
         for i in range(widget.count()):
@@ -99,6 +102,6 @@ class SignsFilter(QDialog, FormClass):
         self.findChild(QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton, "pushButton_toggle_selection").clicked.connect(self.toggle_selection)
         self.findChild(QCheckBox, "select_all").stateChanged.connect(self.select_deselect_all)
-        self.findChild(QgsFilterLineEdit, "search_term").valueChanged.connect(self.filter_list)
+        self.search_term.valueChanged.connect(self.filter_list)
     
     
