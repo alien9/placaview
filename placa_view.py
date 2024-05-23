@@ -532,60 +532,9 @@ class PlacaView:
         pwd.progressChanged.connect(self.update_progress)
         pwd.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(pwd)
-        return
-        print("should worlk")
-        for type in types:
-            for x in range(nw[0], se[0]):
-                for y in range(se[1], nw[1]):
-                    work += 1
-                    progress.setValue(work)
-                    url = f"https://tiles.mapillary.com/maps/vtp/{type}/2/{z}/{x}/{y}?access_token={self.conf.get('mapillary_key')}"
-                    r = requests.get(url)
-                    if r.status_code == 403:
-                        """Bad key"""
-                        dlsg = QMessageBox(self.dockwidget)
-                        dlsg.setText("Your Mapillary Key isn't valid")
-                        dlsg.exec()
-                        return
-                    features = vt_bytes_to_geojson(r.content, x, y, z)
-                    print("got feature")
-                    print(f"has {len(features['features'])}")
-                    for f in features["features"]:
-                        print("geometry")
-                        # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
-                        geometry = f.get("geometry")
-                        if geometry.get("type") == "Point":
-                            print("ïs point")
-                            properties = f.get("properties")
-                            fet = QgsFeature()
-                            fet.setFields(layer_provider.fields())
-                            geo = QgsGeometry.fromPointXY(QgsPointXY(
-                                geometry.get("coordinates")[0], geometry.get("coordinates")[1]))
-                            inside_boundary = False
-
-                            for bf in boundary_features:
-                                if bf.geometry().contains(geo):
-                                    inside_boundary = True
-                            if inside_boundary:
-                                fet.setGeometry(geo)
-                                fet["id"] = properties.get("id")
-                                fet["first_seen_at"] = properties.get(
-                                    "first_seen_at")
-                                fet["last_seen_at"] = properties.get(
-                                    "last_seen_at")
-                                fet["value"] = properties.get("value")
-                                layer_provider.addFeatures([fet])
-                    layer.commitChanges()
-            layer.updateExtents()
-        #progress.close()
-        #self.save_signs_layer()
-        #QgsProject.instance().removeMapLayer(layer.id())
-        #self.load_signs_layer()
-        # qgis.utils.iface.messageBar().clearWidgets()
         
     def update_progress(self, *args):
         self.download_progress.setValue(int(args[0]))
-        print(args)
         
     def render_signs_layer(self):
         self.download_progress.close()
