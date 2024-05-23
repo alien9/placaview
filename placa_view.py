@@ -518,18 +518,18 @@ class PlacaView:
         qgis.utils.iface.messageBar().clearWidgets()
         # set a new message bar
         progressMessageBar = qgis.utils.iface.messageBar()
-        progress = QProgressBar()
+        self.download_progress = QProgressBar()
         # Maximum is set to 100, making it easy to work with percentage of completion
-        progress.setMaximum(total_work)
+        self.download_progress.setMaximum(total_work)
         # pass the progress bar to the message Bar
-        progressMessageBar.pushWidget(progress)
+        progressMessageBar.pushWidget(self.download_progress)
         boundary_features = list(self.boundary.getFeatures())
         work = 0
         print("LAYETR")
         print(layer)
         
         pwd=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
-        pwd.progressChanged.connect(progress.setValue)
+        pwd.progressChanged.connect(self.update_progress)
         pwd.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(pwd)
         return
@@ -582,7 +582,13 @@ class PlacaView:
         #QgsProject.instance().removeMapLayer(layer.id())
         #self.load_signs_layer()
         # qgis.utils.iface.messageBar().clearWidgets()
+        
+    def update_progress(self, *args):
+        self.download_progress.setValue(int(args[0]))
+        print(args)
+        
     def render_signs_layer(self):
+        self.download_progress.close()
         self.save_signs_layer()
         self.load_signs_layer()
 
