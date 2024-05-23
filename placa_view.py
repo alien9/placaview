@@ -109,6 +109,7 @@ class PlacaView:
             self.toolbar.setObjectName(u'PlacaView')
         self.pluginIsActive = False
         self.dockwidget = None
+        self.taskManager = QgsApplication.taskManager()
 
     def get_buffer(self):
         yield self.buffer.pop()
@@ -488,6 +489,7 @@ class PlacaView:
             return layers[0]
 
     def download_signs(self):
+        from .signs_downloader import SignsDownloader, MyTask
         print("stap")
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
@@ -508,7 +510,7 @@ class PlacaView:
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         # types = ["mly1_computed_public","mly_map_feature_point","mly_map_feature_traffic_sign","mly1_computed_public","mly1_public"]
-        types = ["mly_map_feature_traffic_sign"]
+        types = []#["mly_map_feature_traffic_sign"]
         layer = self.create_signals_vector_layer()
         layer.startEditing()
         layer_provider = layer.dataProvider()
@@ -523,10 +525,17 @@ class PlacaView:
         progressMessageBar.pushWidget(progress)
         boundary_features = list(self.boundary.getFeatures())
         work = 0
+        print("LAYETR")
+        print(layer)
+        
+        pwd=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
+        pwd.progressChanged.connect(progress.setValue)
+        pwd.taskCompleted.connect(self.render_signs_layer)
+        self.taskManager.addTask(pwd)
+        return
+        print("should worlk")
         for type in types:
-            output = {"type": "FeatureCollection", "features": []}
             for x in range(nw[0], se[0]):
-                print(x)
                 for y in range(se[1], nw[1]):
                     work += 1
                     progress.setValue(work)
@@ -568,11 +577,14 @@ class PlacaView:
                                 layer_provider.addFeatures([fet])
                     layer.commitChanges()
             layer.updateExtents()
-        progress.close()
-        self.save_signs_layer()
-        QgsProject.instance().removeMapLayer(layer.id())
-        self.load_signs_layer()
+        #progress.close()
+        #self.save_signs_layer()
+        #QgsProject.instance().removeMapLayer(layer.id())
+        #self.load_signs_layer()
         # qgis.utils.iface.messageBar().clearWidgets()
+    def render_signs_layer(self):
+        self.save_signs_layer()
+        self.load_signs_layer()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -583,8 +595,10 @@ class PlacaView:
                 ]
 
     def create_signals_vector_layer(self):
+        print("get or greate")
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
+            print("alerady had")
             return vl
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
         pr = vl.dataProvider()
@@ -593,6 +607,7 @@ class PlacaView:
         # add fields
         pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
+        print("created")
         return vl
 
     def save_signs_layer(self):
@@ -842,3 +857,5 @@ class PlacaView:
                 print(roads_layer.getFeature(road))
                 street_name.add(roads_layer.getFeature(road)[self.conf.get("roads_field_name")])
         self.dockwidget.findChild(QLabel, "street_label").setText(list(street_name).pop())
+        
+        
