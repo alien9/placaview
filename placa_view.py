@@ -488,6 +488,7 @@ class PlacaView:
             return layers[0]
 
     def download_signs(self):
+        print("stap")
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
         self.boundary = self.get_boundary_by_name(self.conf.get("boundary"))
@@ -497,6 +498,7 @@ class PlacaView:
             self.ask_mapillary_key()
         if not self.boundary:
             return
+        print("goinf")
         sourceCrs = self.boundary.crs()
         tr = QgsCoordinateTransform(
             sourceCrs, QgsCoordinateReferenceSystem.fromEpsgId(4326), QgsProject.instance())
@@ -537,11 +539,15 @@ class PlacaView:
                         dlsg.exec()
                         return
                     features = vt_bytes_to_geojson(r.content, x, y, z)
+                    print("got feature")
+                    print(f"has {len(features['features'])}")
                     for f in features["features"]:
+                        print("geometry")
                         # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
                         geometry = f.get("geometry")
-                        properties = f.get("properties")
                         if geometry.get("type") == "Point":
+                            print("ïs point")
+                            properties = f.get("properties")
                             fet = QgsFeature()
                             fet.setFields(layer_provider.fields())
                             geo = QgsGeometry.fromPointXY(QgsPointXY(
@@ -560,7 +566,7 @@ class PlacaView:
                                     "last_seen_at")
                                 fet["value"] = properties.get("value")
                                 layer_provider.addFeatures([fet])
-            layer.commitChanges()
+                    layer.commitChanges()
             layer.updateExtents()
         progress.close()
         self.save_signs_layer()
