@@ -109,6 +109,7 @@ class PlacaView:
             self.toolbar.setObjectName(u'PlacaView')
         self.pluginIsActive = False
         self.dockwidget = None
+        self.taskManager = QgsApplication.taskManager()
 
     def get_buffer(self):
         yield self.buffer.pop()
@@ -488,6 +489,8 @@ class PlacaView:
             return layers[0]
 
     def download_signs(self):
+        from .signs_downloader import SignsDownloader, MyTask
+        print("stap")
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
         self.boundary = self.get_boundary_by_name(self.conf.get("boundary"))
@@ -497,6 +500,7 @@ class PlacaView:
             self.ask_mapillary_key()
         if not self.boundary:
             return
+        print("goinf")
         sourceCrs = self.boundary.crs()
         tr = QgsCoordinateTransform(
             sourceCrs, QgsCoordinateReferenceSystem.fromEpsgId(4326), QgsProject.instance())
@@ -506,7 +510,7 @@ class PlacaView:
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         # types = ["mly1_computed_public","mly_map_feature_point","mly_map_feature_traffic_sign","mly1_computed_public","mly1_public"]
-        types = ["mly_map_feature_traffic_sign"]
+        types = []#["mly_map_feature_traffic_sign"]
         layer = self.create_signals_vector_layer()
         layer.startEditing()
         layer_provider = layer.dataProvider()
@@ -514,59 +518,28 @@ class PlacaView:
         qgis.utils.iface.messageBar().clearWidgets()
         # set a new message bar
         progressMessageBar = qgis.utils.iface.messageBar()
-        progress = QProgressBar()
+        self.download_progress = QProgressBar()
         # Maximum is set to 100, making it easy to work with percentage of completion
-        progress.setMaximum(total_work)
+        self.download_progress.setMaximum(total_work)
         # pass the progress bar to the message Bar
-        progressMessageBar.pushWidget(progress)
+        progressMessageBar.pushWidget(self.download_progress)
         boundary_features = list(self.boundary.getFeatures())
         work = 0
-        for type in types:
-            output = {"type": "FeatureCollection", "features": []}
-            for x in range(nw[0], se[0]):
-                print(x)
-                for y in range(se[1], nw[1]):
-                    work += 1
-                    progress.setValue(work)
-                    url = f"https://tiles.mapillary.com/maps/vtp/{type}/2/{z}/{x}/{y}?access_token={self.conf.get('mapillary_key')}"
-                    r = requests.get(url)
-                    if r.status_code == 403:
-                        """Bad key"""
-                        dlsg = QMessageBox(self.dockwidget)
-                        dlsg.setText("Your Mapillary Key isn't valid")
-                        dlsg.exec()
-                        return
-                    features = vt_bytes_to_geojson(r.content, x, y, z)
-                    for f in features["features"]:
-                        # {'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [-58.347251415252686, -34.6904185494285]}, 'properties': {'first_seen_at': 1509570162000, 'id': 307511470929084, 'last_seen_at': 1509570162000, 'value': 'regulatory--no-heavy-goods-vehicles--g1'}}
-                        geometry = f.get("geometry")
-                        properties = f.get("properties")
-                        if geometry.get("type") == "Point":
-                            fet = QgsFeature()
-                            fet.setFields(layer_provider.fields())
-                            geo = QgsGeometry.fromPointXY(QgsPointXY(
-                                geometry.get("coordinates")[0], geometry.get("coordinates")[1]))
-                            inside_boundary = False
-
-                            for bf in boundary_features:
-                                if bf.geometry().contains(geo):
-                                    inside_boundary = True
-                            if inside_boundary:
-                                fet.setGeometry(geo)
-                                fet["id"] = properties.get("id")
-                                fet["first_seen_at"] = properties.get(
-                                    "first_seen_at")
-                                fet["last_seen_at"] = properties.get(
-                                    "last_seen_at")
-                                fet["value"] = properties.get("value")
-                                layer_provider.addFeatures([fet])
-            layer.commitChanges()
-            layer.updateExtents()
-        progress.close()
+        print("LAYETR")
+        print(layer)
+        
+        pwd=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
+        pwd.progressChanged.connect(self.update_progress)
+        pwd.taskCompleted.connect(self.render_signs_layer)
+        self.taskManager.addTask(pwd)
+        
+    def update_progress(self, *args):
+        self.download_progress.setValue(int(args[0]))
+        
+    def render_signs_layer(self):
+        self.download_progress.close()
         self.save_signs_layer()
-        QgsProject.instance().removeMapLayer(layer.id())
         self.load_signs_layer()
-        # qgis.utils.iface.messageBar().clearWidgets()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -577,8 +550,10 @@ class PlacaView:
                 ]
 
     def create_signals_vector_layer(self):
+        print("get or greate")
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
+            print("alerady had")
             return vl
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
         pr = vl.dataProvider()
@@ -587,6 +562,7 @@ class PlacaView:
         # add fields
         pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
+        print("created")
         return vl
 
     def save_signs_layer(self):
@@ -836,3 +812,5 @@ class PlacaView:
                 print(roads_layer.getFeature(road))
                 street_name.add(roads_layer.getFeature(road)[self.conf.get("roads_field_name")])
         self.dockwidget.findChild(QLabel, "street_label").setText(list(street_name).pop())
+        
+        
