@@ -35,11 +35,15 @@ class SignsDownloader(QgsTask):
         for x in range(nw[0], se[0]):
             for y in range(se[1], nw[1]):
                 self.work += 1
-                self.setProgress(self.work)
+                if self.isCanceled():
+                    return False
+                self.setProgress(100*self.work/self.total)
                 url = f"https://tiles.mapillary.com/maps/vtp/mly_map_feature_traffic_sign/2/{z}/{x}/{y}?access_token={self.key}"
                 r = requests.get(url)
                 if r.status_code == 403:
                     self.exception=403
+                    return False
+                if self.isCanceled():
                     return False
                 features = vt_bytes_to_geojson(r.content, x, y, z)
                 for f in features["features"]:
@@ -77,15 +81,3 @@ class SignsDownloader(QgsTask):
             MESSAGE_CATEGORY, Qgis.Info)
         super().cancel()
 
-
-class MyTask(QgsTask):
-
-    def __init__(self, description, flags):
-        super().__init__(description, flags)
-        QgsMessageLog.logMessage('Created task {}'.format(self.description()))
-
-    def run(self):
-        QgsMessageLog.logMessage('Started task {}'.format(self.description()))
-
-        print('crashandburn')
-        return True
