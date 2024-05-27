@@ -42,6 +42,7 @@ from .signs_downloader import SignsDownloader
 from .resources import *
 from .tools import *
 from .signs_filter import SignsFilter
+from .signs_editor import SignsEditor
 from .roads_selector import RoadsSelector
 from .signs_selector import SignsSelector
 # Import the code for the DockWidget
@@ -61,6 +62,8 @@ class PlacaView:
     current_sign_images: object
     buffer: list=[8, 15, 30]
     download_task:SignsDownloader=None
+    selected_sign_id=None # selected sign's id
+    fid=None # selected sign's mapillary id
 
     def __init__(self, iface):
         """Constructor.
@@ -381,6 +384,8 @@ class PlacaView:
                 QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
+            self.dockwidget.findChild(
+                QPushButton, "pushButton_edit").clicked.connect(self.load_signs_editor)
             try:
                 if self.roads_layer:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
@@ -700,6 +705,10 @@ class PlacaView:
                          filter=self.read_filter())
         fu.applyClicked.connect(self.apply_filter)
         fu.exec()
+        
+    def load_signs_editor(self):
+        fu=SignsEditor(parent=self.iface.mainWindow(), sign=self.selected_sign_id, mapillary_key=self.conf.get("mapillary_key"), sign_images=self.current_sign_images)
+        fu.exec()
 
     def start_select_features(self):
         self.signs_layer = self.get_signs_layer()
@@ -710,15 +719,36 @@ class PlacaView:
         self.mapTool.geomIdentified.connect(self.display_sign)
         self.mapTool.setLayer(self.signs_layer)
         self.iface.mapCanvas().setMapTool(self.mapTool)
-
+        
+    def download_image_data(self, *args, **kwargs):
+        print("dwonload iumage data")
+        print(args)
+        print(kwargs)
+        r = requests.get(
+            f"https://graph.mapillary.com/{self.image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
+        if r.status_code == 200:
+            return r.json()
+    
+    def after_download_image(self, *args, **kwargs):
+        print("AFTER DL")
+        result=args[1]
+        url=QUrl(result.get("thumb_256_url"))
+        self.dockwidget.findChild(QWebView, "webView").load(url)
+        
     def show_image(self, image_id):
         self.image_id = image_id
+        self.imagetask=QgsTask.fromFunction('download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
+        QgsApplication.taskManager().addTask(self.imagetask)
+
+        print("DOWNLOAD SIGN IMAGE")
+        print(f"https://graph.mapillary.com/{image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
         r = requests.get(
             f"https://graph.mapillary.com/{image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
         if r.status_code == 200:
             result = r.json()
-            url = QUrl(result.get("thumb_256_url"))
-            self.dockwidget.findChild(QWebView, "webView").load(url)
+            self.thumb_url = QUrl(result.get("thumb_256_url"))
+            
+            #self.dockwidget.findChild(QWebView, "webView").load(url)
         image_layer = self.get_signs_photo_layer()
         categories = []
         idx = image_layer.fields().indexOf('id')
@@ -741,14 +771,15 @@ class PlacaView:
         if not self.dockwidget:
             self.run()
         self.dockwidget.show()
-        map_feature_id = int(args[1].attribute("id"))
+        self.selected_sign_id = int(args[1].attribute("id"))
         ss_layer = self.get_selected_sign_layer()
-        fid = int(args[1].attribute("fid"))
-        feature = self.get_signs_layer().getFeature(fid)
+        self.fid = int(args[1].attribute("fid"))
+        feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
         f = QgsFeature()
         def match(task, wait_time):
+            print("matching segment road")
             self.dockwidget.findChild(QLabel, "street_label").setText("...")
             self.match_segment_roads()
         roads_layer: QgsVectorLayer = self.get_line_by_name(
@@ -758,8 +789,6 @@ class PlacaView:
                 return
         task = QgsTask.fromFunction('heavy function', match, on_finished=lambda:print("ok"), wait_time=1)
         QgsApplication.taskManager().addTask(task)
-
-        
         f.setGeometry(feature.geometry())
         f.setAttributes([feature["value"]])
         ss_layer.addFeatures([f])
@@ -767,34 +796,51 @@ class PlacaView:
         ss_layer.updateExtents()
         ss_layer.triggerRepaint()
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
-        w.load(QUrl('https://www.google.ca/#q=pyqt'))
+        #w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
-        url = f'https://graph.mapillary.com/{map_feature_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
+        self.current_sign_images_index=-1
+        self.current_sign_images=[]
+        def go(task, wait_time):
+            return self.get_images()
+        self.otask = QgsTask.fromFunction('heavy function', go, on_finished=self.after_get_images, wait_time=1000)
+        QgsApplication.taskManager().addTask(self.otask)
+
+        #self.get_images()
+    def set_webview_url(self):
+        print("this is the main thread")
+    
+    def after_get_images(self, *args, **kwargs):
+        photos=args[1]
+        image_layer = self.get_signs_photo_layer()
+        image_layer.dataProvider().truncate()
+        if "images" in photos:
+            self.current_sign_images_index = 0
+            for photo in photos.get("images", {}).get("data", []):
+                self.current_sign_images.append(photo)
+                fet = QgsFeature()
+                geo = QgsGeometry.fromPointXY(QgsPointXY(
+                    photo.get("geometry").get("coordinates")[0], photo.get("geometry").get("coordinates")[1]))
+                fet.setGeometry(geo)
+                fet.setAttributes([
+                    str(int(photo.get("id")))
+                ])
+                image_layer.dataProvider().addFeatures([fet])
+            image_layer.triggerRepaint()
+            self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
+        
+    def get_images(self):
+        print("get images")
+        url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
+        print(url)
         fu = requests.get(
             url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
+            print("got the images")
             photos = fu.json()
-            image_layer = self.get_signs_photo_layer()
-            image_layer.dataProvider().truncate()
-            if "images" in photos:
-                for photo in photos.get("images", {}).get("data", []):
-                    fet = QgsFeature()
-                    geo = QgsGeometry.fromPointXY(QgsPointXY(
-                        photo.get("geometry").get("coordinates")[0], photo.get("geometry").get("coordinates")[1]))
-                    fet.setGeometry(geo)
-                    fet.setAttributes([
-                        str(int(photo.get("id")))
-                    ])
-                    image_layer.dataProvider().addFeatures([fet])
-                image_layer.triggerRepaint()
-                if len(photos.get("images", {}).get("data", [])):
-                    self.show_image(photos.get(
-                        "images", {}).get("data", [])[0]["id"])
-            image_layer.triggerRepaint()
-        self.current_sign_images = photos.get("images").get("data")
-        self.current_sign_images_index = 0
-        
+            return photos
+        return
 
+        
     def page_up(self):
         self.current_sign_images_index += 1
         self.current_sign_images_index = self.current_sign_images_index % len(

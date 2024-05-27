@@ -21,8 +21,6 @@ class SignsFilter(QDialog, FormClass):
     applyClicked = pyqtSignal(list)
     
     def __init__(self, *args, **kwargs):
-        print(kwargs.get("parent"))
-        print(args)
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
         print(self.selected_signs)

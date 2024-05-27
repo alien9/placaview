@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>SignFilter</class>
+    <widget class="QWidget" name="SignsEditor">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>800</width>
+                <height>600</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>SignsEditor</string>
+        </property>
+        <widget class="QWidget" name="verticalLayoutWidget">
+            <property name="geometry">
+                <rect>
+                    <x>10</x>
+                    <y>10</y>
+                    <width>781</width>
+                    <height>560</height>
+                </rect>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout">
+                <item>
+                    <widget class="QLabel" name="label">
+                        <property name="text">
+                            <string>Signs</string>
+                        </property>
+                    </widget>
+                </item>
+                <item>
+                    <layout class="QHBoxLayout" name="searchLayout"></layout>
+                </item>
+                <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout">
+                        <item>
+                            <widget class="QWebView" name="webView">
+                                <property name="minimumSize">
+                                    <size>
+                                        <width>0</width>
+                                        <height>144</height>
+                                    </size>
+                                </property>
+                                <property name="url">
+                                    <url>
+                                        <string>about:blank</string>
+                                    </url>
+                                </property>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+                <item>
+                    <widget class="QListWidget" name="listWidget" />
+                </item>
+                <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout">
+                        <item>
+                            <widget class="QPushButton" name="pushButton_save">
+                                <property name="text">
+                                    <string>Save</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QPushButton" name="pushButton_cancel">
+                                <property name="text">
+                                    <string>Cancel</string>
+                                </property>
+                            </widget>
+                        </item>
+                    </layout>
+                </item>
+            </layout>
+        </widget>
+    </widget>
+    <resources />
+    <connections />
+</ui>
