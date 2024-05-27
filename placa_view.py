@@ -37,7 +37,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtCore import *
 from .equidistance_buffer import EquidistanceBuffer
-
+from .signs_downloader import SignsDownloader
 # Initialize Qt resources from file resources.py
 from .resources import *
 from .tools import *
@@ -60,6 +60,7 @@ class PlacaView:
     signs_layer: QgsVectorLayer
     current_sign_images: object
     buffer: list=[8, 15, 30]
+    download_task:SignsDownloader=None
 
     def __init__(self, iface):
         """Constructor.
@@ -256,6 +257,12 @@ class PlacaView:
             icon_path,
             text="Download Signs",
             callback=self.download_signs,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
+            icon_path,
+            text="Cancel Download",
+            callback=self.cancel_download_signs,
             parent=self.iface.mainWindow()
         )
         self.add_action(
@@ -458,6 +465,9 @@ class PlacaView:
             self.dockwidget.findChild(QLabel, "boundary_label").setText(
                 f"Boundary: {layer.name()}")
         self.set_conf("boundary", layer.name())
+        self.set_boundary_style(layer)
+    
+    def set_boundary_style(self, layer):
         style = QgsStyle.defaultStyle()
         style.importXml(os.path.join(self.plugin_dir, "styles/boundary.xml"))
         renderer = QgsSingleSymbolRenderer(style.symbol("boundary"))
@@ -488,19 +498,35 @@ class PlacaView:
         if layers:
             return layers[0]
 
+    def cancel_download_signs(self):
+        self.update_actions({"Download Signs":True, "Cancel Download":False})
+        if self.download_task:
+            self.download_task.cancel()
+            self.download_progress.close()
+    
+    def update_actions(self, actions):
+        for a in self.actions:
+            if a.text() in actions:
+                a.setEnabled(actions.get(a.text()))
+            
     def download_signs(self):
-        from .signs_downloader import SignsDownloader, MyTask
-        print("stap")
+        if self.download_task:
+            if self.download_task.status()==2:
+                QgsMessageLog.logMessage('There is an ongoing download.'.format(
+                    self.work/self.total), "Messages", Qgis.Info)
+                return
+        self.update_actions({"Download Signs":False, "Cancel Download":True})
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
         self.boundary = self.get_boundary_by_name(self.conf.get("boundary"))
         if not self.boundary:
             self.ask_boundary_layer()
+        else:
+            self.set_boundary_style(self.boundary)
         if not len(self.conf.get("mapillary_key", "")):
             self.ask_mapillary_key()
         if not self.boundary:
             return
-        print("goinf")
         sourceCrs = self.boundary.crs()
         tr = QgsCoordinateTransform(
             sourceCrs, QgsCoordinateReferenceSystem.fromEpsgId(4326), QgsProject.instance())
@@ -509,35 +535,33 @@ class PlacaView:
         nw = self.deg2num(trans.yMinimum(), trans.xMinimum(), z)
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
-        # types = ["mly1_computed_public","mly_map_feature_point","mly_map_feature_traffic_sign","mly1_computed_public","mly1_public"]
-        types = []#["mly_map_feature_traffic_sign"]
         layer = self.create_signals_vector_layer()
-        layer.startEditing()
-        layer_provider = layer.dataProvider()
+        layer.dataProvider().truncate()
         import qgis
         qgis.utils.iface.messageBar().clearWidgets()
-        # set a new message bar
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
-        # Maximum is set to 100, making it easy to work with percentage of completion
-        self.download_progress.setMaximum(total_work)
-        # pass the progress bar to the message Bar
         progressMessageBar.pushWidget(self.download_progress)
-        boundary_features = list(self.boundary.getFeatures())
-        work = 0
-        print("LAYETR")
-        print(layer)
-        
-        pwd=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
-        pwd.progressChanged.connect(self.update_progress)
-        pwd.taskCompleted.connect(self.render_signs_layer)
-        self.taskManager.addTask(pwd)
+        self.download_task=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
+        self.download_task.progressChanged.connect(self.update_progress)
+        self.download_task.taskCompleted.connect(self.render_signs_layer)
+        self.taskManager.addTask(self.download_task)
         
     def update_progress(self, *args):
-        self.download_progress.setValue(int(args[0]))
+        try:
+            self.download_progress.setValue(round(args[0]))
+        except:
+            pass
+        layer=self.get_point_layer_by_name("traffic signs")
+        layer.updateExtents()
+        self.get_signs_layer().triggerRepaint()
         
     def render_signs_layer(self):
-        self.download_progress.close()
+        self.update_actions({"Download Signs":True, "Cancel Download":False})
+        try:
+            self.download_progress.close()
+        except:
+            pass
         self.save_signs_layer()
         self.load_signs_layer()
 
