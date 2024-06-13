@@ -77,6 +77,8 @@ class SignsEditor(QDialog, FormClass):
         print(other_but)
         other_but.clicked.connect(self.select_sign)
         
+        print("bugado")
+        print(self.sign.attributes()[self.sign.fieldNameIndex("code")])
         if QVariant.isNull(self.sign.attributes()[self.sign.fieldNameIndex("code")]):
             print("nao sei meishmo")
             

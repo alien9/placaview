@@ -66,6 +66,7 @@ class PlacaView:
     fid = None  # selected sign's mapillary id
     selected_sign: QgsFeature
     roads_index: QgsSpatialIndex
+    projector: QgsCoordinateReferenceSystem=None
 
     def __init__(self, iface):
         """Constructor.
@@ -933,15 +934,16 @@ class PlacaView:
         geom = feature.geometry()
         print("find roads fot this geom")
         buffet=EquidistanceBuffer()
-        projection_string=QgsCoordinateReferenceSystem(buffet.proj_string(geom))
-        print(projection_string)
-        xform = QgsCoordinateTransform(signs_layer.crs(), projection_string, QgsProject.instance())
-        roads_xform = QgsCoordinateTransform(roads_layer.crs(), projection_string, QgsProject.instance())
+        print(buffet.proj_string(geom))
+        if self.projector is None:
+            self.projector=QgsCoordinateReferenceSystem(buffet.proj_string(geom))
+        xform = QgsCoordinateTransform(signs_layer.crs(), self.projector, QgsProject.instance())
+        roads_xform = QgsCoordinateTransform(roads_layer.crs(), self.projector, QgsProject.instance())
         print(geom)
         gt=geom.asWkt()
         print(gt)
         projected=QgsGeometry.fromWkt(gt)
-        print("vai projetar")
+        print("vai projetar", roads_layer.crs(), self.projector)
         projected.transform(xform)
         print(projected)
 
