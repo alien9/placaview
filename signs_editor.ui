@@ -1,81 +1,206 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
-    <class>SignFilter</class>
-    <widget class="QWidget" name="SignsEditor">
-        <property name="geometry">
-            <rect>
-                <x>0</x>
-                <y>0</y>
-                <width>800</width>
-                <height>600</height>
-            </rect>
-        </property>
-        <property name="windowTitle">
-            <string>SignsEditor</string>
-        </property>
-        <widget class="QWidget" name="verticalLayoutWidget">
-            <property name="geometry">
-                <rect>
-                    <x>10</x>
-                    <y>10</y>
-                    <width>781</width>
-                    <height>560</height>
-                </rect>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout">
+  <class>SignsEditor</class>
+  <widget class="QWidget" name="SignsEditor">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1500</width>
+        <height>800</height>
+      </rect>
+    </property>
+    <property name="windowTitle">
+      <string>SignsEditor</string>
+    </property>
+    <widget class="QWidget" name="verticalLayoutWidget">
+      <property name="geometry">
+        <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>1506</width>
+          <height>819</height>
+        </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+              <widget class="QWebView" name="webView">
+                <property name="minimumSize">
+                  <size>
+                    <width>1024</width>
+                    <height>572</height>
+                  </size>
+                </property>
+                <property name="maximumSize">
+                  <size>
+                    <width>1024</width>
+                    <height>572</height>
+                  </size>
+                </property>
+                <property name="url">
+                  <url>
+                    <string>about:blank</string>
+                  </url>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <layout class="QVBoxLayout" name="verticalLayoutInside">
                 <item>
-                    <widget class="QLabel" name="label">
+                  <layout class="QHBoxLayout" name="butoes">
+                    <item>
+                      <widget class="QPushButton" name="pushButton_back">
                         <property name="text">
-                            <string>Signs</string>
+                          <string>&lt;</string>
                         </property>
-                    </widget>
+                        <property name="maximumSize">
+                          <size>
+                            <width>20</width>
+                            <height>20</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QPushButton" name="pushButton_forward">
+                        <property name="text">
+                          <string>&gt;</string>
+                        </property>
+                        <property name="maximumSize">
+                          <size>
+                            <width>20</width>
+                            <height>20</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
                 </item>
                 <item>
-                    <layout class="QHBoxLayout" name="searchLayout"></layout>
+                  <widget class="QgsMapCanvas" name="mapview" native="true">
+                    <property name="minimumSize">
+                      <size>
+                        <width>350</width>
+                        <height>350</height>
+                      </size>
+                    </property>
+                    <property name="maximumSize">
+                      <size>
+                        <width>350</width>
+                        <height>350</height>
+                      </size>
+                    </property>
+                  </widget>
                 </item>
                 <item>
-                    <layout class="QHBoxLayout" name="horizontalLayout">
-                        <item>
-                            <widget class="QWebView" name="webView">
-                                <property name="minimumSize">
-                                    <size>
-                                        <width>0</width>
-                                        <height>144</height>
-                                    </size>
-                                </property>
-                                <property name="url">
-                                    <url>
-                                        <string>about:blank</string>
-                                    </url>
-                                </property>
-                            </widget>
-                        </item>
-                    </layout>
+                  <layout class="QHBoxLayout" name="h_mapinfo">
+                    <item>
+                      <widget class="QLabel" name="mapillary_label">
+                        <property name="text">
+                          <string>Tipo Mapillary </string>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QPushButton" name="mapillarytype">
+                        <property name="maximumSize">
+                          <size>
+                            <width>85</width>
+                            <height>85</height>
+                          </size>
+                        </property>
+                        <property name="iconSize">
+                          <size>
+                            <width>60</width>
+                            <height>60</height>
+                          </size>
+                        </property>
+                        <property name="text">
+                          <string />
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
                 </item>
                 <item>
-                    <widget class="QListWidget" name="listWidget" />
+                  <layout class="QHBoxLayout" name="h_mapinfo">
+                    <item>
+                      <widget class="QLabel" name="mapillary_label">
+                        <property name="text">
+                          <string>Tipo Brasileiro </string>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QPushButton" name="brasiltype">
+                        <property name="maximumSize">
+                          <size>
+                            <width>85</width>
+                            <height>85</height>
+                          </size>
+                        </property>
+                        <property name="iconSize">
+                          <size>
+                            <width>60</width>
+                            <height>60</height>
+                          </size>
+                        </property>
+                        <property name="text">
+                          <string />
+                        </property>
+                        <property name="icon">
+                          <iconset>
+                            <normaloff>styles/symbols_br/A-2b.svg</normaloff>
+                            styles/symbols_br/A-2b.svg</iconset>
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
                 </item>
-                <item>
-                    <layout class="QHBoxLayout" name="horizontalLayout">
-                        <item>
-                            <widget class="QPushButton" name="pushButton_save">
-                                <property name="text">
-                                    <string>Save</string>
-                                </property>
-                            </widget>
-                        </item>
-                        <item>
-                            <widget class="QPushButton" name="pushButton_cancel">
-                                <property name="text">
-                                    <string>Cancel</string>
-                                </property>
-                            </widget>
-                        </item>
-                    </layout>
-                </item>
-            </layout>
-        </widget>
+              </layout>
+            </item>
+          </layout>
+        </item>
+        <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+              <widget class="QPushButton" name="pushButton_save">
+                <property name="text">
+                  <string>Save</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QPushButton" name="pushButton_cancel">
+                <property name="text">
+                  <string>Cancel</string>
+                </property>
+              </widget>
+            </item>
+          </layout>
+        </item>
+      </layout>
     </widget>
-    <resources />
-    <connections />
+  </widget>
+  <customwidgets>
+    <customwidget>
+      <class>QWebView</class>
+      <extends>QWidget</extends>
+      <header location="global">QtWebKitWidgets/QWebView</header>
+    </customwidget>
+    <customwidget>
+      <class>QgsMapCanvas</class>
+      <extends>QWidget</extends>
+      <header location="global"></header>
+    </customwidget>
+    <customwidget>
+      <class>QSvgWidget</class>
+      <extends>QWidget</extends>
+      <header location="global">QSvgWidget</header>
+    </customwidget>
+  </customwidgets>
+  <resources />
+  <connections />
 </ui>

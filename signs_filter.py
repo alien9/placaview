@@ -43,13 +43,16 @@ class SignsFilter(QDialog, FormClass):
             
     def get_signs(self):
         if not self.sign_names:
-            self.sign_names= sorted([re.split("(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])
+            filename=os.path.join(os.path.dirname(__file__), "existing.txt")
+            if os.path.isfile(filename):
+                self.sign_names=[n[:-1] for n in open(filename, "r").readlines()]
+            else:    
+                self.sign_names= sorted([re.split("(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])
         return self.sign_names
     
     @pyqtSlot(str, bool)
     def signs_filter_item_changed(self, *args):
         if not args[1]:
-            print("will remove"+args[0])
             self.selected_signs.remove(args[0])
         else:
             self.selected_signs.add(args[0])

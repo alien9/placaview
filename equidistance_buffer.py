@@ -87,14 +87,21 @@ class EquidistanceBuffer(QgsProcessingFeatureBasedAlgorithm ):
         return [feature]
     
     def buffer(self, geometry:QgsGeometry, distance, source_crs:QgsCoordinateReferenceSystem):
-        print(geometry)
         centroid = geometry.centroid()
-        x = centroid.asPoint().x()
-        y = centroid.asPoint().y()
+        x = round(centroid.asPoint().x(), 2)
+        y = round(centroid.asPoint().y(), 2)
         proj_string = 'PROJ4:+proj=aeqd +ellps=WGS84 +lat_0={} +lon_0={} +x_0=0 +y_0=0'.format(y, x)
         dest_crs = QgsCoordinateReferenceSystem(proj_string)
         xform = QgsCoordinateTransform(source_crs, dest_crs, QgsProject.instance())
-        geometry.transform(xform)
-        buffer = geometry.buffer(distance, self.SEGMENTS, self.END_CAP_STYLE, self.JOIN_STYLE, self.MITER_LIMIT)
+        b=geometry.asWkt()
+        g=QgsGeometry.fromWkt(b)
+        g.transform(xform)
+        buffer = g.buffer(distance, self.SEGMENTS, self.END_CAP_STYLE, self.JOIN_STYLE, self.MITER_LIMIT)
         buffer.transform(xform, QgsCoordinateTransform.ReverseTransform)
         return buffer
+    
+    def proj_string(self, geometry:QgsGeometry):
+        centroid = geometry.centroid()
+        x = round(centroid.asPoint().x(), 2)
+        y = round(centroid.asPoint().y(), 2)
+        return 'PROJ4:+proj=aeqd +ellps=WGS84 +lat_0={} +lon_0={} +x_0=0 +y_0=0'.format(y, x)
