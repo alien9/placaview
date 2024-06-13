@@ -54,6 +54,7 @@ class SignsEditor(QDialog, FormClass):
     sign_id = None
     sign_images: list = []
     sign_images_index = -1
+    signs_layer:QgsVectorLayer
     placas=None
 
     def __init__(self, *args, **kwargs):
@@ -66,6 +67,7 @@ class SignsEditor(QDialog, FormClass):
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
         self.sign:QgsFeature=kwargs.get("selected_sign")
+        self.signs_layer=kwargs.get("signs_layer")
         
         but=self.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
@@ -100,8 +102,14 @@ class SignsEditor(QDialog, FormClass):
         self.placas=kwargs.get("placas", None)
         if not self.placas:
             self.placas=[fu[:-1] for fu in open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"))]
+        self.findChild(QPushButton, "pushButton_save").clicked.connect(self.save_sign)
 
+    def save_sign(self):
+        is_correct=self.findChild(QCheckBox, "correctly_identified").isChecked()
+        print("saving", is_correct)
+        self.close()
         
+    
     def select_sign(self):
         print("PLAPALAPLAPALPALAPLAPALAP")
         print(self.placas)
@@ -110,7 +118,14 @@ class SignsEditor(QDialog, FormClass):
         fu.exec()
         
     def set_sign(self, *args, **kwargs):
-        print("ACK", args)
+        print("ACKnowledge", args)
+        self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
+            os.path.dirname(__file__),f"styles/symbols_br/{args[0]}.svg")))        
+        #self.sign.setAttribute(self.signs_layer.fields().indexOf("code"),args[0])
+        print("THE FEATURE ID IS ", self.sign.id())
+        self.signs_layer.startEditing()
+        self.signs_layer.changeAttributeValue(self.sign.id(), self.sign.fieldNameIndex("code"), args[0])
+        self.signs_layer.commitChanges()
         print("WIIWLKIWLKWILWIW", kwargs)
         
         

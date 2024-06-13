@@ -934,10 +934,16 @@ class PlacaView:
         print("find roads fot this geom")
         buffet=EquidistanceBuffer()
         projection_string=QgsCoordinateReferenceSystem(buffet.proj_string(geom))
+        print(projection_string)
         xform = QgsCoordinateTransform(signs_layer.crs(), projection_string, QgsProject.instance())
         roads_xform = QgsCoordinateTransform(roads_layer.crs(), projection_string, QgsProject.instance())
-        projected=QgsGeometry(geom)
+        print(geom)
+        gt=geom.asWkt()
+        print(gt)
+        projected=QgsGeometry.fromWkt(gt)
+        print("vai projetar")
         projected.transform(xform)
+        print(projected)
 
         while not len(roads) and d < 500:
             print(geom)

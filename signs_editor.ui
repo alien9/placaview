@@ -159,6 +159,13 @@
                     </item>
                   </layout>
                 </item>
+                <item>
+                  <widget class="QCheckBox" name="correctly_identified">
+                   <property name="text">
+                    <string>Identified correctly</string>
+                   </property>
+                  </widget>
+                 </item>
               </layout>
             </item>
           </layout>
