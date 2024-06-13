@@ -26,6 +26,11 @@ import os
 
 from qgis.PyQt import QtGui, QtWidgets, uic
 from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtWebKitWidgets import QWebView
+#from qgis.core import *
+from qgis.PyQt.QtWidgets import *
+#from qgis.PyQt.QtCore import *
+
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'placa_view_dockwidget_base.ui'))
@@ -34,6 +39,7 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 class PlacaViewDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     closingPlugin = pyqtSignal()
+    photoClick = pyqtSignal()
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -44,7 +50,12 @@ class PlacaViewDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         # http://doc.qt.io/qt-5/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.findChild(QCommandLinkButton, "editCommandLinkButton").clicked.connect(self.web_click)
+        
 
     def closeEvent(self, event):
         self.closingPlugin.emit()
         event.accept()
+        
+    def web_click(self):
+        self.photoClick.emit()    

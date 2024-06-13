@@ -21,30 +21,31 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal
+from qgis.core import QgsDistanceArea, QgsCoordinateReferenceSystem, QgsPoint, QgsApplication
+from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QWidgetAction, QActionGroup
-from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter, QgsAction
-from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
-from qgis.core import QgsCategorizedSymbolRenderer
-from qgis.PyQt import uic
+from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton
+from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApplication, QgsTask, QgsMarkerSymbol, QgsFillSymbol
+from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
+from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
 from qgis.gui import QgsMapToolIdentifyFeature
 from qgis.core import QgsSpatialIndex
-from qgis.core import *
-from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtWebKitWidgets import QWebView
-from qgis.PyQt.QtCore import *
+
+# from qgis.core import *
+# from qgis.PyQt.QtWidgets import *
+# from qgis.PyQt.QtCore import *
 from .equidistance_buffer import EquidistanceBuffer
 from .signs_downloader import SignsDownloader
 # Initialize Qt resources from file resources.py
 from .resources import *
 from .tools import *
 from .signs_filter import SignsFilter
+from .signs_editor import SignsEditor
 from .roads_selector import RoadsSelector
 from .signs_selector import SignsSelector
-# Import the code for the DockWidget
 from .placa_view_dockwidget import PlacaViewDockWidget
 import os.path
 import os
@@ -59,8 +60,12 @@ class PlacaView:
     roads_layer: QgsVectorLayer
     signs_layer: QgsVectorLayer
     current_sign_images: object
-    buffer: list=[8, 15, 30]
-    download_task:SignsDownloader=None
+    buffer: list = [8, 15, 30]
+    download_task: SignsDownloader = None
+    selected_sign_id = None  # selected sign's id
+    fid = None  # selected sign's mapillary id
+    selected_sign: QgsFeature
+    roads_index: QgsSpatialIndex
 
     def __init__(self, iface):
         """Constructor.
@@ -114,7 +119,7 @@ class PlacaView:
 
     def get_buffer(self):
         yield self.buffer.pop()
-    
+
     def change_layer(self, layer):
         print("changed layer")
         print(layer)
@@ -289,6 +294,12 @@ class PlacaView:
             callback=self.match_segment_roads,
             parent=self.iface.mainWindow()
         )
+        self.add_action(
+            icon_path,
+            text="Update Signs Types",
+            callback=self.save_unique_values,
+            parent=self.iface.mainWindow()
+        )
         for a in self.iface.attributesToolBar().actions():
             if a.statusTip() == 'Signs':
                 self.iface.attributesToolBar().removeAction(a)
@@ -371,7 +382,7 @@ class PlacaView:
 
             # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
-
+            self.dockwidget.photoClick.connect(self.load_signs_editor)
             # show the dockwidget
             # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
@@ -386,7 +397,7 @@ class PlacaView:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
                         f"Roads: {self.roads_layer.name()}")
             except:
-                self.roads_layer=None
+                self.roads_layer = None
             try:
                 if self.boundary:
                     self.dockwidget.findChild(QLabel, "boundary_label").setText(
@@ -426,12 +437,21 @@ class PlacaView:
         return True
 
     def set_roads_layer(self, layer, field):
+        print("SETTING ROADS LAYER")
         self.roads_layer: QgsVectorLayer = self.get_line_by_name(layer)
         if self.dockwidget:
             self.dockwidget.findChild(QLabel, "roads_label").setText(
                 f"Roads: {self.roads_layer.name()}")
         self.set_conf("roads", self.roads_layer.name())
         self.set_conf("roads_field_name", field)
+        self.roads_index = QgsSpatialIndex(self.roads_layer.getFeatures(
+        ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
+
+    def get_roads_layer(self):
+        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
+        ) == self.conf.get("roads"), QgsProject.instance().mapLayers().values()))
+        if layers:
+            return layers[0]
 
     def ask_boundary_layer(self):
         if not self.dockwidget:
@@ -466,7 +486,7 @@ class PlacaView:
                 f"Boundary: {layer.name()}")
         self.set_conf("boundary", layer.name())
         self.set_boundary_style(layer)
-    
+
     def set_boundary_style(self, layer):
         style = QgsStyle.defaultStyle()
         style.importXml(os.path.join(self.plugin_dir, "styles/boundary.xml"))
@@ -499,23 +519,23 @@ class PlacaView:
             return layers[0]
 
     def cancel_download_signs(self):
-        self.update_actions({"Download Signs":True, "Cancel Download":False})
+        self.update_actions({"Download Signs": True, "Cancel Download": False})
         if self.download_task:
             self.download_task.cancel()
             self.download_progress.close()
-    
+
     def update_actions(self, actions):
         for a in self.actions:
             if a.text() in actions:
                 a.setEnabled(actions.get(a.text()))
-            
+
     def download_signs(self):
         if self.download_task:
-            if self.download_task.status()==2:
+            if self.download_task.status() == 2:
                 QgsMessageLog.logMessage('There is an ongoing download.'.format(
                     self.work/self.total), "Messages", Qgis.Info)
                 return
-        self.update_actions({"Download Signs":False, "Cancel Download":True})
+        self.update_actions({"Download Signs": False, "Cancel Download": True})
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
         self.boundary = self.get_boundary_by_name(self.conf.get("boundary"))
@@ -542,22 +562,23 @@ class PlacaView:
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
         progressMessageBar.pushWidget(self.download_progress)
-        self.download_task=SignsDownloader(self.conf.get('mapillary_key'), layer, total_work, self.boundary, (nw,se))
+        self.download_task = SignsDownloader(self.conf.get(
+            'mapillary_key'), layer, total_work, self.boundary, (nw, se))
         self.download_task.progressChanged.connect(self.update_progress)
         self.download_task.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(self.download_task)
-        
+
     def update_progress(self, *args):
         try:
             self.download_progress.setValue(round(args[0]))
         except:
             pass
-        layer=self.get_point_layer_by_name("traffic signs")
+        layer = self.get_point_layer_by_name("traffic signs")
         layer.updateExtents()
         self.get_signs_layer().triggerRepaint()
-        
+
     def render_signs_layer(self):
-        self.update_actions({"Download Signs":True, "Cancel Download":False})
+        self.update_actions({"Download Signs": True, "Cancel Download": False})
         try:
             self.download_progress.close()
         except:
@@ -619,7 +640,8 @@ class PlacaView:
             print(f"loadring {uri}")
             self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
             QgsProject.instance().addMapLayer(self.signs_layer)
-            self.set_signs_style(self.read_filter(), self.signs_layer)
+            self.set_signs_style(filter=self.read_filter(),
+                                 layer=self.signs_layer)
             mapTool = None
             mc = self.iface.mapCanvas()
             mapTool = QgsMapToolIdentifyFeature(mc)
@@ -645,10 +667,9 @@ class PlacaView:
 
     def get_selected_sign_layer(self):
         """ get or create the selected sign layer"""
-        print("GETTING SELECTED MARKERS")
         layer = self.get_point_layer_by_name("selected traffic sign")
         if not layer:
-            layer= QgsVectorLayer("Point", "selected traffic sign", "memory")
+            layer = QgsVectorLayer("Point", "selected traffic sign", "memory")
             pr = layer.dataProvider()
             # Enter editing mode
             layer.startEditing()
@@ -656,18 +677,17 @@ class PlacaView:
             pr.addAttributes([QgsField("value",  QVariant.String)])
             layer.updateFields()
             QgsProject.instance().addMapLayer(layer)
-        self.set_signs_style(self.read_filter(), layer, 10)
+        self.set_signs_style(filter=self.read_filter(), layer=layer, size=10)
         return layer
 
     def set_signs_style(self, filter=[], layer=None, size=6):
-        print("setting the style")
-        signs_layer= self.get_point_layer_by_name("traffic signs")
+        signs_layer = self.get_point_layer_by_name("traffic signs")
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
         idx = signs_layer.fields().indexOf('value')
         values = list(signs_layer.uniqueValues(idx))
         categories = []
-        for value in sorted(values):
+        for value in values:
             style = {
                 "name": os.path.join(self.plugin_dir, f"styles/symbols/{value}.svg"),
                 'size': size
@@ -677,13 +697,16 @@ class PlacaView:
             category = QgsRendererCategory(value, symbol, str(value))
             if value not in filter:
                 category.setRenderState(False)
+            else:
+                category.setRenderState(True)
             categories.append(category)
         renderer = QgsCategorizedSymbolRenderer('value', categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
 
     def apply_filter(self, value):
-        self.set_signs_style(value, self.read_filter())
+        print(value)
+        self.set_signs_style(filter=self.read_filter())
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
                 fu.write(f"{t}\n")
@@ -691,7 +714,7 @@ class PlacaView:
     def read_filter(self):
         value = []
         if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
-            with open(os.path.join(self.plugin_dir, f"filter.txt")) as fu:
+            with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
                 value = list(map(lambda x: x[0: -1], fu.readlines()))
         return value
 
@@ -699,6 +722,26 @@ class PlacaView:
         fu = SignsFilter(parent=self.iface.mainWindow(),
                          filter=self.read_filter())
         fu.applyClicked.connect(self.apply_filter)
+        fu.exec()
+
+    def load_signs_editor(self):
+        if not self.selected_sign:
+            return
+        if "code" not in self.signs_layer.fields():
+            code = QgsField("code", QVariant.String)
+            with edit(self.signs_layer):
+                self.signs_layer.addAttribute(code)
+                self.signs_layer.updateFields()
+
+        fu = SignsEditor(
+            parent=self.iface.mainWindow(),
+            sign=self.selected_sign_id,
+            mapillary_key=self.conf.get("mapillary_key"),
+            sign_images=self.current_sign_images,
+            signs_layer=self.signs_layer,
+            roads=self.get_roads_layer(),
+            selected_sign=self.selected_sign
+        )
         fu.exec()
 
     def start_select_features(self):
@@ -711,14 +754,30 @@ class PlacaView:
         self.mapTool.setLayer(self.signs_layer)
         self.iface.mapCanvas().setMapTool(self.mapTool)
 
+    def download_image_data(self, *args, **kwargs):
+        r = requests.get(
+            f"https://graph.mapillary.com/{self.image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
+        if r.status_code == 200:
+            return r.json()
+
+    def after_download_image(self, *args, **kwargs):
+        print("AFTER DL")
+        result = args[1]
+        url = QUrl(result.get("thumb_256_url"))
+        self.dockwidget.findChild(QWebView, "webView").load(url)
+
     def show_image(self, image_id):
         self.image_id = image_id
+        self.imagetask = QgsTask.fromFunction(
+            'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
+        QgsApplication.taskManager().addTask(self.imagetask)
         r = requests.get(
             f"https://graph.mapillary.com/{image_id}?access_token={self.conf.get('mapillary_key')}&fields=thumb_256_url")
         if r.status_code == 200:
             result = r.json()
-            url = QUrl(result.get("thumb_256_url"))
-            self.dockwidget.findChild(QWebView, "webView").load(url)
+            self.thumb_url = QUrl(result.get("thumb_256_url"))
+
+            # self.dockwidget.findChild(QWebView, "webView").load(url)
         image_layer = self.get_signs_photo_layer()
         categories = []
         idx = image_layer.fields().indexOf('id')
@@ -741,13 +800,19 @@ class PlacaView:
         if not self.dockwidget:
             self.run()
         self.dockwidget.show()
-        map_feature_id = int(args[1].attribute("id"))
+        self.selected_sign = args[1]
+        but=self.dockwidget.findChild(QPushButton, "mapillarytype")
+        but.setIcon(QIcon(os.path.join(
+            self.plugin_dir,f"styles/symbols/{args[1].attribute('value')}.svg")))
+
+        self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
-        fid = int(args[1].attribute("fid"))
-        feature = self.get_signs_layer().getFeature(fid)
+        self.fid = int(args[1].attribute("fid"))  # primary key
+        feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
         f = QgsFeature()
+
         def match(task, wait_time):
             self.dockwidget.findChild(QLabel, "street_label").setText("...")
             self.match_segment_roads()
@@ -756,10 +821,9 @@ class PlacaView:
         if not roads_layer:
             if not self.ask_roads_layer():
                 return
-        task = QgsTask.fromFunction('heavy function', match, on_finished=lambda:print("ok"), wait_time=1)
+        task = QgsTask.fromFunction(
+            'heavy function', match, wait_time=1)
         QgsApplication.taskManager().addTask(task)
-
-        
         f.setGeometry(feature.geometry())
         f.setAttributes([feature["value"]])
         ss_layer.addFeatures([f])
@@ -767,33 +831,53 @@ class PlacaView:
         ss_layer.updateExtents()
         ss_layer.triggerRepaint()
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
-        w.load(QUrl('https://www.google.ca/#q=pyqt'))
+        # w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
-        url = f'https://graph.mapillary.com/{map_feature_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
+        w.load(QUrl('spinners.gif'))
+
+        self.current_sign_images_index = -1
+        self.current_sign_images = []
+
+        def go(task, wait_time):
+            return self.get_images()
+        self.otask = QgsTask.fromFunction(
+            'heavy function', go, on_finished=self.after_get_images, wait_time=1000)
+        QgsApplication.taskManager().addTask(self.otask)
+
+        # self.get_images()
+    def set_webview_url(self):
+        print("this is the main thread")
+
+    def after_get_images(self, *args, **kwargs):
+        photos = args[1]
+        image_layer = self.get_signs_photo_layer()
+        image_layer.dataProvider().truncate()
+        if "images" in photos:
+            self.current_sign_images_index = 0
+            for photo in photos.get("images", {}).get("data", []):
+                self.current_sign_images.append(photo)
+                fet = QgsFeature()
+                geo = QgsGeometry.fromPointXY(QgsPointXY(
+                    photo.get("geometry").get("coordinates")[0], photo.get("geometry").get("coordinates")[1]))
+                fet.setGeometry(geo)
+                fet.setAttributes([
+                    str(int(photo.get("id")))
+                ])
+                image_layer.dataProvider().addFeatures([fet])
+            image_layer.triggerRepaint()
+            self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
+
+    def get_images(self):
+        print("get images")
+        url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
+        print(url)
         fu = requests.get(
             url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
+            print("got the images")
             photos = fu.json()
-            image_layer = self.get_signs_photo_layer()
-            image_layer.dataProvider().truncate()
-            if "images" in photos:
-                for photo in photos.get("images", {}).get("data", []):
-                    fet = QgsFeature()
-                    geo = QgsGeometry.fromPointXY(QgsPointXY(
-                        photo.get("geometry").get("coordinates")[0], photo.get("geometry").get("coordinates")[1]))
-                    fet.setGeometry(geo)
-                    fet.setAttributes([
-                        str(int(photo.get("id")))
-                    ])
-                    image_layer.dataProvider().addFeatures([fet])
-                image_layer.triggerRepaint()
-                if len(photos.get("images", {}).get("data", [])):
-                    self.show_image(photos.get(
-                        "images", {}).get("data", [])[0]["id"])
-            image_layer.triggerRepaint()
-        self.current_sign_images = photos.get("images").get("data")
-        self.current_sign_images_index = 0
-        
+            return photos
+        return
 
     def page_up(self):
         self.current_sign_images_index += 1
@@ -810,7 +894,13 @@ class PlacaView:
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_segment_roads(self):
+        """
+        match all of the signals with their roads
+
+        """
         signs_layer: QgsVectorLayer = self.get_signs_layer()
+        print(signs_layer)
+
         if not "roads" in [f.name() for f in signs_layer.fields()]:
             signs_layer.dataProvider().addAttributes(
                 [QgsField("roads", QVariant.String)])
@@ -818,10 +908,7 @@ class PlacaView:
         signs = signs_layer.selectedFeatureIds()
         if not len(signs):
             return
-        boulder: QgsGeometry = EquidistanceBuffer().buffer(
-            signs_layer.getFeature(signs[0]).geometry(), 35, signs_layer.crs()
-        )
-        street_name=set()
+        street_name = set()
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
         if not roads_layer:
@@ -829,12 +916,72 @@ class PlacaView:
                 return
             roads_layer: QgsVectorLayer = self.get_line_by_name(
                 self.conf.get("roads"))
+        d = 50
+        roads = []
         index = QgsSpatialIndex(roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
-        for road in index.intersects(boulder.boundingBox()):
-            if boulder.intersects(roads_layer.getFeature(road).geometry()):
-                print(roads_layer.getFeature(road))
-                street_name.add(roads_layer.getFeature(road)[self.conf.get("roads_field_name")])
-        self.dockwidget.findChild(QLabel, "street_label").setText(list(street_name).pop())
+        print("before diasta")
+        distance = QgsDistanceArea()
+        print(distance)
+        # distance.setSourceCrs(signs_layer.crs())
+        print(signs_layer.crs())
+        # distance.setEllipsoidalMode(True)
+        # distance.setEllipsoid('WGS84')
+        print("afte diasta")
+        feature = signs_layer.getFeature(signs[0])
         
+        geom = feature.geometry()
+        print("find roads fot this geom")
+        buffet=EquidistanceBuffer()
+        projection_string=QgsCoordinateReferenceSystem(buffet.proj_string(geom))
+        print(projection_string)
+        xform = QgsCoordinateTransform(signs_layer.crs(), projection_string, QgsProject.instance())
+        roads_xform = QgsCoordinateTransform(roads_layer.crs(), projection_string, QgsProject.instance())
+        print(geom)
+        gt=geom.asWkt()
+        print(gt)
+        projected=QgsGeometry.fromWkt(gt)
+        print("vai projetar")
+        projected.transform(xform)
+        print(projected)
+
+        while not len(roads) and d < 500:
+            print(geom)
+            boulder: QgsGeometry = buffet.buffer(
+                geom, d, signs_layer.crs()
+            )
+            print(boulder)
+            roads = list(
+                map(lambda f: (self.get_distance_from_road_to_sign(projected, f.geometry(),roads_xform), f.attributes()[roads_layer.fields().indexOf(self.conf.get("roads_field_name"))]),
+                    map(lambda rid: roads_layer.getFeature(rid),
+                    filter(lambda x: boulder.intersects(roads_layer.getFeature(
+                        x).geometry()), index.intersects(boulder.boundingBox()))
+                        )))
+            print(f"fopinund {len(roads)} within {d}")
+            d += 30
+        if len(roads)>50:
+            print("estercado")
+            return
+        if len(roads):
+            roads.sort()
+            n = 0
+            print(roads)
+            self.dockwidget.findChild(QLabel, "street_label").setText(
+                roads[0][1]
+            )
+    
+    def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
+        r=QgsGeometry(road_geometry)
+        s=QgsGeometry(sign_geometry)
+        r.transform(xform)
+        return r.distance(s)
         
+    def save_unique_values(self):
+        signs_layer=self.get_signs_layer()        
+        if signs_layer is None:
+            print("NOTHING TO DO ")
+            return
+        idx = signs_layer.fields().indexOf('value')
+        with open(os.path.join(self.plugin_dir, "existing.txt"), "w+") as fu:
+            for v in list(sorted(signs_layer.uniqueValues(idx))):
+                fu.write(f"{v}\n")
