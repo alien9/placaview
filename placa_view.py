@@ -21,6 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+import qgis
 from qgis.core import QgsDistanceArea, QgsCoordinateReferenceSystem, QgsPoint, QgsApplication
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
@@ -66,6 +67,7 @@ class PlacaView:
     fid = None  # selected sign's mapillary id
     selected_sign: QgsFeature
     roads_index: QgsSpatialIndex
+    projector: QgsCoordinateReferenceSystem = None
 
     def __init__(self, iface):
         """Constructor.
@@ -557,7 +559,6 @@ class PlacaView:
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         layer = self.create_signals_vector_layer()
         layer.dataProvider().truncate()
-        import qgis
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
@@ -801,9 +802,9 @@ class PlacaView:
             self.run()
         self.dockwidget.show()
         self.selected_sign = args[1]
-        but=self.dockwidget.findChild(QPushButton, "mapillarytype")
+        but = self.dockwidget.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
-            self.plugin_dir,f"styles/symbols/{args[1].attribute('value')}.svg")))
+            self.plugin_dir, f"styles/symbols/{args[1].attribute('value')}.svg")))
 
         self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
@@ -841,7 +842,7 @@ class PlacaView:
         def go(task, wait_time):
             return self.get_images()
         self.otask = QgsTask.fromFunction(
-            'heavy function', go, on_finished=self.after_get_images, wait_time=1000)
+            'getting images', go, on_finished=self.after_get_images, wait_time=1000)
         QgsApplication.taskManager().addTask(self.otask)
 
         # self.get_images()
@@ -923,25 +924,26 @@ class PlacaView:
         print("before diasta")
         distance = QgsDistanceArea()
         print(distance)
-        # distance.setSourceCrs(signs_layer.crs())
         print(signs_layer.crs())
-        # distance.setEllipsoidalMode(True)
-        # distance.setEllipsoid('WGS84')
         print("afte diasta")
         feature = signs_layer.getFeature(signs[0])
-        
+
         geom = feature.geometry()
         print("find roads fot this geom")
-        buffet=EquidistanceBuffer()
-        projection_string=QgsCoordinateReferenceSystem(buffet.proj_string(geom))
-        print(projection_string)
-        xform = QgsCoordinateTransform(signs_layer.crs(), projection_string, QgsProject.instance())
-        roads_xform = QgsCoordinateTransform(roads_layer.crs(), projection_string, QgsProject.instance())
+        buffet = EquidistanceBuffer()
+        # print(buffet.proj_string(geom))
+        if self.projector is None:
+            self.projector = QgsCoordinateReferenceSystem(
+                buffet.proj_string(geom))
+        xform = QgsCoordinateTransform(
+            signs_layer.crs(), self.projector, QgsProject.instance())
+        roads_xform = QgsCoordinateTransform(
+            roads_layer.crs(), self.projector, QgsProject.instance())
         print(geom)
-        gt=geom.asWkt()
+        gt = geom.asWkt()
         print(gt)
-        projected=QgsGeometry.fromWkt(gt)
-        print("vai projetar")
+        projected = QgsGeometry.fromWkt(gt)
+        print("vai projetar", roads_layer.crs(), self.projector)
         projected.transform(xform)
         print(projected)
 
@@ -951,33 +953,38 @@ class PlacaView:
                 geom, d, signs_layer.crs()
             )
             print(boulder)
-            roads = list(
-                map(lambda f: (self.get_distance_from_road_to_sign(projected, f.geometry(),roads_xform), f.attributes()[roads_layer.fields().indexOf(self.conf.get("roads_field_name"))]),
-                    map(lambda rid: roads_layer.getFeature(rid),
-                    filter(lambda x: boulder.intersects(roads_layer.getFeature(
-                        x).geometry()), index.intersects(boulder.boundingBox()))
-                        )))
+            roads = index.intersects(boulder.boundingBox())
+            if len(roads) and len(roads) < 100:
+                roads = list(filter(lambda x: boulder.intersects(
+                    roads_layer.getFeature(x).geometry()), roads))
             print(f"fopinund {len(roads)} within {d}")
             d += 30
-        if len(roads)>50:
+        if len(roads) > 50:
             print("estercado")
+            print(self.projector)
             return
         if len(roads):
+            roads = list(
+                map(lambda f: (self.get_distance_from_road_to_sign(projected, f.geometry(), roads_xform), f.attributes()[roads_layer.fields().indexOf(self.conf.get("roads_field_name"))]),
+                    map(lambda rid: roads_layer.getFeature(rid),
+                        roads
+                        )))
+
             roads.sort()
             n = 0
             print(roads)
             self.dockwidget.findChild(QLabel, "street_label").setText(
                 roads[0][1]
             )
-    
+
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
-        r=QgsGeometry(road_geometry)
-        s=QgsGeometry(sign_geometry)
+        r = QgsGeometry(road_geometry)
+        s = QgsGeometry(sign_geometry)
         r.transform(xform)
         return r.distance(s)
-        
+
     def save_unique_values(self):
-        signs_layer=self.get_signs_layer()        
+        signs_layer = self.get_signs_layer()
         if signs_layer is None:
             print("NOTHING TO DO ")
             return
