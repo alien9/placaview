@@ -58,6 +58,8 @@ class SignsEditor(QDialog, FormClass):
     signs_layer: QgsVectorLayer
     placas = None
     code: str = None
+    dictionary = {}
+    faces = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
@@ -76,7 +78,6 @@ class SignsEditor(QDialog, FormClass):
             os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
 
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
-        print(other_but)
         other_but.clicked.connect(self.select_sign)
 
         # print("bugado")
@@ -109,21 +110,40 @@ class SignsEditor(QDialog, FormClass):
             self.navigate()
         self.placas = kwargs.get("placas", None)
         if not self.placas:
-            self.placas = [
-                fu[:-1] for fu in open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"), "r")]
-        self.dictionary = json.loads(
-            open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r").read())
-        if self.sign["value"] in self.dictionary:
-            filename=f"styles/symbols_br/{self.dictionary.get(self.sign['value'])}.svg"
-            if not os.path.isfile(filename):
-                filename="styles/Question_Mark.svg"
-            self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
-                os.path.dirname(__file__), filename)))
-
-                
+            with open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"), "r") as flu:
+                self.placas = [fu[:-1] for fu in flu.readlines()]
+                flu.close()
+            with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as flu:
+                self.dictionary = json.loads(flu.read())
+                flu.close()
+            with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
+                self.faces = json.loads(flu.read())
+                flu.close()
+        self.code = str(self.sign["code"])
+        self.face = str(self.sign["face"])
+        self.value= str(self.sign["value"])
+        if self.code != 'NULL':
+            self.set_sign(self.code)
+            if self.face != 'NULL':
+                self.findChild(QLineEdit, "face").setText(self.face)
+                self.set_sign_face(self.face)
+        else:
+            if self.value in self.dictionary:
+                self.code=self.dictionary.get(self.value)
+                self.face=self.faces.get(self.value, None)
+                filename = os.path.join(os.path.dirname(__file__),f"styles/symbols_br/{self.code}.svg")
+                if not os.path.isfile(filename):
+                    filename = "styles/Question_Mark.svg"
+                self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
+                    os.path.dirname(__file__), filename)))
+                if self.face is not None:
+                    self.findChild(QLineEdit, "face").setText(self.face)
+                    self.set_sign_face(self.face)
 
         self.findChild(QPushButton, "pushButton_save").clicked.connect(
             self.save_sign)
+        self.findChild(QLineEdit, "face").textChanged.connect(
+            self.set_sign_face)
 
     def save_sign(self):
         is_correct = self.findChild(
@@ -132,18 +152,28 @@ class SignsEditor(QDialog, FormClass):
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("code"), self.code)
+            if self.face is not None:
+                self.signs_layer.changeAttributeValue(
+                    self.sign.id(), self.sign.fieldNameIndex("face"), self.face)
             self.signs_layer.commitChanges()
         if is_correct:
-            dictionary = json.loads(
-                open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r").read())
-            dictionary[self.sign["value"]] = self.code
+            dictionary = {}
+            faces = {}
+            if os.path.isfile(os.path.join(os.path.dirname(__file__), f"placatype.json")):
+                with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as fu:
+                    dictionary = json.loads(fu.read())
+                fu.close()
+            if os.path.isfile(os.path.join(os.path.dirname(__file__), f"placafaces.json")):
+                with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as fu:
+                    faces = json.loads(fu.read())
+                fu.close()
+            self.dictionary[self.sign["value"]] = self.code
+            self.faces[self.sign["value"]] = self.face
             with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "w") as fu:
-                fu.write(json.dumps(dictionary))
-            v = self.sign["value"]
-            print(v)
-            print(dictionary)
+                fu.write(json.dumps(self.dictionary))
+            with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "w") as fu:
+                fu.write(json.dumps(self.faces))
 
-        print("saving", is_correct)
         self.close()
 
     def select_sign(self):
@@ -153,11 +183,32 @@ class SignsEditor(QDialog, FormClass):
 
     def set_sign(self, *args, **kwargs):
         print("ACKnowledge", args)
+        print(os.path.join(
+            os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg"))
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg")))
         self.code = args[0]
-        print("THE FEATURE ID IS ", self.sign.id())
-        print("WIIWLKIWLKWILWIW", kwargs)
+
+    def set_sign_face(self, *args, **kwargs):
+        self.face = args[0]
+        if self.code is None:
+            return
+        with open(os.path.join(
+                os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")) as fu:
+            svg = fu.read()
+        fu.close()
+        svg = svg.replace(
+            "</svg>", f'<text x="400" y="500" font-size="400" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
+        with open(os.path.join(
+                os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg"), "w") as fu:
+            svg = fu.write(svg)
+        fu.close()
+        self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
+            os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg")))
+        print(svg)
+        print(args)
+        print(kwargs)
+        print(self.findChild(QPushButton, "brasiltype").icon())
 
     def forward(self):
         self.sign_images_index += 1

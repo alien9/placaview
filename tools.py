@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 
 try:
     from mapbox_vector_tile import decode
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     print('Module mapbox-vector-tile not found. Installing from PyPi')
     import pip
     pip.main(['install', 'mapbox-vector-tile'])
@@ -10,7 +10,7 @@ except ModuleNotFoundError:
    
 try:
     from vt2geojson.features import Layer
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError):
     print('Module vt2geojson not found. Installing from PyPi')
     import pip
     pip.main(['install', 'vt2geojson'])
