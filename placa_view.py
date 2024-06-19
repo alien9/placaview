@@ -394,6 +394,13 @@ class PlacaView:
                 QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
+            roads=self.conf.get("roads", None)
+            if roads is not None:
+                try:
+                    self.roads_layer=self.get_line_by_name(roads)
+                    self.set_roads_layer(roads, self.conf.get("roads_field_name"))
+                except:
+                    self.roads_layer=None
             try:
                 if self.roads_layer:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
@@ -732,6 +739,11 @@ class PlacaView:
             code = QgsField("code", QVariant.String)
             with edit(self.signs_layer):
                 self.signs_layer.addAttribute(code)
+                self.signs_layer.updateFields()
+        if "face" not in self.signs_layer.fields():
+            face = QgsField("face", QVariant.String)
+            with edit(self.signs_layer):
+                self.signs_layer.addAttribute(face)
                 self.signs_layer.updateFields()
 
         fu = SignsEditor(

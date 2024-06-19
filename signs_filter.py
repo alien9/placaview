@@ -45,7 +45,9 @@ class SignsFilter(QDialog, FormClass):
         if not self.sign_names:
             filename=os.path.join(os.path.dirname(__file__), "existing.txt")
             if os.path.isfile(filename):
-                self.sign_names=[n[:-1] for n in open(filename, "r").readlines()]
+                with open(filename, "r") as fu:
+                    self.sign_names=[n[:-1] for n in fu.readlines()]
+                fu.close()
             else:    
                 self.sign_names= sorted([re.split("(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])
         return self.sign_names
