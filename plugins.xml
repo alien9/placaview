@@ -1,6 +1,6 @@
 <?xml version = '1.0' encoding = 'UTF-8'?>
 <plugins>
-    <pyqgis_plugin name="QuickWKT" version="3.1" plugin_id="11">
+    <pyqgis_plugin name="RoadMapillarySignsDatabase1" version="3.1" plugin_id="11">
         <description><![CDATA[Quick WKT/WKB viewer, this Qgis Plugin opens a dialog where the user can paste (E)WKT and WKB code and see it on the map. Pasted data are stored in a temporay (memory) layer and are completely lost when the user quits QGIS.]]></description>
         <about><![CDATA[Quick WKT/WKB is a plugin to easily show WKT/WKB data into QGIS. It also provides some utilities function and adds them to iface (see the about tab in the plugin&#x27;s dialog for details).]]></about>
         <version>3.1</version>
