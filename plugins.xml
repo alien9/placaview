@@ -7,7 +7,7 @@
         <trusted>True</trusted>
         <qgis_minimum_version>3.0.0</qgis_minimum_version>
         <qgis_maximum_version>3.99.0</qgis_maximum_version>
-        <homepage><![CDATA[http://www.itopen.it/2010/10/21/wkt-on-the-fly-qgis-plugin/]]></homepage>
+        <homepage><![CDATA[http://github.com/alien9/placaview/]]></homepage>
         <file_name>QuickWKT.3.1.zip</file_name>
         <icon>/media/packages/2016/quickwkt_icon_qsf96s5.png</icon>
         <author_name><![CDATA[Alessandro Pasotti]]></author_name>
@@ -32,7 +32,7 @@
         <qgis_minimum_version>2.0</qgis_minimum_version>
         <homepage>http://github.com/alien9/placaview</homepage>
         <file_name>main.zip</file_name>
-        <author_name>Tiago Barufi</author_name>
+        <author_name><![CDATA[Tiago Barufi]]></author_name>
         <download_url>https://github.com/alien9/placaview/archive/refs/heads/main.zip</download_url>
         <uploaded_by>alien9</uploaded_by>
         <experimental>False</experimental>
