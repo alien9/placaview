@@ -70,6 +70,8 @@ class SignsEditor(QDialog, FormClass):
         self.key = kwargs.get('mapillary_key')
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
+        print("GOT IMAGES:")
+        print(self.sign_images)
         self.sign: QgsFeature = kwargs.get("selected_sign")
         self.signs_layer = kwargs.get("signs_layer")
 
@@ -217,7 +219,7 @@ class SignsEditor(QDialog, FormClass):
 
     def navigate(self):
         self.dl = SignDataDownloader(
-            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url')
+            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,compass_angle')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
 
@@ -236,5 +238,6 @@ class SignsEditor(QDialog, FormClass):
             self.backward)
 
     def show_image(self, *args, **kwargs):
+        print(self.dl.result)
         self.findChild(QWebView, "webView").load(
             QUrl(self.dl.result.get("thumb_1024_url")))
