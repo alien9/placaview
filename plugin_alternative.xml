@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<plugins>
+    <pyqgis_plugin name="SomeName" version="0.1">
+        <description>This plugin shows sensitive data</description>
+        <homepage>www.gisisfun.com</homepage>
+        <qgis_minimum_version>2.2</qgis_minimum_version>
+        <file_name>somePlugin.zip</file_name>
+        <author_name>YourName</author_name>
+        <download_url>http://my-site.com/somePlugin.zip</download_url>
+    </pyqgis_plugin>
+</plugins>
