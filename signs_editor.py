@@ -11,9 +11,9 @@ from qgis.PyQt.QtSvg import QGraphicsSvgItem, QSvgRenderer, QSvgWidget
 import qgis.PyQt.QtSvg
 from qgis.PyQt.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from qgis.PyQt.QtSvg import QSvgWidget, QSvgRenderer
-from qgis.PyQt.QtGui import QTransform
+from qgis.PyQt.QtGui import QTransform, QColor
 from .placa_selector import PlacaSelector
-
+from qgis.core import *
 
 from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.PyQt.QtWebKitWidgets import QWebView
@@ -70,10 +70,8 @@ class SignsEditor(QDialog, FormClass):
         self.key = kwargs.get('mapillary_key')
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
-        print("GOT IMAGES:")
-        print(self.sign_images)
         self.sign: QgsFeature = kwargs.get("selected_sign")
-        self.signs_layer = kwargs.get("signs_layer")
+        self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
 
         but = self.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
@@ -103,7 +101,38 @@ class SignsEditor(QDialog, FormClass):
             ), 35, kwargs.get('signs_layer').crs()
         )
         roads: QgsVectorLayer = kwargs.get("roads")
-        canvas.setLayers([roads])
+        layer = QgsVectorLayer('Point?crs=EPSG:4326', 'popup_sign', 'memory')
+        canvas.setLayers([roads, layer])
+        if not layer.isValid():
+            print("Layer creation failed!")
+        layer.startEditing()
+        # Define fields for the layer
+        layer_data_provider = layer.dataProvider()
+        #layer_data_provider.addAttributes(self.signs_layer.fields())
+        layer_data_provider.addAttributes([QgsField('name', QVariant.String),
+                                        QgsField('value', QVariant.Int)])
+        layer.updateFields()
+        print("WILL ADD THE FARARAR")
+        print(self.sign)
+        print(self.sign.geometry())
+
+        #layer.commitChanges()
+        f=QgsFeature()
+        f.setGeometry(self.sign.geometry())
+        f.setAttributes(['peganingas', 1])
+        print("adding")
+        print(self.sign.geometry())
+        layer.dataProvider().addFeatures([f])
+        layer.updateExtents()
+        layer.renderer().symbol().setColor(QColor.fromRgb( 0, 255, 0))
+        
+        #layer.addFeatures([self.sign])
+        
+        layer.commitChanges()
+
+        print(layer.extent().xMaximum())
+        QgsProject.instance().addMapLayer(layer)
+        canvas.setLayers([roads, layer])
         canvas.setExtent(boulder.boundingBox())
         canvas.redrawAllLayers()
 
@@ -139,8 +168,9 @@ class SignsEditor(QDialog, FormClass):
                 self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
                     os.path.dirname(__file__), filename)))
                 if self.face is not None:
-                    self.findChild(QLineEdit, "face").setText(self.face)
-                    self.set_sign_face(self.face)
+                    if self.face != 'NULL':
+                        self.findChild(QLineEdit, "face").setText(self.face)
+                        self.set_sign_face(self.face)
 
         self.findChild(QPushButton, "pushButton_save").clicked.connect(
             self.save_sign)
@@ -184,7 +214,6 @@ class SignsEditor(QDialog, FormClass):
         fu.exec()
 
     def set_sign(self, *args, **kwargs):
-        print("ACKnowledge", args)
         print(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg"))
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
@@ -207,10 +236,6 @@ class SignsEditor(QDialog, FormClass):
         fu.close()
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg")))
-        print(svg)
-        print(args)
-        print(kwargs)
-        print(self.findChild(QPushButton, "brasiltype").icon())
 
     def forward(self):
         self.sign_images_index += 1
@@ -219,7 +244,7 @@ class SignsEditor(QDialog, FormClass):
 
     def navigate(self):
         self.dl = SignDataDownloader(
-            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,compass_angle')
+            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
 
@@ -237,7 +262,45 @@ class SignsEditor(QDialog, FormClass):
         self.findChild(QPushButton, "pushButton_back").clicked.connect(
             self.backward)
 
+    def get_point_layer_by_name(self, name):
+        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name(
+        ) == name, QgsProject.instance().mapLayers().values()))
+        if layers:
+            return layers[0]
+
     def show_image(self, *args, **kwargs):
         print(self.dl.result)
+        arrows_layer=self.get_point_layer_by_name("arrows_popup_layer")
+        canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
+        if arrows_layer is None:
+            arrows_layer= QgsVectorLayer('Point?crs=EPSG:4326', 'arrows_popup_layer', 'memory')
+            arrows_layer.dataProvider().addAttributes([QgsField('id', QVariant.String),
+                                        QgsField('compass', QVariant.Double)])
+            QgsProject.instance().addMapLayer(arrows_layer)
+            l=canvas.layers()
+            l.append(arrows_layer)
+            canvas.setLayers(l)
+        fu=QgsFeature()
+        fu.setAttributes([self.dl.result.get("id"),self.dl.result.get("computed_compass_angle")])
+        fu.setGeometry(QgsGeometry.fromPoint(QgsPoint(*self.dl.result.get("computed_geometry").get("coordinates"))))
+        svg_path = os.path.join(os.path.dirname(__file__), f"styles/arrow.svg")
+        # Replace with the path to your SVG file
+        svg_marker = QgsSvgMarkerSymbolLayer(svg_path)
+        svg_marker.setAngle(self.dl.result.get("computed_compass_angle"))
+        svg_marker.setSize(8)
+
+        # Create a marker symbol and add the SVG marker to it
+        symbol = QgsMarkerSymbol.createSimple({})
+        symbol.changeSymbolLayer(0, svg_marker)
+
+        # Apply the symbol to the layer's renderer
+        arrows_layer.renderer().setSymbol(symbol)
+
+        arrows_layer.dataProvider().truncate()
+        arrows_layer.dataProvider().addFeatures([fu])
+        arrows_layer.updateExtents()
+        
+        
+        canvas.redrawAllLayers()
         self.findChild(QWebView, "webView").load(
             QUrl(self.dl.result.get("thumb_1024_url")))
