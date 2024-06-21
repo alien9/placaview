@@ -755,14 +755,27 @@ class PlacaView:
             roads=self.get_roads_layer(),
             selected_sign=self.selected_sign
         )
+        fu.closeEvent=self.close_signs_editor
         fu.exec()
-
+    def close_signs_editor(self, *args, **kwargs):
+        try:
+            layer=self.get_point_layer_by_name("popup_sign")
+            QgsProject.instance().removeMapLayer(layer)
+        except:
+            pass
+        try:
+            layer=self.get_point_layer_by_name("arrows_popup_layer")
+            QgsProject.instance().removeMapLayer(layer)
+        except:
+            pass
+        print("this is closing")
+        
     def start_select_features(self):
         self.signs_layer = self.get_signs_layer()
         if not self.signs_layer:
             return
         self.iface.setActiveLayer(self.signs_layer)
-        self.mapTool = SignsSelector(self.iface)
+        self.mapTool = SignsSelector(self.iface, self.signs_layer)
         self.mapTool.geomIdentified.connect(self.display_sign)
         self.mapTool.setLayer(self.signs_layer)
         self.iface.mapCanvas().setMapTool(self.mapTool)
@@ -813,6 +826,9 @@ class PlacaView:
         if not self.dockwidget:
             self.run()
         self.dockwidget.show()
+        print("identified ")
+        print(args[1])
+        print("end identified")
         self.selected_sign = args[1]
         but = self.dockwidget.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
@@ -834,9 +850,9 @@ class PlacaView:
         if not roads_layer:
             if not self.ask_roads_layer():
                 return
-        task = QgsTask.fromFunction(
-            'heavy function', match, wait_time=1)
-        QgsApplication.taskManager().addTask(task)
+        #task = QgsTask.fromFunction(
+        #    'heavy function', match, wait_time=1)
+        #QgsApplication.taskManager().addTask(task)
         f.setGeometry(feature.geometry())
         f.setAttributes([feature["value"]])
         ss_layer.addFeatures([f])
@@ -884,12 +900,14 @@ class PlacaView:
         print("get images")
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
-        fu = requests.get(
-            url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
+        fu = requests.get(url)
+        #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
             print("got the images")
             photos = fu.json()
             return photos
+        print(fu.status_code)
+        print("and now")
         return
 
     def page_up(self):

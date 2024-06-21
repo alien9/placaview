@@ -13,10 +13,10 @@ class SignsSelector(QgsMapToolIdentifyFeature):
 
     geomIdentified = pyqtSignal(object, object)
 
-    def __init__(self, iface):
+    def __init__(self, iface, layer):
         self.iface = iface
         self.canvas = self.iface.mapCanvas()
-        self.layer = self.iface.activeLayer()
+        self.layer = layer #self.iface.activeLayer()
         QgsMapToolIdentifyFeature.__init__(self, self.canvas, self.layer)
         self.featureIdentified.connect(self.identify)
         self.iface.currentLayerChanged.connect(self.active_changed)
@@ -28,9 +28,9 @@ class SignsSelector(QgsMapToolIdentifyFeature):
         except:
             #the layer doesnt exist anymore
             pass
-        if isinstance(layer, QgsVectorLayer) and layer.isSpatial():
-            self.layer = layer
-            self.setLayer(self.layer)
+        #if isinstance(layer, QgsVectorLayer) and layer.isSpatial():
+        #    self.layer = layer
+        #    self.setLayer(self.layer)
             
     def canvasReleaseEvent(self, mouseEvent):
         results = self.identify(mouseEvent.x(), mouseEvent.y(), self.TopDownStopAtFirst, [self.layer], self.VectorLayer)       
