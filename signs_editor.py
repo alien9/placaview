@@ -23,7 +23,7 @@ from qgis.gui import QgsFilterLineEdit
 import os
 import requests
 import re
-import json
+import json, datetime
 from .signs_filter_item import SignsFilterItem
 
 FormClass, _ = uic.loadUiType(os.path.join(
@@ -244,7 +244,7 @@ class SignsEditor(QDialog, FormClass):
 
     def navigate(self):
         self.dl = SignDataDownloader(
-            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry')
+            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
 
@@ -280,6 +280,11 @@ class SignsEditor(QDialog, FormClass):
             l=canvas.layers()
             l.append(arrows_layer)
             canvas.setLayers(l)
+        if self.dl.result is None:
+            print("No result?")
+            return
+        dt=datetime.datetime.fromtimestamp(0.001*self.dl.result.get("captured_at"))
+        self.findChild(QLabel, "date").setText(dt.strftime("%m/%d/%Y, %H:%M:%S")) #str(self.dl.result.get("captured_at")))
         fu=QgsFeature()
         fu.setAttributes([self.dl.result.get("id"),self.dl.result.get("computed_compass_angle")])
         fu.setGeometry(QgsGeometry.fromPoint(QgsPoint(*self.dl.result.get("computed_geometry").get("coordinates"))))
