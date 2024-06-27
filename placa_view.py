@@ -48,6 +48,7 @@ from .signs_editor import SignsEditor
 from .roads_selector import RoadsSelector
 from .signs_selector import SignsSelector
 from .placa_view_dockwidget import PlacaViewDockWidget
+from .roads_matcher import RoadsMatcher
 import os.path
 import os
 import json
@@ -68,6 +69,7 @@ class PlacaView:
     selected_sign: QgsFeature
     roads_index: QgsSpatialIndex
     projector: QgsCoordinateReferenceSystem = None
+    matcher: RoadsMatcher = None
 
     def __init__(self, iface):
         """Constructor.
@@ -291,7 +293,8 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/direction-road-sign-icon.svg"),
             text="Match Roads",
             callback=self.match_segment_roads,
             parent=self.iface.mainWindow()
@@ -394,13 +397,14 @@ class PlacaView:
                 QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
-            roads=self.conf.get("roads", None)
+            roads = self.conf.get("roads", None)
             if roads is not None:
                 try:
-                    self.roads_layer=self.get_line_by_name(roads)
-                    self.set_roads_layer(roads, self.conf.get("roads_field_name"))
+                    self.roads_layer = self.get_line_by_name(roads)
+                    self.set_roads_layer(
+                        roads, self.conf.get("roads_field_name"))
                 except:
-                    self.roads_layer=None
+                    self.roads_layer = None
             try:
                 if self.roads_layer:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
@@ -755,21 +759,22 @@ class PlacaView:
             roads=self.get_roads_layer(),
             selected_sign=self.selected_sign
         )
-        fu.closeEvent=self.close_signs_editor
+        fu.closeEvent = self.close_signs_editor
         fu.exec()
+
     def close_signs_editor(self, *args, **kwargs):
         try:
-            layer=self.get_point_layer_by_name("popup_sign")
+            layer = self.get_point_layer_by_name("popup_sign")
             QgsProject.instance().removeMapLayer(layer)
         except:
             pass
         try:
-            layer=self.get_point_layer_by_name("arrows_popup_layer")
+            layer = self.get_point_layer_by_name("arrows_popup_layer")
             QgsProject.instance().removeMapLayer(layer)
         except:
             pass
         print("this is closing")
-        
+
     def start_select_features(self):
         self.signs_layer = self.get_signs_layer()
         if not self.signs_layer:
@@ -850,9 +855,9 @@ class PlacaView:
         if not roads_layer:
             if not self.ask_roads_layer():
                 return
-        #task = QgsTask.fromFunction(
+        # task = QgsTask.fromFunction(
         #    'heavy function', match, wait_time=1)
-        #QgsApplication.taskManager().addTask(task)
+        # QgsApplication.taskManager().addTask(task)
         f.setGeometry(feature.geometry())
         f.setAttributes([feature["value"]])
         ss_layer.addFeatures([f])
@@ -923,12 +928,23 @@ class PlacaView:
             self.current_sign_images_index = len(self.current_sign_images)-1
         self.show_image(
             self.current_sign_images[self.current_sign_images_index]["id"])
+        
+    def match_progress_changed(self, *args, **kwargs):
+        print("PROGRESSSSS")
+        print(args)
+        print(kwargs)
+        self.geocoder_progress.setValue(round(args[0]))
+
+    def end_match(self, result=None):
+        print("will now end it")
+        self.matcher = None
 
     def match_segment_roads(self):
         """
         match all of the signals with their roads
 
         """
+
         signs_layer: QgsVectorLayer = self.get_signs_layer()
         print(signs_layer)
 
@@ -936,10 +952,10 @@ class PlacaView:
             signs_layer.dataProvider().addAttributes(
                 [QgsField("roads", QVariant.String)])
             signs_layer.updateFields()
-        signs = signs_layer.selectedFeatureIds()
-        if not len(signs):
-            return
-        street_name = set()
+        if not "road" in [f.name() for f in signs_layer.fields()]:
+            signs_layer.dataProvider().addAttributes(
+                [QgsField("road", QVariant.Int)])
+            signs_layer.updateFields()
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
         if not roads_layer:
@@ -947,6 +963,19 @@ class PlacaView:
                 return
             roads_layer: QgsVectorLayer = self.get_line_by_name(
                 self.conf.get("roads"))
+        progressMessageBar = qgis.utils.iface.messageBar()
+        self.geocoder_progress = QProgressBar()
+        progressMessageBar.pushWidget(self.geocoder_progress)
+        if self.matcher is None:
+            self.matcher: RoadsMatcher = RoadsMatcher(
+                signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"))
+            self.matcher.progressChanged.connect(self.match_progress_changed)
+            self.taskManager.addTask(self.matcher)
+        else:
+            print("cancellar")
+            self.matcher.cancel()
+
+        return
         d = 50
         roads = []
         index = QgsSpatialIndex(roads_layer.getFeatures(
