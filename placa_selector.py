@@ -46,18 +46,17 @@ class PlacaSelector(QDialog, FormClass):
         """ self.placas = [fu.replace(".svg", "") for fu in os.listdir(
             os.path.join(os.path.dirname(__file__), "styles/symbols_br"))] """
         self.placas=kwargs.get("placas", None)
-        print("already had placas")
         if not self.placas:
-            print("ther aint no placas")
             self.placas=[fu[:-1] for fu in open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"))]
         r=0
         c=0
         for p in self.placas:
             button = QPushButton("", self)
             button.setAccessibleName(p)
-            button.setFixedSize(QSize(80,80))
+            button.setFixedSize(QSize(50,50))
             button.setIcon(QIcon(os.path.join(os.path.dirname(__file__),f"styles/symbols_br/{p}.svg")))
-            button.setIconSize(QSize(70,70))
+            button.setIconSize(QSize(40,40))
+            button.setToolTip(p)    
             button.clicked.connect(partial(self.apply, p))
             layout.addWidget(button, r, c)
             c+=1
