@@ -149,6 +149,7 @@ class SignsEditor(QDialog, FormClass):
             with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
                 self.faces = json.loads(flu.read())
                 flu.close()
+        print("WILL NOW EDITTTT", self.sign["code"])
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])

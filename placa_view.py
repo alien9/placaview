@@ -49,6 +49,7 @@ from .roads_selector import RoadsSelector
 from .signs_selector import SignsSelector
 from .placa_view_dockwidget import PlacaViewDockWidget
 from .roads_matcher import RoadsMatcher
+from .placa_selector import PlacaSelector
 import os.path
 import os
 import json
@@ -70,6 +71,7 @@ class PlacaView:
     roads_index: QgsSpatialIndex
     projector: QgsCoordinateReferenceSystem = None
     matcher: RoadsMatcher = None
+    seletor: PlacaSelector = None
 
     def __init__(self, iface):
         """Constructor.
@@ -263,7 +265,8 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/dl.svg"),
             text="Download Signs",
             callback=self.download_signs,
             parent=self.iface.mainWindow()
@@ -287,7 +290,8 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/filter.svg"),
             text="Filter Signs",
             callback=self.load_signs_filter,
             parent=self.iface.mainWindow()
@@ -598,6 +602,7 @@ class PlacaView:
             pass
         self.save_signs_layer()
         self.load_signs_layer()
+        self.save_unique_values()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -719,7 +724,7 @@ class PlacaView:
 
     def apply_filter(self, value):
         print(value)
-        self.set_signs_style(filter=self.read_filter())
+        self.set_signs_style(filter=value)
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
                 fu.write(f"{t}\n")
@@ -729,7 +734,12 @@ class PlacaView:
         if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
             with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
                 value = list(map(lambda x: x[0: -1], fu.readlines()))
-        return value
+            fu.close()
+        if os.path.isfile(os.path.join(self.plugin_dir, f"existing.txt")):
+            with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
+                exists =set(map(lambda x: x[0: -1], fu.readlines()))
+            fu.close()
+        return list(filter(lambda x: x in exists, value))
 
     def load_signs_filter(self):
         fu = SignsFilter(parent=self.iface.mainWindow(),
@@ -991,3 +1001,4 @@ class PlacaView:
         with open(os.path.join(self.plugin_dir, "existing.txt"), "w+") as fu:
             for v in list(sorted(signs_layer.uniqueValues(idx))):
                 fu.write(f"{v}\n")
+            fu.close()
