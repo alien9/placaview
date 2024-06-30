@@ -449,7 +449,7 @@ class PlacaView:
         fu.exec()
         return True
 
-    def set_roads_layer(self, layer, field):
+    def set_roads_layer(self, layer, field, roads_pk):
         print("SETTING ROADS LAYER")
         self.roads_layer: QgsVectorLayer = self.get_line_by_name(layer)
         if self.dockwidget:
@@ -457,6 +457,7 @@ class PlacaView:
                 f"Roads: {self.roads_layer.name()}")
         self.set_conf("roads", self.roads_layer.name())
         self.set_conf("roads_field_name", field)
+        self.set_conf("roads_pk", roads_pk)
         self.roads_index = QgsSpatialIndex(self.roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
 
@@ -933,29 +934,27 @@ class PlacaView:
         print("PROGRESSSSS")
         print(args)
         print(kwargs)
-        self.geocoder_progress.setValue(round(args[0]))
+        try:
+            self.geocoder_progress.setValue(round(args[0]))
+        except:
+            self.matcher.cancel()
 
     def end_match(self, result=None):
         print("will now end it")
         self.matcher = None
+        self.geocoder_progress.close()
 
     def match_segment_roads(self):
         """
         match all of the signals with their roads
 
         """
+        print("match roads startings")
 
         signs_layer: QgsVectorLayer = self.get_signs_layer()
         print(signs_layer)
 
-        if not "roads" in [f.name() for f in signs_layer.fields()]:
-            signs_layer.dataProvider().addAttributes(
-                [QgsField("roads", QVariant.String)])
-            signs_layer.updateFields()
-        if not "road" in [f.name() for f in signs_layer.fields()]:
-            signs_layer.dataProvider().addAttributes(
-                [QgsField("road", QVariant.Int)])
-            signs_layer.updateFields()
+        print("CREATED")
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
         if not roads_layer:
@@ -963,78 +962,19 @@ class PlacaView:
                 return
             roads_layer: QgsVectorLayer = self.get_line_by_name(
                 self.conf.get("roads"))
+        qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
         progressMessageBar.pushWidget(self.geocoder_progress)
-        if self.matcher is None:
+        if self.matcher is None:    
             self.matcher: RoadsMatcher = RoadsMatcher(
-                signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"))
+                signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
             self.matcher.progressChanged.connect(self.match_progress_changed)
+            self.matcher.taskCompleted.connect(self.end_match)
             self.taskManager.addTask(self.matcher)
         else:
             print("cancellar")
             self.matcher.cancel()
-
-        return
-        d = 50
-        roads = []
-        index = QgsSpatialIndex(roads_layer.getFeatures(
-        ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
-        print("before diasta")
-        distance = QgsDistanceArea()
-        print(distance)
-        print(signs_layer.crs())
-        print("afte diasta")
-        feature = signs_layer.getFeature(signs[0])
-
-        geom = feature.geometry()
-        print("find roads fot this geom")
-        buffet = EquidistanceBuffer()
-        # print(buffet.proj_string(geom))
-        if self.projector is None:
-            self.projector = QgsCoordinateReferenceSystem(
-                buffet.proj_string(geom))
-        xform = QgsCoordinateTransform(
-            signs_layer.crs(), self.projector, QgsProject.instance())
-        roads_xform = QgsCoordinateTransform(
-            roads_layer.crs(), self.projector, QgsProject.instance())
-        print(geom)
-        gt = geom.asWkt()
-        print(gt)
-        projected = QgsGeometry.fromWkt(gt)
-        print("vai projetar", roads_layer.crs(), self.projector)
-        projected.transform(xform)
-        print(projected)
-
-        while not len(roads) and d < 500:
-            print(geom)
-            boulder: QgsGeometry = buffet.buffer(
-                geom, d, signs_layer.crs()
-            )
-            print(boulder)
-            roads = index.intersects(boulder.boundingBox())
-            if len(roads) and len(roads) < 100:
-                roads = list(filter(lambda x: boulder.intersects(
-                    roads_layer.getFeature(x).geometry()), roads))
-            print(f"fopinund {len(roads)} within {d}")
-            d += 30
-        if len(roads) > 50:
-            print("estercado")
-            print(self.projector)
-            return
-        if len(roads):
-            roads = list(
-                map(lambda f: (self.get_distance_from_road_to_sign(projected, f.geometry(), roads_xform), f.attributes()[roads_layer.fields().indexOf(self.conf.get("roads_field_name"))]),
-                    map(lambda rid: roads_layer.getFeature(rid),
-                        roads
-                        )))
-
-            roads.sort()
-            n = 0
-            print(roads)
-            self.dockwidget.findChild(QLabel, "street_label").setText(
-                roads[0][1]
-            )
 
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
         r = QgsGeometry(road_geometry)

@@ -16,8 +16,9 @@ FormClass, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'roads_selector.ui'))
 
 class RoadsSelector(QDialog, FormClass):
-    applyClicked = pyqtSignal(str, str)
+    applyClicked = pyqtSignal(str, str, str)
     field:str = None
+    road_pk:str=None
     
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
@@ -34,7 +35,7 @@ class RoadsSelector(QDialog, FormClass):
     @pyqtSlot()
     def set_roads_layer(self):
         widget=self.findChild(QListWidget, "listWidget")
-        self.applyClicked.emit(self.findChild(QComboBox, "roadsLayerComboBox").currentText(), self.findChild(QComboBox, "fieldNameComboBox").currentText())
+        self.applyClicked.emit(self.findChild(QComboBox, "roadsLayerComboBox").currentText(), self.findChild(QComboBox, "fieldNameComboBox").currentText(), self.findChild(QComboBox, "fieldPkComboBox").currentText())
         self.close()
                     
     def load_fields(self, *args, **kwargs):
@@ -46,6 +47,13 @@ class RoadsSelector(QDialog, FormClass):
         if self.field:
             if self.field in f:
                 co.setCurrentIndex(f.index(self.field))
+        co=self.findChild(QComboBox, "fieldPkComboBox")
+        co.clear()
+        f=[field.name() for field in layer.fields()]
+        co.addItems(f)
+        if self.road_pk:
+            if self.road_pk in f:
+                co.setCurrentIndex(f.index(self.road_pk))
             
     def connect_signals(self):
         self.findChild(QPushButton, "pushButton_ok").clicked.connect(self.set_roads_layer)
