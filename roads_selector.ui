@@ -36,12 +36,22 @@
                 <item>
                     <widget class="QLabel" name="label">
                         <property name="text">
-                            <string>Field</string>
+                            <string>Road Name Field</string>
                         </property>
                     </widget>
                 </item>
                 <item>
                     <widget class="QComboBox" name="fieldNameComboBox" />
+                </item>
+                <item>
+                    <widget class="QLabel" name="label">
+                        <property name="text">
+                            <string>Road PK Field</string>
+                        </property>
+                    </widget>
+                </item>
+                <item>
+                    <widget class="QComboBox" name="fieldPkComboBox" />
                 </item>
                 <item>
                     <layout class="QHBoxLayout" name="horizontalLayout">
