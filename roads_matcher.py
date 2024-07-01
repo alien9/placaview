@@ -39,16 +39,6 @@ class RoadsMatcher(QgsTask):
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("certain", QVariant.Double)])
             self.signs_layer.updateFields()
-        if not "text1" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text1", QVariant.String)])
-        if not "text2" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text2", QVariant.String)])
-        if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("suporte", QVariant.String)])
-            self.signs_layer.updateFields()
         
         
         self.buffet = EquidistanceBuffer()
@@ -103,6 +93,7 @@ class RoadsMatcher(QgsTask):
                             self.roads_layer.getFeature(x).geometry()), roads))
                     print(f"fopinund {len(roads)} within {d}")
                     d += 30
+                print("saiu do encontradiço")
                 if len(roads) > 50 or d>300:
                     print("estercado")
                     self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
@@ -115,6 +106,7 @@ class RoadsMatcher(QgsTask):
                         f_roads.append((distance,r))
                     f_roads.sort()
                     road_feature=self.roads_layer.getFeature(f_roads[0][1])
+                    print(feature.id(), self.signs_layer.fields().indexOf("road"),int(road_feature[self.roads_pk]))
                     self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("road"),int(road_feature[self.roads_pk]))
                     if len(roads)>1:
                         self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("certain"),f_roads[1][0]-f_roads[0][0])
@@ -127,9 +119,11 @@ class RoadsMatcher(QgsTask):
         return True
     
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
+        print("getting distance")
         r = QgsGeometry(road_geometry)
         s = QgsGeometry(sign_geometry)
         r.transform(xform)
+        print("transformou")
         return r.distance(s)
         
     def finished(self, result):        

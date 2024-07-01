@@ -18,13 +18,12 @@ FormClass, _ = uic.loadUiType(os.path.join(
 class RoadsSelector(QDialog, FormClass):
     applyClicked = pyqtSignal(str, str, str)
     field:str = None
-    roads_pk:str=None
+    road_pk:str=None
     
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
         self.app=kwargs.get("app")
         self.field=kwargs.get("field")
-        self.roads_pk=kwargs.get("roads_pk")
         self.setWindowTitle("Select Roads Layer")
         self.setupUi(self)
         self.connect_signals()
@@ -52,9 +51,9 @@ class RoadsSelector(QDialog, FormClass):
         co.clear()
         f=[field.name() for field in layer.fields()]
         co.addItems(f)
-        if self.roads_pk:
-            if self.roads_pk in f:
-                co.setCurrentIndex(f.index(self.roads_pk))
+        if self.road_pk:
+            if self.road_pk in f:
+                co.setCurrentIndex(f.index(self.road_pk))
             
     def connect_signals(self):
         self.findChild(QPushButton, "pushButton_ok").clicked.connect(self.set_roads_layer)

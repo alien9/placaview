@@ -218,34 +218,6 @@
                 </item>
 
                 <item>
-                  <layout class="QHBoxLayout">
-                    <item>
-                      <widget class="QLabel">
-                        <property name="text">
-                          <string>Texto 2</string>
-                        </property>
-                        <property name="maximumSize">
-                          <size>
-                            <width>80</width>
-                            <height>25</height>
-                          </size>
-                        </property>
-                      </widget>
-                    </item>
-                    <item>
-                      <widget class="QTextEdit" name="text2">
-                        <property name="maximumSize">
-                          <size>
-                            <width>220</width>
-                            <height>50</height>
-                          </size>
-                        </property>
-                      </widget>
-                    </item>
-                  </layout>
-                </item>
-
-                <item>
                   <layout class="QHBoxLayout" name="h_face">
                     <item>
                       <widget class="QCheckBox" name="correctly_identified">

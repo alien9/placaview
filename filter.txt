@@ -2,7 +2,6 @@ information--minimum-speed-30--g1
 regulatory--maximum-speed-limit-30--g3
 regulatory--maximum-speed-limit-35--g2
 regulatory--maximum-speed-limit-50--g1
-warning--road-bump--g2
 regulatory--maximum-speed-limit-40--g3
 complementary--maximum-speed-limit-35--g1
 regulatory--maximum-speed-limit-60--g3
@@ -25,8 +24,6 @@ regulatory--maximum-speed-limit-60--g1
 regulatory--end-of-maximum-speed-limit-80--g1
 regulatory--maximum-speed-limit-10--g1
 regulatory--advisory-maximum-speed-limit--g1
-warning--curve-left--g2
 regulatory--maximum-speed-limit-10--g3
-warning--curve-right--g2
 regulatory--end-of-maximum-speed-limit-50--g1
 regulatory--maximum-speed-limit-20--g1
