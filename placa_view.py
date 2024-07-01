@@ -65,6 +65,7 @@ class PlacaView:
     current_sign_images: object
     buffer: list = [8, 15, 30]
     download_task: SignsDownloader = None
+    selected_sign=None
     selected_sign_id = None  # selected sign's id
     fid = None  # selected sign's mapillary id
     selected_sign: QgsFeature
@@ -448,7 +449,7 @@ class PlacaView:
             if layername in names:
                 layerindex = names.index(layername)
         fu = RoadsSelector(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get(
-            "roads"), field=self.conf.get("roads_field_name"))
+            "roads"), field=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
         fu.applyClicked.connect(self.set_roads_layer)
         fu.exec()
         return True
@@ -746,6 +747,15 @@ class PlacaView:
                          filter=self.read_filter())
         fu.applyClicked.connect(self.apply_filter)
         fu.exec()
+        
+    def reload_sign(self):
+        print("SHOULD RERLOAOODAOSAO")
+        print(self.selected_sign.id())
+        self.selected_sign=self.signs_layer.getFeature(self.selected_sign.id())
+        print(self.selected_sign.id())
+        print(self.selected_sign["value"])
+        
+        print(self.selected_sign.fields())
 
     def load_signs_editor(self):
         if not self.selected_sign:
@@ -770,6 +780,7 @@ class PlacaView:
             roads=self.get_roads_layer(),
             selected_sign=self.selected_sign
         )
+        fu.reloadSign.connect(self.reload_sign)
         fu.closeEvent = self.close_signs_editor
         fu.exec()
 
@@ -843,7 +854,9 @@ class PlacaView:
             self.run()
         self.dockwidget.show()
         print("identified ")
+        print(args)
         print(args[1])
+        print(args[1].attribute('value'))
         print("end identified")
         self.selected_sign = args[1]
         but = self.dockwidget.findChild(QPushButton, "mapillarytype")

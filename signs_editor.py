@@ -5,7 +5,7 @@ from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessa
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
-from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
+from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit, QTextEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
 from qgis.PyQt import uic
 from qgis.PyQt.QtSvg import QGraphicsSvgItem, QSvgRenderer, QSvgWidget
 import qgis.PyQt.QtSvg
@@ -14,6 +14,7 @@ from qgis.PyQt.QtSvg import QSvgWidget, QSvgRenderer
 from qgis.PyQt.QtGui import QTransform, QColor
 from .placa_selector import PlacaSelector
 from qgis.core import *
+from qgis.PyQt.QtCore import pyqtSignal
 
 from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.PyQt.QtWebKitWidgets import QWebView
@@ -75,6 +76,7 @@ class SignsEditor(QDialog, FormClass):
     code: str = None
     dictionary = {}
     faces = {}
+    reloadSign: pyqtSignal=pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
@@ -85,6 +87,7 @@ class SignsEditor(QDialog, FormClass):
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
         self.sign: QgsFeature = kwargs.get("selected_sign")
+        print("STARTED EDITOR WITHEEEE", self.sign)
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         but = self.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
@@ -153,6 +156,8 @@ class SignsEditor(QDialog, FormClass):
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])
+        self.findChild(QTextEdit, "text1").setText(self.sign["text1"] or "")
+        self.findChild(QTextEdit, "text2").setText(self.sign["text2"] or "")
         if self.code != 'NULL':
             self.set_sign(self.code)
             if self.face != 'NULL':
@@ -177,10 +182,12 @@ class SignsEditor(QDialog, FormClass):
             self.save_sign)
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
-        cbx = self.findChild(QComboBox, "suporte")
+        cbx:QComboBox = self.findChild(QComboBox, "suporte")
         cbx.addItem("Selecione...", None)
         for t in self.SUPORTE_TIPO:
             cbx.addItem(t, t)
+        if self.sign["suporte"] in self.SUPORTE_TIPO:
+            cbx.setCurrentIndex(1+self.SUPORTE_TIPO.index(self.sign["suporte"]))
 
     def save_sign(self):
         is_correct = self.findChild(
@@ -192,6 +199,13 @@ class SignsEditor(QDialog, FormClass):
             if self.face is not None:
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("face"), self.face)
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("text1"), self.findChild(QTextEdit, "text1").toPlainText())
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QTextEdit, "text2").toPlainText())
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QComboBox, "suporte").currentText())
+            
             self.signs_layer.commitChanges()
         if is_correct:
             dictionary = {}
@@ -210,6 +224,7 @@ class SignsEditor(QDialog, FormClass):
                 fu.write(json.dumps(self.dictionary))
             with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "w") as fu:
                 fu.write(json.dumps(self.faces))
+        self.reloadSign.emit()
         self.close()
 
     def select_sign(self):
