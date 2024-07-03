@@ -778,11 +778,12 @@ class PlacaView:
             sign_images=self.current_sign_images,
             signs_layer=self.signs_layer,
             roads=self.get_roads_layer(),
-            selected_sign=self.selected_sign
+            selected_sign=self.selected_sign,
+            task_manager= QgsApplication.taskManager()
         )
         fu.reloadSign.connect(self.reload_sign)
         fu.closeEvent = self.close_signs_editor
-        fu.exec()
+        fu.show()
 
     def close_signs_editor(self, *args, **kwargs):
         try:

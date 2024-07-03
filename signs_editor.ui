@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
   <class>SignsEditor</class>
-  <widget class="QWidget" name="SignsEditor">
+  <widget class="QMainWindow" name="SignsEditor">
     <property name="geometry">
       <rect>
         <x>0</x>
@@ -328,19 +328,45 @@
         <item>
           <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
+              <widget class="QPushButton" name="pushButton_cancel">
+                <property name="maximumSize">
+                  <size>
+                   <width>250</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                <property name="text">
+                  <string>Cancel</string>
+                </property>
+              </widget>
+            </item>
+            <item>
               <widget class="QPushButton" name="pushButton_save">
+                <property name="maximumSize">
+                  <size>
+                   <width>250</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
                 <property name="text">
                   <string>Save</string>
                 </property>
               </widget>
             </item>
             <item>
-              <widget class="QPushButton" name="pushButton_cancel">
+              <widget class="QPushButton" name="pushButton_next">
+                <property name="maximumSize">
+                  <size>
+                   <width>250</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
                 <property name="text">
-                  <string>Cancel</string>
+                  <string>Save And Go</string>
                 </property>
               </widget>
             </item>
+
           </layout>
         </item>
       </layout>

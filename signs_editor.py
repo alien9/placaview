@@ -52,7 +52,7 @@ class SignDataDownloader(QgsTask):
         self.fields = kwargs.get('fields')
 
 
-class SignsEditor(QDialog, FormClass):
+class SignsEditor(QMainWindow, FormClass):
     SUPORTE_TIPO = [
         "Coluna simples",
         "Coluna dupla",
@@ -80,11 +80,12 @@ class SignsEditor(QDialog, FormClass):
 
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
-        self.setWindowTitle("Signs Editor")
         self.setupUi(self)
+       
         self.connect_signals()
         self.key = kwargs.get('mapillary_key')
         self.sign_id = kwargs.get('sign')
+        self.taskManager = kwargs.get('task_manager')
         self.sign_images = kwargs.get("sign_images")
         self.sign: QgsFeature = kwargs.get("selected_sign")
         print("STARTED EDITOR WITHEEEE", self.sign)
@@ -123,7 +124,6 @@ class SignsEditor(QDialog, FormClass):
         # layer.commitChanges()
         f = QgsFeature()
         f.setGeometry(self.sign.geometry())
-        f.setAttributes(['peganingas', 1])
         layer.dataProvider().addFeatures([f])
         layer.updateExtents()
         layer.renderer().symbol().setColor(QColor.fromRgb(0, 255, 0))
@@ -137,8 +137,10 @@ class SignsEditor(QDialog, FormClass):
         canvas.setLayers([roads, layer])
         canvas.setExtent(boulder.boundingBox())
         canvas.redrawAllLayers()
-
+        print("will load the images")
+        print(self.sign_images)
         if self.sign_images:
+            print("imagesssss")
             self.sign_images_index = 0
             self.navigate()
         self.placas = kwargs.get("placas", None)
@@ -262,10 +264,13 @@ class SignsEditor(QDialog, FormClass):
         self.navigate()
 
     def navigate(self):
+        print("NAVIGATING THROUGH IMAGESSSS")
+        print(self.sign_images_index)
         self.dl = SignDataDownloader(
             mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at')
         self.dl.taskCompleted.connect(self.show_image)
-        QgsApplication.taskManager().addTask(self.dl)
+        print("created task")
+        self.taskManager.addTask(self.dl)
 
     def backward(self):
         self.sign_images_index -= 1
