@@ -22,7 +22,7 @@
  ***************************************************************************/
 """
 import qgis
-from qgis.core import QgsDistanceArea, QgsCoordinateReferenceSystem, QgsPoint, QgsApplication
+from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat,QgsTextBufferSettings,QgsVectorLayerSimpleLabeling
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
 from qgis.PyQt.QtGui import QIcon
@@ -34,6 +34,8 @@ from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymb
 from qgis.gui import QgsMapToolIdentifyFeature
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
+
+from qgis.PyQt.QtGui import QFont, QColor
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -465,6 +467,32 @@ class PlacaView:
         self.set_conf("roads_pk", roads_pk)
         self.roads_index = QgsSpatialIndex(self.roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
+        self.set_roads_style(self.roads_layer)
+        
+        layer_settings  = QgsPalLayerSettings()
+        text_format = QgsTextFormat()
+
+        text_format.setFont(QFont("Arial", 12))
+        text_format.setSize(12)
+
+        buffer_settings = QgsTextBufferSettings()
+        buffer_settings.setEnabled(True)
+        buffer_settings.setSize(1)
+        buffer_settings.setColor(QColor("white"))
+
+        text_format.setBuffer(buffer_settings)
+        layer_settings.setFormat(text_format)
+
+        layer_settings.fieldName = field
+        from qgis.core import Qgis
+        layer_settings.placement = Qgis.LabelPlacement.Curved
+
+        layer_settings.enabled = True
+
+        layer_settings = QgsVectorLayerSimpleLabeling(layer_settings)
+        self.roads_layer.setLabelsEnabled(True)
+        self.roads_layer.setLabeling(layer_settings)
+        self.roads_layer.triggerRepaint()
 
     def get_roads_layer(self):
         layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
@@ -505,6 +533,14 @@ class PlacaView:
                 f"Boundary: {layer.name()}")
         self.set_conf("boundary", layer.name())
         self.set_boundary_style(layer)
+    
+    def set_roads_style(self, layer):
+        style = QgsStyle.defaultStyle()
+        style.importXml(os.path.join(self.plugin_dir, "styles/boundary.xml"))
+        renderer = QgsSingleSymbolRenderer(style.symbol("road"))
+        layer.setRenderer(renderer)
+        layer.triggerRepaint()
+
 
     def set_boundary_style(self, layer):
         style = QgsStyle.defaultStyle()
@@ -749,14 +785,8 @@ class PlacaView:
         fu.exec()
         
     def reload_sign(self):
-        print("SHOULD RERLOAOODAOSAO")
-        print(self.selected_sign.id())
         self.selected_sign=self.signs_layer.getFeature(self.selected_sign.id())
-        print(self.selected_sign.id())
-        print(self.selected_sign["value"])
         
-        print(self.selected_sign.fields())
-
     def load_signs_editor(self):
         if not self.selected_sign:
             return
@@ -770,19 +800,22 @@ class PlacaView:
             with edit(self.signs_layer):
                 self.signs_layer.addAttribute(face)
                 self.signs_layer.updateFields()
-
+        print("while loading")
+        print(self.conf)
         fu = SignsEditor(
             parent=self.iface.mainWindow(),
             sign=self.selected_sign_id,
             mapillary_key=self.conf.get("mapillary_key"),
             sign_images=self.current_sign_images,
             signs_layer=self.signs_layer,
-            roads=self.get_roads_layer(),
-            selected_sign=self.selected_sign
+            roads_layer=self.get_roads_layer(),
+            selected_sign=self.selected_sign,
+            task_manager= QgsApplication.taskManager(),
+            conf=self.conf
         )
         fu.reloadSign.connect(self.reload_sign)
         fu.closeEvent = self.close_signs_editor
-        fu.exec()
+        fu.showMaximized()
 
     def close_signs_editor(self, *args, **kwargs):
         try:
