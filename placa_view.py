@@ -22,7 +22,7 @@
  ***************************************************************************/
 """
 import qgis
-from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat,QgsTextBufferSettings,QgsVectorLayerSimpleLabeling
+from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
 from qgis.PyQt.QtGui import QIcon
@@ -67,7 +67,7 @@ class PlacaView:
     current_sign_images: object
     buffer: list = [8, 15, 30]
     download_task: SignsDownloader = None
-    selected_sign=None
+    selected_sign = None
     selected_sign_id = None  # selected sign's id
     fid = None  # selected sign's mapillary id
     selected_sign: QgsFeature
@@ -468,8 +468,8 @@ class PlacaView:
         self.roads_index = QgsSpatialIndex(self.roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
         self.set_roads_style(self.roads_layer)
-        
-        layer_settings  = QgsPalLayerSettings()
+
+        layer_settings = QgsPalLayerSettings()
         text_format = QgsTextFormat()
 
         text_format.setFont(QFont("Arial", 12))
@@ -533,14 +533,13 @@ class PlacaView:
                 f"Boundary: {layer.name()}")
         self.set_conf("boundary", layer.name())
         self.set_boundary_style(layer)
-    
+
     def set_roads_style(self, layer):
         style = QgsStyle.defaultStyle()
         style.importXml(os.path.join(self.plugin_dir, "styles/boundary.xml"))
         renderer = QgsSingleSymbolRenderer(style.symbol("road"))
         layer.setRenderer(renderer)
         layer.triggerRepaint()
-
 
     def set_boundary_style(self, layer):
         style = QgsStyle.defaultStyle()
@@ -774,7 +773,7 @@ class PlacaView:
             fu.close()
         if os.path.isfile(os.path.join(self.plugin_dir, f"existing.txt")):
             with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
-                exists =set(map(lambda x: x[0: -1], fu.readlines()))
+                exists = set(map(lambda x: x[0: -1], fu.readlines()))
             fu.close()
         return list(filter(lambda x: x in exists, value))
 
@@ -783,10 +782,11 @@ class PlacaView:
                          filter=self.read_filter())
         fu.applyClicked.connect(self.apply_filter)
         fu.exec()
-        
+
     def reload_sign(self):
-        self.selected_sign=self.signs_layer.getFeature(self.selected_sign.id())
-        
+        self.selected_sign = self.signs_layer.getFeature(
+            self.selected_sign.id())
+
     def load_signs_editor(self):
         if not self.selected_sign:
             return
@@ -800,22 +800,21 @@ class PlacaView:
             with edit(self.signs_layer):
                 self.signs_layer.addAttribute(face)
                 self.signs_layer.updateFields()
-        print("while loading")
-        print(self.conf)
-        fu = SignsEditor(
-            parent=self.iface.mainWindow(),
+        fu = SignsEditor()
+        fu.reloadSign.connect(self.reload_sign)
+
+        fu.closeEvent = self.close_signs_editor
+        fu.showMaximized()
+        fu.post_init(
+            iface=self.iface,
             sign=self.selected_sign_id,
             mapillary_key=self.conf.get("mapillary_key"),
             sign_images=self.current_sign_images,
             signs_layer=self.signs_layer,
             roads_layer=self.get_roads_layer(),
             selected_sign=self.selected_sign,
-            task_manager= QgsApplication.taskManager(),
             conf=self.conf
         )
-        fu.reloadSign.connect(self.reload_sign)
-        fu.closeEvent = self.close_signs_editor
-        fu.showMaximized()
 
     def close_signs_editor(self, *args, **kwargs):
         try:
@@ -985,7 +984,7 @@ class PlacaView:
             self.current_sign_images_index = len(self.current_sign_images)-1
         self.show_image(
             self.current_sign_images[self.current_sign_images_index]["id"])
-        
+
     def match_progress_changed(self, *args, **kwargs):
         print("PROGRESSSSS")
         print(args)
@@ -1022,7 +1021,7 @@ class PlacaView:
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
         progressMessageBar.pushWidget(self.geocoder_progress)
-        if self.matcher is None:    
+        if self.matcher is None:
             self.matcher: RoadsMatcher = RoadsMatcher(
                 signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
             self.matcher.progressChanged.connect(self.match_progress_changed)
