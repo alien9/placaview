@@ -361,4 +361,8 @@ class SignsEditor(QMainWindow, FormClass):
         
     def display_road(self, *args, **kwargs):
         print("display the road now")
+        self.road_id=args[1][self.conf.get("roads_pk")]
+        road_name=args[1][self.conf.get("roads_field_name")]
+        self.findChild(QTextEdit, "road_segment").setText(road_name)
+
         print(args)
