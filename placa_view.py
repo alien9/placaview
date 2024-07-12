@@ -47,7 +47,7 @@ from .resources import *
 from .tools import *
 from .signs_filter import SignsFilter
 from .signs_editor import SignsEditor
-from .roads_selector import RoadsSelector
+from .roads_config import RoadsConfig
 from .signs_selector import SignsSelector
 from .placa_view_dockwidget import PlacaViewDockWidget
 from .roads_matcher import RoadsMatcher
@@ -450,7 +450,7 @@ class PlacaView:
             layername = self.roads_layer.name()
             if layername in names:
                 layerindex = names.index(layername)
-        fu = RoadsSelector(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get(
+        fu = RoadsConfig(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get(
             "roads"), field=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
         fu.applyClicked.connect(self.set_roads_layer)
         fu.exec()
