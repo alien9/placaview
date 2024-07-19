@@ -25,8 +25,8 @@ import requests
 import re
 import json
 import datetime
-from .signs_filter_item import SignsFilterItem
-
+from .roads_selector import RoadsSelector
+        
 FormClass, eck = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'signs_editor.ui'))
 
@@ -91,13 +91,10 @@ class SignsEditor(QMainWindow, FormClass):
         self.setupUi(self)
 
     def showEvent(self, event):
-        print("shwon this")
         self.connect_signals()
         event.accept()
 
     def post_init(self, *args, **kwargs):
-        print("POST INIT")
-        print(kwargs)
         self.iface=kwargs.get("iface")
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
@@ -154,20 +151,20 @@ class SignsEditor(QMainWindow, FormClass):
             with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
                 self.faces = json.loads(flu.read())
                 flu.close()
+        self.roads_layer = kwargs.get("roads_layer")
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])
-        self.road_id = int(self.sign["road"])
-        print(f'"{self.conf.get("roads_pk")}" = {self.road_id}')
-
-        expr = QgsExpression(f'"{self.conf.get("roads_pk")}" = {self.road_id}')
-        self.roads_layer = kwargs.get("roads_layer")
-        road: QgsFeature = next(
-            self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
-        road_name = road[self.conf.get("roads_field_name")]
+        self.road_id=None
+        if type(self.sign["road"])==int:
+            self.road_id = int(self.sign["road"])
+            expr = QgsExpression(f'"{self.conf.get("roads_pk")}" = {self.road_id}')
+            road: QgsFeature = next(
+                self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
+            road_name = road[self.conf.get("roads_field_name")]
+            self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QTextEdit, "text1").setText(self.sign["text1"] or "")
-        self.findChild(QTextEdit, "text2").setText(self.sign["text2"] or "")
-        self.findChild(QTextEdit, "road_segment").setText(road_name)
+        self.findChild(QTextEdit, "text2").setText(self.sign["text2"] or "")        
         if self.code != 'NULL':
             self.set_sign(self.code)
             if self.face != 'NULL':
@@ -202,6 +199,7 @@ class SignsEditor(QMainWindow, FormClass):
         if self.sign_images:
             self.sign_images_index = 0
             self.navigate()
+        print("Will set map tool")
         self.set_map_tool()
 
     def save_sign(self):
@@ -352,16 +350,20 @@ class SignsEditor(QMainWindow, FormClass):
             QUrl(self.dl.result.get("thumb_1024_url")))
 
     def set_map_tool(self):
-        from .signs_selector import SignsSelector
-        self.mapTool = SignsSelector(self.iface, self.roads_layer)
+        print("setting map toool")  
+        canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
+
+        self.mapTool = RoadsSelector(canvas, self.roads_layer)
         self.mapTool.geomIdentified.connect(self.display_road)
         self.mapTool.setLayer(self.roads_layer)
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
         canvas.setMapTool(self.mapTool)
+        print("set the tool")
         
     def display_road(self, *args, **kwargs):
         print("display the road now")
         self.road_id=args[1][self.conf.get("roads_pk")]
+        print(self.road_id)
         road_name=args[1][self.conf.get("roads_field_name")]
         self.findChild(QTextEdit, "road_segment").setText(road_name)
 

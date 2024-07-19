@@ -22,8 +22,9 @@
  ***************************************************************************/
 """
 import qgis
-from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling
-from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit
+from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
+
+from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton
@@ -34,7 +35,6 @@ from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymb
 from qgis.gui import QgsMapToolIdentifyFeature
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
-
 from qgis.PyQt.QtGui import QFont, QColor
 
 # from qgis.core import *
@@ -47,7 +47,7 @@ from .resources import *
 from .tools import *
 from .signs_filter import SignsFilter
 from .signs_editor import SignsEditor
-from .roads_selector import RoadsSelector
+from .roads_config import RoadsConfig
 from .signs_selector import SignsSelector
 from .placa_view_dockwidget import PlacaViewDockWidget
 from .roads_matcher import RoadsMatcher
@@ -307,9 +307,10 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
-            text="Update Signs Types",
-            callback=self.save_unique_values,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/run.svg"),
+            text="Run",
+            callback=self.start_editor,
             parent=self.iface.mainWindow()
         )
         for a in self.iface.attributesToolBar().actions():
@@ -404,26 +405,29 @@ class PlacaView:
                 QPushButton, "pushButton_left").clicked.connect(self.page_down)
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
-            roads = self.conf.get("roads", None)
-            if roads is not None:
-                try:
-                    self.roads_layer = self.get_line_by_name(roads)
-                    self.set_roads_layer(
-                        roads, self.conf.get("roads_field_name"))
-                except:
-                    self.roads_layer = None
+            self.prepare_roads_and_signs()
+            
+    def prepare_roads_and_signs(self):
+        roads = self.conf.get("roads", None)
+        if roads is not None:
             try:
-                if self.roads_layer:
-                    self.dockwidget.findChild(QLabel, "roads_label").setText(
-                        f"Roads: {self.roads_layer.name()}")
+                self.roads_layer = self.get_line_by_name(roads)
+                self.set_roads_layer(
+                    roads, self.conf.get("roads_field_name"))
             except:
                 self.roads_layer = None
-            try:
-                if self.boundary:
-                    self.dockwidget.findChild(QLabel, "boundary_label").setText(
-                        f"Boundary: {self.boundary.name()}")
-            except:
-                self.boundary = None
+        try:
+            if self.roads_layer:
+                self.dockwidget.findChild(QLabel, "roads_label").setText(
+                    f"Roads: {self.roads_layer.name()}")
+        except:
+            self.roads_layer = None
+        try:
+            if self.boundary:
+                self.dockwidget.findChild(QLabel, "boundary_label").setText(
+                    f"Boundary: {self.boundary.name()}")
+        except:
+            self.boundary = None
 
     def ask_mapillary_key(self):
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
@@ -450,7 +454,7 @@ class PlacaView:
             layername = self.roads_layer.name()
             if layername in names:
                 layerindex = names.index(layername)
-        fu = RoadsSelector(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get(
+        fu = RoadsConfig(parent=self.iface.mainWindow(), roads=names, app=self, road=self.conf.get(
             "roads"), field=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
         fu.applyClicked.connect(self.set_roads_layer)
         fu.exec()
@@ -1004,12 +1008,7 @@ class PlacaView:
         match all of the signals with their roads
 
         """
-        print("match roads startings")
-
         signs_layer: QgsVectorLayer = self.get_signs_layer()
-        print(signs_layer)
-
-        print("CREATED")
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
         if not roads_layer:
@@ -1020,6 +1019,7 @@ class PlacaView:
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
+        self.create_signs_fields()
         progressMessageBar.pushWidget(self.geocoder_progress)
         if self.matcher is None:
             self.matcher: RoadsMatcher = RoadsMatcher(
@@ -1047,3 +1047,54 @@ class PlacaView:
             for v in list(sorted(signs_layer.uniqueValues(idx))):
                 fu.write(f"{v}\n")
             fu.close()
+
+    def start_editor(self):
+        roads_layer=self.get_roads_layer()
+        if not roads_layer:
+            if not self.ask_roads_layer():
+                return
+        signs_layer=self.get_signs_layer()
+        self.prepare_roads_and_signs()
+        m=signs_layer.minimumValue(signs_layer.fields().indexOf('certain')) 
+        expr = QgsExpression( f"\"certain\"='{m}'")  
+        req=QgsFeatureRequest(expr)
+
+        fids=[f.id() for f in signs_layer.getFeatures(req)]
+        print("try to get the next feature")
+        print(fids)
+        
+    def create_signs_fields(self):
+        roads_layer=self.get_roads_layer()
+        signs_layer=self.get_signs_layer()
+        roads_field_name=self.conf.get("roads_field_name")
+        roads_pk=self.conf.get("roads_pk")
+        if not "roads" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("roads", QVariant.String)])
+            self.signs_layer.updateFields()
+        if not "road" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("road", QVariant.Int)])
+            self.signs_layer.updateFields()
+        if not "out" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("out", QVariant.Int)])
+            self.signs_layer.updateFields()
+        if not "certain" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("certain", QVariant.Double)])
+        if not "status" in [f.name() for f in self.signs_layer.fields()]:
+            fi=QgsField("status", QVariant.Int)
+            fi.setDefaultValueDefinition(QgsDefaultValue('0'))
+            self.signs_layer.dataProvider().addAttributes([fi])
+            self.signs_layer.updateFields()
+        if not "text1" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("text1", QVariant.String)])
+        if not "text2" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("text2", QVariant.String)])
+        if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("suporte", QVariant.String)])
+            self.signs_layer.updateFields()
