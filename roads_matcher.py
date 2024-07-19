@@ -23,33 +23,7 @@ class RoadsMatcher(QgsTask):
         self.roads_field_name=kwargs.get("roads_field_name")
         self.roads_pk=kwargs.get("roads_pk")
         self.on_finished=kwargs.get("on_finished")
-        if not "roads" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("roads", QVariant.String)])
-            self.signs_layer.updateFields()
-        if not "road" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("road", QVariant.Int)])
-            self.signs_layer.updateFields()
-        if not "out" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("out", QVariant.Int)])
-            self.signs_layer.updateFields()
-        if not "certain" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("certain", QVariant.Double)])
-            self.signs_layer.updateFields()
-        if not "text1" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text1", QVariant.String)])
-        if not "text2" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text2", QVariant.String)])
-        if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("suporte", QVariant.String)])
-            self.signs_layer.updateFields()
-        
+       
         
         self.buffet = EquidistanceBuffer()
         QgsMessageLog.logMessage('Instanced task geocoder "{}"'.format(

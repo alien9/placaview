@@ -91,13 +91,10 @@ class SignsEditor(QMainWindow, FormClass):
         self.setupUi(self)
 
     def showEvent(self, event):
-        print("shwon this")
         self.connect_signals()
         event.accept()
 
     def post_init(self, *args, **kwargs):
-        print("POST INIT")
-        print(kwargs)
         self.iface=kwargs.get("iface")
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
