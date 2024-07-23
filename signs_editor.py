@@ -103,9 +103,12 @@ class SignsEditor(QMainWindow, FormClass):
         self.sign_images = kwargs.get("sign_images")
         self.sign: QgsFeature = kwargs.get("selected_sign")
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
-        but = self.findChild(QPushButton, "mapillarytype")
-        but.setIcon(QIcon(os.path.join(
-            os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
+        cbx: QComboBox = self.findChild(QComboBox, "suporte")
+        cbx.addItem("Selecione...", None)
+        for t in self.SUPORTE_TIPO:
+            cbx.addItem(t, t)
+        cbx.setCurrentIndex(0)
+        
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
         # load mapillary key
@@ -159,9 +162,19 @@ class SignsEditor(QMainWindow, FormClass):
                 self.faces = json.loads(flu.read())
                 flu.close()
         
+        
+        self.findChild(QLabel, "mapillary_type_label").setText(self.sign["value"])
+        
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])
+        
+        but = self.findChild(QPushButton, "mapillarytype")
+        if os.path.isfile(os.path.join(
+            os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")):
+            but.setIcon(QIcon(os.path.join(
+                os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
+        
         self.road_id=None
         if type(self.sign["road"])==int:
             self.road_id = int(self.sign["road"])
@@ -200,9 +213,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        cbx.addItem("Selecione...", None)
-        for t in self.SUPORTE_TIPO:
-            cbx.addItem(t, t)
+        cbx.setCurrentIndex(0)
         if self.sign["suporte"] in self.SUPORTE_TIPO:
             cbx.setCurrentIndex(
                 1+self.SUPORTE_TIPO.index(self.sign["suporte"]))
@@ -320,6 +331,9 @@ class SignsEditor(QMainWindow, FormClass):
         self.face = args[0]
         if self.code is None:
             return
+        if not os.path.isfile(os.path.join(
+                os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")):
+            return
         with open(os.path.join(
                 os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")) as fu:
             svg = fu.read()
@@ -384,9 +398,6 @@ class SignsEditor(QMainWindow, FormClass):
             arrows_layer.dataProvider().addAttributes([QgsField('id', QVariant.String),
                                                        QgsField('compass', QVariant.Double)])
             QgsProject.instance().addMapLayer(arrows_layer)
-            l = canvas.layers()
-            l.append(arrows_layer)
-            canvas.setLayers(l)
         if self.dl.result is None:
             print("No result?")
             return
@@ -415,7 +426,9 @@ class SignsEditor(QMainWindow, FormClass):
         arrows_layer.dataProvider().truncate()
         arrows_layer.dataProvider().addFeatures([fu])
         arrows_layer.updateExtents()
-
+        l = canvas.layers()
+        l.append(arrows_layer)
+        canvas.setLayers(l)
         canvas.redrawAllLayers()
         self.findChild(QWebView, "webView").load(
             QUrl(self.dl.result.get("thumb_1024_url")))
