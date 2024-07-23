@@ -64,7 +64,7 @@ class PlacaView:
     boundary: QgsVectorLayer
     roads_layer: QgsVectorLayer
     signs_layer: QgsVectorLayer
-    current_sign_images: object
+    current_sign_images: object=[]
     buffer: list = [8, 15, 30]
     download_task: SignsDownloader = None
     selected_sign = None
@@ -794,6 +794,7 @@ class PlacaView:
     def load_signs_editor(self):
         if not self.selected_sign:
             return
+        self.create_signs_fields()
         if "code" not in self.signs_layer.fields():
             code = QgsField("code", QVariant.String)
             with edit(self.signs_layer):
@@ -1056,30 +1057,32 @@ class PlacaView:
         signs_layer=self.get_signs_layer()
         self.prepare_roads_and_signs()
         m=signs_layer.minimumValue(signs_layer.fields().indexOf('certain')) 
-        expr = QgsExpression( f"\"certain\"='{m}'")  
+        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
         req=QgsFeatureRequest(expr)
-
-        fids=[f.id() for f in signs_layer.getFeatures(req)]
-        print("try to get the next feature")
-        print(fids)
+        fids=[(f["certain"],f.id()) for f in signs_layer.getFeatures(req)]
+        fids.sort()
+        feature=signs_layer.getFeature(fids[0][1])
+        self.selected_sign_id=fids[0][1]
+        self.selected_sign=signs_layer.getFeature(fids[0][1])
+        self.load_signs_editor()
         
     def create_signs_fields(self):
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")
         roads_pk=self.conf.get("roads_pk")
+        if not "saved" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("saved", QVariant.Bool)])
         if not "roads" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("roads", QVariant.String)])
-            self.signs_layer.updateFields()
         if not "road" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("road", QVariant.Int)])
-            self.signs_layer.updateFields()
         if not "out" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("out", QVariant.Int)])
-            self.signs_layer.updateFields()
         if not "certain" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("certain", QVariant.Double)])
@@ -1087,7 +1090,6 @@ class PlacaView:
             fi=QgsField("status", QVariant.Int)
             fi.setDefaultValueDefinition(QgsDefaultValue('0'))
             self.signs_layer.dataProvider().addAttributes([fi])
-            self.signs_layer.updateFields()
         if not "text1" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("text1", QVariant.String)])
@@ -1097,4 +1099,7 @@ class PlacaView:
         if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("suporte", QVariant.String)])
-            self.signs_layer.updateFields()
+        if not "saved" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("saved", QVariant.Bool)])
+        self.signs_layer.updateFields()
