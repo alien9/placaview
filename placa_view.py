@@ -95,10 +95,6 @@ class PlacaView:
         self.boundary = None
         self.roads_layer = None
         self.conf = {}
-        pat = os.path.join(self.plugin_dir, "mapillary_key.txt")
-        if os.path.isfile(pat):
-            with open(pat, "r") as fu:
-                self.mapillary_key = fu.readlines().pop(0)
         self.load_conf()
 
         # initialize locale
@@ -164,6 +160,7 @@ class PlacaView:
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
         self.roads_field_name = self.conf.get("roads_field_name", False)
+        print(self.conf)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -250,13 +247,15 @@ class PlacaView:
             callback=self.run,
             parent=self.iface.mainWindow())
         self.add_action(
-            icon_path,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/key.svg"),
             text="Configure Mapillary Key",
             callback=self.ask_mapillary_key,
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
+                        os.path.join(self.plugin_dir,
+                         "styles/icons/globe.svg"),
             text="Set Boundary",
             callback=self.ask_boundary_layer,
             parent=self.iface.mainWindow()
@@ -274,6 +273,7 @@ class PlacaView:
             callback=self.download_signs,
             parent=self.iface.mainWindow()
         )
+        """
         self.add_action(
             icon_path,
             text="Cancel Download",
@@ -292,6 +292,7 @@ class PlacaView:
             callback=self.load_signs_layer,
             parent=self.iface.mainWindow()
         )
+        """
         self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/filter.svg"),
@@ -436,6 +437,7 @@ class PlacaView:
         self.conf["mapillary_key"] = text
         if ok:
             self.set_conf("mapillary_key", text)
+        self.load_conf()
 
     def ask_roads_layer(self):
         if not self.dockwidget:
@@ -763,13 +765,14 @@ class PlacaView:
         layer.triggerRepaint()
 
     def apply_filter(self, value):
-        print(value)
         self.set_signs_style(filter=value)
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
                 fu.write(f"{t}\n")
+        fu.close()
 
     def read_filter(self):
+        print("READ FILTER")
         value = []
         if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
             with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
@@ -779,11 +782,14 @@ class PlacaView:
             with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
                 exists = set(map(lambda x: x[0: -1], fu.readlines()))
             fu.close()
-        return list(filter(lambda x: x in exists, value))
+        return value
+        #return list(filter(lambda x: x in exists, value))
 
     def load_signs_filter(self):
+        layer:QgsVectorLayer=self.get_signs_layer()
+        existing = layer.uniqueValues(layer.fields().indexOf('value'))
         fu = SignsFilter(parent=self.iface.mainWindow(),
-                         filter=self.read_filter())
+                         filter=self.read_filter(), values=existing)
         fu.applyClicked.connect(self.apply_filter)
         fu.exec()
 
@@ -991,9 +997,6 @@ class PlacaView:
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_progress_changed(self, *args, **kwargs):
-        print("PROGRESSSSS")
-        print(args)
-        print(kwargs)
         try:
             self.geocoder_progress.setValue(round(args[0]))
         except:

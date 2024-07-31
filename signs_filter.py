@@ -23,12 +23,15 @@ class SignsFilter(QDialog, FormClass):
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
+        print("isso eh selected signs")
+        self.sign_names=sorted(kwargs.get("values",[]))
+        print(self.selected_signs)
         self.setWindowTitle("Signs Filter")
         self.setupUi(self)
         self.search_term=QgsFilterLineEdit()
         layout=self.findChild(QHBoxLayout, "searchLayout")
         layout.addWidget(self.search_term)
-        for name in self.get_signs():
+        for name in self.sign_names: #get_signs():
             widget=self.findChild(QListWidget, "listWidget")
             item = QListWidgetItem(widget)
             item.name=name
@@ -62,7 +65,8 @@ class SignsFilter(QDialog, FormClass):
     @pyqtSlot()
     def save_filter(self):
         widget=self.findChild(QListWidget, "listWidget")
-        print("will now apply", list(self.selected_signs))
+        print("SAVEVEVEVE")
+        print(list(self.selected_signs))
         self.applyClicked.emit(list(self.selected_signs))
         self.close()
                     

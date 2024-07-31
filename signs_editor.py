@@ -1,6 +1,6 @@
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, QgsApplication
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal, QUrl, QSize
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon, QDesktopServices
 from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QDialog, QWidget, QPushButton, QListView, QListWidget, QListWidgetItem, QCheckBox, QComboBox
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
@@ -45,9 +45,12 @@ class SignDataDownloader(QgsTask):
             if r.status_code == 200:
                 self.result = r.json()
                 return True
+            print("problem")
+            print(r.status_code)
             return False
         except Exception as e:
             print(e)
+            print("errorr")
             self.exception = e
             return False
 
@@ -85,6 +88,8 @@ class SignsEditor(QMainWindow, FormClass):
     dictionary = {}
     faces = {}
     reloadSign: pyqtSignal = pyqtSignal()
+    streetview: str = ""
+    mapillary: str = ""
 
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -111,6 +116,10 @@ class SignsEditor(QMainWindow, FormClass):
         
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
+        
+        self.findChild(QPushButton, "mapillary_url").clicked.connect(self.open_mapillary)
+        self.findChild(QPushButton, "streetview_url").clicked.connect(self.open_streetview)
+        
         # load mapillary key
         self.mapillary_key = ""
         self.boundary = None
@@ -119,6 +128,12 @@ class SignsEditor(QMainWindow, FormClass):
         self.set_minimap()
         self.spinners()
         
+    def open_mapillary(self):       
+        QDesktopServices.openUrl(QUrl(self.mapillary))
+    
+    def open_streetview(self):       
+        QDesktopServices.openUrl(QUrl(self.streetview))
+
     def spinners(self):
         self.findChild(QWebView, "webView").load(
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
@@ -241,6 +256,7 @@ class SignsEditor(QMainWindow, FormClass):
     def get_images(self):
         print("get images")
         url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
+        print(url)
         fu = requests.get(url)
         #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
@@ -325,6 +341,7 @@ class SignsEditor(QMainWindow, FormClass):
             os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg"))
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg")))
+        self.findChild(QTextEdit, "code_text").setText(args[0])
         self.code = args[0]
 
     def set_sign_face(self, *args, **kwargs):
@@ -363,7 +380,7 @@ class SignsEditor(QMainWindow, FormClass):
     def navigate(self):
         print("navidage")
         self.dl = SignDataDownloader(
-            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at')
+            mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at,detections')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
 
@@ -389,7 +406,13 @@ class SignsEditor(QMainWindow, FormClass):
             return layers[0]
 
     def show_image(self, *args, **kwargs):
-        print("will show")
+        g=self.dl.result.get("computed_geometry").get("coordinates")
+        print("GOT TH E EEOMAA")
+        print(self.dl.result)
+        #{'thumb_1024_url': 'https://z-p3-scontent.fcgh5-1.fna.fbcdn.net/m1/v/t6/An_aOEAhNXXB1sd4jG1DE9WFg8fKVglC5qq9b-9we9YWasrWq5-6utjvQJy8CEtZY3mVhCNLMZm1VXZgDdQvLpRO2dU1vRwtqowTN-2IP2fEeeE_rbCaZAXN2KYgg7r98XaqYjJ3jpdSN2VlJBNbCQ?stp=s1024x768&ccb=10-5&oh=00_AYD823tB-x3M4fhKciP3uPY5EdfsS2sM58W8sGyUEg4CUg&oe=66C89D46&_nc_sid=201bca&_nc_zt=28', 'computed_compass_angle': 60.289959149676, 'computed_geometry': {'type': 'Point', 'coordinates': [-43.371146739942, -22.92186299989]}, 'captured_at': 1563902953000, 'id': '178986934111182'}
+
+        self.streetview=f"http://maps.google.com/maps?q=&layer=c&cbll={g[1]},{g[0]}"
+        self.mapillary=f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}"
         arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
         if arrows_layer is None:
@@ -432,7 +455,8 @@ class SignsEditor(QMainWindow, FormClass):
         canvas.redrawAllLayers()
         self.findChild(QWebView, "webView").load(
             QUrl(self.dl.result.get("thumb_1024_url")))
-
+        #https://graph.mapillary.com/:image_id/detections
+        
     def set_map_tool(self):
         print("setting map toool")  
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
