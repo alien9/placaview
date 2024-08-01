@@ -414,20 +414,23 @@ class PlacaView:
             try:
                 self.roads_layer = self.get_line_by_name(roads)
                 self.set_roads_layer(
-                    roads, self.conf.get("roads_field_name"))
-            except:
+                    roads, self.conf.get("roads_field_name"), self.conf.get("roads_pk"))
+            except Exception as x:
+                print(x)
                 self.roads_layer = None
         try:
             if self.roads_layer:
                 self.dockwidget.findChild(QLabel, "roads_label").setText(
                     f"Roads: {self.roads_layer.name()}")
-        except:
+        except Exception as x:
+            print(x)
             self.roads_layer = None
         try:
             if self.boundary:
                 self.dockwidget.findChild(QLabel, "boundary_label").setText(
                     f"Boundary: {self.boundary.name()}")
-        except:
+        except Exception as x:
+            print(x)
             self.boundary = None
 
     def ask_mapillary_key(self):
@@ -824,7 +827,8 @@ class PlacaView:
             signs_layer=self.signs_layer,
             roads_layer=self.get_roads_layer(),
             selected_sign=self.selected_sign,
-            conf=self.conf
+            conf=self.conf,
+            filter=self.read_filter(),
         )
 
     def close_signs_editor(self, *args, **kwargs):
@@ -1058,15 +1062,16 @@ class PlacaView:
             if not self.ask_roads_layer():
                 return
         signs_layer=self.get_signs_layer()
-        self.prepare_roads_and_signs()
         m=signs_layer.minimumValue(signs_layer.fields().indexOf('certain')) 
         expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
         req=QgsFeatureRequest(expr)
-        fids=[(f["certain"],f.id()) for f in signs_layer.getFeatures(req)]
+        fids=[(f["certain"],f.id(), f["value"]) for f in signs_layer.getFeatures(req)]
         fids.sort()
-        feature=signs_layer.getFeature(fids[0][1])
-        self.selected_sign_id=fids[0][1]
-        self.selected_sign=signs_layer.getFeature(fids[0][1])
+        fids=list(filter(lambda x: x[2] in self.read_filter(), fids))
+        if len(fids):
+            self.selected_sign_id=fids[0][1]
+            self.selected_sign=signs_layer.getFeature(fids[0][1])
+        self.prepare_roads_and_signs()
         self.load_signs_editor()
         
     def create_signs_fields(self):

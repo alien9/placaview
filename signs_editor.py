@@ -90,6 +90,7 @@ class SignsEditor(QMainWindow, FormClass):
     reloadSign: pyqtSignal = pyqtSignal()
     streetview: str = ""
     mapillary: str = ""
+    filter: list=[]
 
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -108,6 +109,9 @@ class SignsEditor(QMainWindow, FormClass):
         self.sign_images = kwargs.get("sign_images")
         self.sign: QgsFeature = kwargs.get("selected_sign")
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
+        self.filter=kwargs.get("filter")
+        print(self.filter)
+        print("FILTEREE")
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
         cbx.addItem("Selecione...", None)
         for t in self.SUPORTE_TIPO:
@@ -268,25 +272,25 @@ class SignsEditor(QMainWindow, FormClass):
         return
     
     def save_continue(self):
-        print("ooo")
         self.spinners()
         self.save_sign()
         m=self.signs_layer.minimumValue(self.signs_layer.fields().indexOf('certain')) 
         expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
         req=QgsFeatureRequest(expr)
-        fids=[(f["certain"],f.id()) for f in self.signs_layer.getFeatures(req)]
-        fids.sort()
-        self.sign=self.signs_layer.getFeature(fids[0][1])
-        self.sign_id=fids[0][1]
-        self.sign_images=[]
-        def go(task, wait_time):
-            print("go get the imagery")
-            return self.get_images()
-        self.otask = QgsTask.fromFunction(
-            'getting images', go, on_finished=self.after_get_images, wait_time=1000)
-        QgsApplication.taskManager().addTask(self.otask)
-        self.set_minimap()
-        
+        fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
+        if len(fids)>0:
+            fids.sort()
+            fids=list(filter(lambda x: x[2] in self.filter, fids))
+            self.sign=self.signs_layer.getFeature(fids[0][1])
+            self.sign_id=fids[0][1]
+            self.sign_images=[]
+            def go(task, wait_time):
+                return self.get_images()
+            self.otask = QgsTask.fromFunction(
+                'getting images', go, on_finished=self.after_get_images, wait_time=1000)
+            QgsApplication.taskManager().addTask(self.otask)
+            self.set_minimap()
+            
     
     def save_sign_close(self):
         self.save_sign()
@@ -400,12 +404,16 @@ class SignsEditor(QMainWindow, FormClass):
             self.backward)
 
     def get_point_layer_by_name(self, name):
-        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name(
-        ) == name, QgsProject.instance().mapLayers().values()))
+        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name() == name, QgsProject.instance().mapLayers().values()))
         if layers:
             return layers[0]
 
     def show_image(self, *args, **kwargs):
+        if self.dl.result is None:
+            return
+        cg=self.dl.result.get("computed_geometry")
+        if cg is None:
+            return
         g=self.dl.result.get("computed_geometry").get("coordinates")
         print("GOT TH E EEOMAA")
         print(self.dl.result)
