@@ -274,6 +274,7 @@ class SignsEditor(QMainWindow, FormClass):
     def save_continue(self):
         self.spinners()
         self.save_sign()
+        self.reset_form()
         m=self.signs_layer.minimumValue(self.signs_layer.fields().indexOf('certain')) 
         expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
         req=QgsFeatureRequest(expr)
@@ -290,7 +291,9 @@ class SignsEditor(QMainWindow, FormClass):
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
             self.set_minimap()
-            
+    
+    def reset_form(self):
+        self.findChild(QTextEdit, "code_text").setText("")
     
     def save_sign_close(self):
         self.save_sign()
@@ -349,7 +352,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.code = args[0]
 
     def set_sign_face(self, *args, **kwargs):
-        self.face = args[0]
+        self.face = args[0][0:4]
         if self.code is None:
             return
         if not os.path.isfile(os.path.join(
@@ -359,6 +362,7 @@ class SignsEditor(QMainWindow, FormClass):
                 os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")) as fu:
             svg = fu.read()
         fu.close()
+        
         if self.code=="R-15":
             svg = svg.replace(
                 "</svg>", f'<text x="400" y="470" font-size="200" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
