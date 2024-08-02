@@ -82,4 +82,3 @@ def vt_bytes_to_geojson(b_content: bytes, x: int, y: int, z: int, layer=None) ->
     }
 
 
-
