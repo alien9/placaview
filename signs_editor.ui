@@ -219,7 +219,7 @@
                         </property>
                         <property name="maximumSize">
                           <size>
-                            <width>250</width>
+                            <width>280</width>
                             <height>25</height>
                           </size>
                         </property>
@@ -461,7 +461,7 @@
     <customwidget>
       <class>QgsMapCanvas</class>
       <extends>QWidget</extends>
-      <header location="global"></header>
+      <header location="global">qgis/gui</header>
     </customwidget>
     <customwidget>
       <class>QSvgWidget</class>
