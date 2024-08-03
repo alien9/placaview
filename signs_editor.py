@@ -1,7 +1,7 @@
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, QgsApplication
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal, QUrl, QSize
 from qgis.PyQt.QtGui import QIcon, QDesktopServices
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QDialog, QWidget, QPushButton, QListView, QListWidget, QListWidgetItem, QCheckBox, QComboBox
+from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressDialog, QProgressBar, QDesktopWidget, QWidget, QPushButton, QListView, QListWidget, QListWidgetItem, QCheckBox, QComboBox
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
@@ -110,8 +110,6 @@ class SignsEditor(QMainWindow, FormClass):
         self.sign: QgsFeature = kwargs.get("selected_sign")
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         self.filter=kwargs.get("filter")
-        print(self.filter)
-        print("FILTEREE")
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
         cbx.addItem("Selecione...", None)
         for t in self.SUPORTE_TIPO:
@@ -131,6 +129,14 @@ class SignsEditor(QMainWindow, FormClass):
         self.placas = kwargs.get("placas", None)
         self.set_minimap()
         self.spinners()
+        self.organize()
+        
+    def organize(self):
+        g=QDesktopWidget().availableGeometry()
+        print("will resixze the webview")
+        fu=self.findChild(QWebView, "webView")
+        fu.setFixedWidth(g.width()-370)
+        fu.setFixedHeight(g.height()-120)
         
     def open_mapillary(self):       
         QDesktopServices.openUrl(QUrl(self.mapillary))
@@ -258,13 +264,11 @@ class SignsEditor(QMainWindow, FormClass):
             self.navigate()
         
     def get_images(self):
-        print("get images")
         url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
         fu = requests.get(url)
         #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
-            print("got the images")
             photos = fu.json()
             return photos
         print(fu.status_code)
