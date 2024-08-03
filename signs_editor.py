@@ -133,7 +133,6 @@ class SignsEditor(QMainWindow, FormClass):
         
     def organize(self):
         g=QDesktopWidget().availableGeometry()
-        print("will resixze the webview")
         fu=self.findChild(QWebView, "webView")
         fu.setFixedWidth(g.width()-370)
         fu.setFixedHeight(g.height()-120)
@@ -147,7 +146,6 @@ class SignsEditor(QMainWindow, FormClass):
     def spinners(self):
         self.findChild(QWebView, "webView").load(
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
-
         
     def set_minimap(self):
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
@@ -307,6 +305,9 @@ class SignsEditor(QMainWindow, FormClass):
     def save_sign(self):
         is_correct = self.findChild(
             QCheckBox, "correctly_identified").isChecked()
+        is_not_a_sign = self.findChild(
+            QCheckBox, "not_a_sign").isChecked()
+        
         if self.code is not None:
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
@@ -320,6 +321,11 @@ class SignsEditor(QMainWindow, FormClass):
                 self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QTextEdit, "text2").toPlainText())
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QComboBox, "suporte").currentText())
+            status=1
+            if is_not_a_sign:
+                status=3
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("status"), status)
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("saved"),True)
 
