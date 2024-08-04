@@ -11,9 +11,6 @@ import os, re
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal
 from qgis.gui import QgsFilterLineEdit
 
-FormClass, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'signs_filter.ui'))
-
 class SignsFilterItem(QWidget):
     check:QCheckBox
     changed = pyqtSignal(str, bool)

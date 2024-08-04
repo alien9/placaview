@@ -416,19 +416,23 @@ class PlacaView:
                 self.set_roads_layer(
                     roads, self.conf.get("roads_field_name"), self.conf.get("roads_pk"))
             except Exception as x:
+                print("exception when setting roads layer")
                 print(x)
                 self.roads_layer = None
         try:
             if self.roads_layer:
-                self.dockwidget.findChild(QLabel, "roads_label").setText(
-                    f"Roads: {self.roads_layer.name()}")
+                if self.dockwidget is not None:
+                    self.dockwidget.findChild(QLabel, "roads_label").setText(
+                        f"Roads: {self.roads_layer.name()}")
         except Exception as x:
+            print("exception while labeling roads layer")
             print(x)
             self.roads_layer = None
         try:
             if self.boundary:
-                self.dockwidget.findChild(QLabel, "boundary_label").setText(
-                    f"Boundary: {self.boundary.name()}")
+                if self.dockwidget is not None:
+                    self.dockwidget.findChild(QLabel, "boundary_label").setText(
+                        f"Boundary: {self.boundary.name()}")
         except Exception as x:
             print(x)
             self.boundary = None
@@ -502,6 +506,7 @@ class PlacaView:
         self.roads_layer.setLabelsEnabled(True)
         self.roads_layer.setLabeling(layer_settings)
         self.roads_layer.triggerRepaint()
+        print("roads layer ok")
 
     def get_roads_layer(self):
         layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
@@ -804,6 +809,8 @@ class PlacaView:
         if not self.selected_sign:
             return
         self.create_signs_fields()
+        print("created fields to editor")
+
         if "code" not in self.signs_layer.fields():
             code = QgsField("code", QVariant.String)
             with edit(self.signs_layer):
@@ -816,7 +823,7 @@ class PlacaView:
                 self.signs_layer.updateFields()
         fu = SignsEditor()
         fu.reloadSign.connect(self.reload_sign)
-
+        print("created signs editor")
         fu.closeEvent = self.close_signs_editor
         fu.showMaximized()
         fu.post_init(
@@ -1067,12 +1074,23 @@ class PlacaView:
         req=QgsFeatureRequest(expr)
         fids=[(f["certain"],f.id(), f["value"]) for f in signs_layer.getFeatures(req)]
         fids.sort()
-        fids=list(filter(lambda x: x[2] in self.read_filter(), fids))
+        fu=self.read_filter()
+        fids=list(filter(lambda x: x[2] in fu, fids))
         if len(fids):
             self.selected_sign_id=fids[0][1]
             self.selected_sign=signs_layer.getFeature(fids[0][1])
-        self.prepare_roads_and_signs()
-        self.load_signs_editor()
+        else:
+            expr = QgsExpression( f"\"saved\" is null")  
+            req=QgsFeatureRequest(expr)
+            fids=[(f["certain"],f.id(), f["value"]) for f in signs_layer.getFeatures(req)]
+            fids=list(filter(lambda x: x[2] in fu, fids)) 
+            if len(fids):
+                self.selected_sign_id=fids[0][1]
+                self.selected_sign=signs_layer.getFeature(fids[0][1])
+        print("got some sekect")
+        if len(fids):
+            self.prepare_roads_and_signs()
+            self.load_signs_editor()
         
     def create_signs_fields(self):
         roads_layer=self.get_roads_layer()
