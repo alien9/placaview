@@ -162,6 +162,12 @@ class SignsEditor(QMainWindow, FormClass):
         self.set_minimap()
         self.spinners()
         self.organize()
+        self.findChild(QPushButton, "pushButton_save").clicked.connect(
+            lambda: self.save_sign_close())
+        self.findChild(QPushButton, "pushButton_next").clicked.connect(
+            lambda: self.save_continue())
+        self.findChild(QLineEdit, "face").textChanged.connect(
+            self.set_sign_face)
         
     def get_canvas(self):
         if self.canvas is None:
@@ -272,12 +278,6 @@ class SignsEditor(QMainWindow, FormClass):
                         self.findChild(QLineEdit, "face").setText(self.face)
                         self.set_sign_face(self.face)
 
-        self.findChild(QPushButton, "pushButton_save").clicked.connect(
-            lambda: self.save_sign_close())
-        self.findChild(QPushButton, "pushButton_next").clicked.connect(
-            lambda: self.save_continue())
-        self.findChild(QLineEdit, "face").textChanged.connect(
-            self.set_sign_face)
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
         cbx.setCurrentIndex(0)
         if self.sign["suporte"] in self.SUPORTE_TIPO:
@@ -297,6 +297,7 @@ class SignsEditor(QMainWindow, FormClass):
         
     def after_get_images(self, *args, **kwargs):
         print("AFTER GET IMAGES")
+        self.sign_images=[]
         photos = args[1]
         if "images" in photos:
             self.sign_images_index = 0
@@ -346,6 +347,8 @@ class SignsEditor(QMainWindow, FormClass):
             self.set_minimap()
     
     def reset_form(self):
+        self.findChild(QCheckBox, "not_a_sign").setChecked(False)
+        self.findChild(QCheckBox, "correctly_identified").setChecked(False)
         self.findChild(QTextEdit, "code_text").setText("")
     
     def save_sign_close(self):
@@ -379,7 +382,9 @@ class SignsEditor(QMainWindow, FormClass):
                 self.sign.id(), self.sign.fieldNameIndex("status"), status)
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("saved"),True)
-
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("user"), os.getenv("USERNAME")
+            )
             self.signs_layer.commitChanges()
         if is_correct:
             dictionary = {}
