@@ -75,13 +75,10 @@ class RoadsMatcher(QgsTask):
                     if len(roads) and len(roads) < 100:
                         roads = list(filter(lambda x: boulder.intersects(
                             self.roads_layer.getFeature(x).geometry()), roads))
-                    print(f"fopinund {len(roads)} within {d}")
                     d += 30
                 if len(roads) > 50 or d>300:
-                    print("estercado")
                     self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
                 if len(roads):
-                    print(f"encontrads {len(roads)}")
                     f_roads=[]
                     for r in roads:
                         road_feature=self.roads_layer.getFeature(r)
@@ -95,7 +92,7 @@ class RoadsMatcher(QgsTask):
                         
                 else:
                     self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
-            self.signs_layer.commitChanges()
+                self.signs_layer.commitChanges()
             print("done", n)
             top+=10000
         return True

@@ -809,18 +809,6 @@ class PlacaView:
         if not self.selected_sign:
             return
         self.create_signs_fields()
-        print("created fields to editor")
-
-        if "code" not in self.signs_layer.fields():
-            code = QgsField("code", QVariant.String)
-            with edit(self.signs_layer):
-                self.signs_layer.addAttribute(code)
-                self.signs_layer.updateFields()
-        if "face" not in self.signs_layer.fields():
-            face = QgsField("face", QVariant.String)
-            with edit(self.signs_layer):
-                self.signs_layer.addAttribute(face)
-                self.signs_layer.updateFields()
         fu = SignsEditor()
         fu.reloadSign.connect(self.reload_sign)
         print("created signs editor")
@@ -1031,10 +1019,12 @@ class PlacaView:
                 return
             roads_layer: QgsVectorLayer = self.get_line_by_name(
                 self.conf.get("roads"))
+        print("roads found")
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
         self.create_signs_fields()
+        print("created fields")
         progressMessageBar.pushWidget(self.geocoder_progress)
         if self.matcher is None:
             self.matcher: RoadsMatcher = RoadsMatcher(
@@ -1087,7 +1077,6 @@ class PlacaView:
             if len(fids):
                 self.selected_sign_id=fids[0][1]
                 self.selected_sign=signs_layer.getFeature(fids[0][1])
-        print("got some sekect")
         if len(fids):
             self.prepare_roads_and_signs()
             self.load_signs_editor()
@@ -1125,7 +1114,14 @@ class PlacaView:
         if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("suporte", QVariant.String)])
-        if not "saved" in [f.name() for f in self.signs_layer.fields()]:
+        if not "user" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("saved", QVariant.Bool)])
-        self.signs_layer.updateFields()
+                [QgsField("user", QVariant.String)])
+        if "code" not in self.signs_layer.fields():
+            code = QgsField("code", QVariant.String)
+            self.signs_layer.dataProvider().addAttributes([code])
+        if "face" not in self.signs_layer.fields():
+            face = QgsField("face", QVariant.String)
+            self.signs_layer.dataProvider().addAttributes([face])
+        self.signs_layer.updateFields()        
+        QgsProject.instance().reloadAllLayers()
