@@ -1117,10 +1117,10 @@ class PlacaView:
         if not "user" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("user", QVariant.String)])
-        if "code" not in self.signs_layer.fields():
+        if "code" not in [f.name() for f in self.signs_layer.fields()]:
             code = QgsField("code", QVariant.String)
             self.signs_layer.dataProvider().addAttributes([code])
-        if "face" not in self.signs_layer.fields():
+        if "face" not in [f.name() for f in self.signs_layer.fields()]:
             face = QgsField("face", QVariant.String)
             self.signs_layer.dataProvider().addAttributes([face])
         self.signs_layer.updateFields()        
