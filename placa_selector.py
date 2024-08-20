@@ -43,8 +43,6 @@ class PlacaSelector(QDialog, FormClass):
         self.setupUi(self)
         layout: QGridLayout = self.findChild(QGridLayout, "gridLayout")
         filename = os.path.join(os.path.dirname(__file__), "existing.txt")
-        """ self.placas = [fu.replace(".svg", "") for fu in os.listdir(
-            os.path.join(os.path.dirname(__file__), "styles/symbols_br"))] """
         self.placas=kwargs.get("placas", None)
         if not self.placas:
             self.placas=[fu[:-1] for fu in open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"))]
@@ -63,7 +61,6 @@ class PlacaSelector(QDialog, FormClass):
             if c>18:
                 r+=1
                 c=0 
-            #button.setGeometry(200, 150, 100, 40)
 
     def apply(self, name):
         self.applyClicked.emit(name)
