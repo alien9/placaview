@@ -36,6 +36,8 @@ from qgis.gui import QgsMapToolIdentifyFeature
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
+from qgis.PyQt.QtSql import QSqlDatabase
+from qgis.core import QgsVectorLayer, QgsDataSourceUri
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -58,7 +60,9 @@ import json
 import requests
 import math
 
-
+class SignsLayer(QgsVectorLayer):
+    pass
+    
 class PlacaView:
     """QGIS Plugin Implementation."""
     boundary: QgsVectorLayer
@@ -254,6 +258,13 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
+            os.path.join(self.plugin_dir,
+                         "styles/icons/postgresql-icon.svg"),
+            text="Connection String",
+            callback=self.ask_connectionstring,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
                         os.path.join(self.plugin_dir,
                          "styles/icons/globe.svg"),
             text="Set Boundary",
@@ -445,6 +456,15 @@ class PlacaView:
         if ok:
             self.set_conf("mapillary_key", text)
         self.load_conf()
+        
+    def ask_connectionstring(self):
+        text, ok = QInputDialog().getText(self.dockwidget, "Connection String",
+                                          "PostgreSQL Connection String:", QLineEdit.Normal,
+                                          self.conf.get("connection_string", ""))
+        self.conf["connection_string"] = text
+        if ok:
+            self.set_conf("connection_string", text)
+            self.load_signs_layer_from_database()
 
     def ask_roads_layer(self):
         if not self.dockwidget:
@@ -624,7 +644,7 @@ class PlacaView:
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         layer = self.create_signals_vector_layer()
-        layer.dataProvider().truncate()
+        #layer.dataProvider().truncate()
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
@@ -645,6 +665,7 @@ class PlacaView:
         self.get_signs_layer().triggerRepaint()
 
     def render_signs_layer(self):
+        self.download_task=None
         self.update_actions({"Download Signs": True, "Cancel Download": False})
         try:
             self.download_progress.close()
@@ -659,7 +680,6 @@ class PlacaView:
                 QgsField("first_seen_at",  QVariant.Double),
                 QgsField("last_seen_at",  QVariant.Double),
                 QgsField("value",  QVariant.String),
-                QgsField("road_id", QVariant.Double)
                 ]
 
     def create_signals_vector_layer(self):
@@ -698,6 +718,9 @@ class PlacaView:
         return self.signs_layer
 
     def load_signs_layer(self):
+        if self.conf.get("connection_string", None):
+            self.load_signs_layer_from_database()
+            return
         title = QgsProject.instance().fileName()
         l = self.get_point_layer_by_name("traffic signs")
         if l is not None:
@@ -705,7 +728,6 @@ class PlacaView:
         uri = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
         if os.path.isfile(uri):
-            print(f"loadring {uri}")
             self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
             QgsProject.instance().addMapLayer(self.signs_layer)
             self.set_signs_style(filter=self.read_filter(),
@@ -715,6 +737,84 @@ class PlacaView:
             mapTool = QgsMapToolIdentifyFeature(mc)
             mapTool.setLayer(self.signs_layer)
             mc.setMapTool(mapTool)
+    
+    def load_signs_layer_from_database(self):
+        import re
+        uri = QgsDataSourceUri()
+        cstring=self.conf.get("connection_string")
+        m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
+        h={}
+        for p in m:
+            h[p[0]]=p[1]
+        uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
+        uri.setDataSource ("public", "signs", "geom")
+        vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
+        if not vlayer.isValid():
+            #import psycopg2
+            query="""CREATE TABLE public.signs (
+	fid serial4 NOT NULL,
+	id float8 NULL,
+	first_seen_at float8 NULL,
+	last_seen_at float8 NULL,
+	value varchar NULL,
+	saved bool NULL,
+	road int4 NULL,
+	"out" int4 NULL,
+	certain float8 NULL,
+	status int4 NULL,
+	text1 varchar NULL,
+	text2 varchar NULL,
+	suporte varchar NULL,
+	"user" varchar NULL,
+	code varchar NULL,
+	face varchar NULL,
+    opened varchar NULL,
+	geom public.geometry(point, 4326) NULL,
+	PRIMARY KEY (fid)
+);
+CREATE INDEX signs_geom_geom_idx ON public.signs USING gist (geom);
+CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
+"""
+            try:
+                conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
+            except:
+                print("I am unable to connect to the database") 
+
+            cur = conn.cursor()
+            try:
+                cur.execute(query)
+            except:
+                print("I can't drop our test database!")
+
+            conn.commit() # <--- makes sure the change is shown in the database
+            conn.close()
+            cur.close()
+            
+            
+            db = QSqlDatabase.addDatabase("QPSQL");
+            db.setHostName(uri.host())
+            db.setDatabaseName(uri.database())
+            db.setPort(int(uri.port()))
+            db.setUserName(uri.username())
+            db.setPassword(uri.password())
+            db.open()
+            # query the table
+            print(query)
+            db.exec(query)
+            db.commit()
+            db.close()
+            print(query)
+            QMessageBox.information(None, "DEBUG:", str("Table created"))
+            uri.setDataSource ("public", "signs", "geom")
+            vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
+        layer = self.get_point_layer_by_name("traffic signs")
+        if layer:
+            QgsProject.instance().instance().removeMapLayer(layer)
+        print(vlayer.isValid())
+        QgsProject.instance().instance().addMapLayer(vlayer)
+        print("addeu")
+        print(vlayer.isValid())
+        self.set_signs_style(filter=self.read_filter(), layer=vlayer, size=5)
 
     def get_signs_photo_layer(self):
         """ get or create the photo layer"""
@@ -749,9 +849,9 @@ class PlacaView:
         return layer
 
     def set_signs_style(self, filter=[], layer=None, size=6):
-        signs_layer = self.get_point_layer_by_name("traffic signs")
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
+        signs_layer = layer
         idx = signs_layer.fields().indexOf('value')
         values = list(signs_layer.uniqueValues(idx))
         categories = []
@@ -780,7 +880,6 @@ class PlacaView:
         fu.close()
 
     def read_filter(self):
-        print("READ FILTER")
         value = []
         if os.path.isfile(os.path.join(self.plugin_dir, f"filter.txt")):
             with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
@@ -802,16 +901,14 @@ class PlacaView:
         fu.exec()
 
     def reload_sign(self):
-        self.selected_sign = self.signs_layer.getFeature(
-            self.selected_sign.id())
+        if self.selected_sign:
+            self.selected_sign = self.signs_layer.getFeature(
+                self.selected_sign.id())
 
     def load_signs_editor(self):
-        if not self.selected_sign:
-            return
         self.create_signs_fields()
-        fu = SignsEditor()
+        fu = SignsEditor(signs_layer=self.signs_layer)
         fu.reloadSign.connect(self.reload_sign)
-        print("created signs editor")
         fu.closeEvent = self.close_signs_editor
         fu.showMaximized()
         fu.post_init(
@@ -907,6 +1004,9 @@ class PlacaView:
 
         self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
+        print(args[1])
+        print("this was ars1")
+        print(args[1]["fid"])
         self.fid = int(args[1].attribute("fid"))  # primary key
         feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
@@ -1019,12 +1119,10 @@ class PlacaView:
                 return
             roads_layer: QgsVectorLayer = self.get_line_by_name(
                 self.conf.get("roads"))
-        print("roads found")
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
         self.create_signs_fields()
-        print("created fields")
         progressMessageBar.pushWidget(self.geocoder_progress)
         if self.matcher is None:
             self.matcher: RoadsMatcher = RoadsMatcher(
@@ -1059,8 +1157,10 @@ class PlacaView:
             if not self.ask_roads_layer():
                 return
         signs_layer=self.get_signs_layer()
+        self.load_signs_editor()
+        """
         m=signs_layer.minimumValue(signs_layer.fields().indexOf('certain')) 
-        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
+        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and \"opened\" is null")  
         req=QgsFeatureRequest(expr)
         fids=[(f["certain"],f.id(), f["value"]) for f in signs_layer.getFeatures(req)]
         fids.sort()
@@ -1080,8 +1180,10 @@ class PlacaView:
         if len(fids):
             self.prepare_roads_and_signs()
             self.load_signs_editor()
-        
+        """
     def create_signs_fields(self):
+        if len(self.conf.get("connection_string", "")):
+            return
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")
@@ -1089,9 +1191,6 @@ class PlacaView:
         if not "saved" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("saved", QVariant.Bool)])
-        if not "roads" in [f.name() for f in self.signs_layer.fields()]:
-            self.signs_layer.dataProvider().addAttributes(
-                [QgsField("roads", QVariant.String)])
         if not "road" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("road", QVariant.Int)])

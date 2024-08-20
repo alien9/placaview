@@ -1,5 +1,55 @@
 from urllib.parse import urlparse
+import os, platform
+import sys, time
+import subprocess
+from pathlib import Path
 
+def install_requirements():
+    if platform.uname().system=="Windows":
+        #definition of the bat file as as string
+        #it will be equivalent to manually type these commands line by line
+        batF="""@echo off
+            call "->QGISPATH<-\\o4w_env.bat"
+            call python -m pip install mapbox-vector-tile
+            call python -m pip install vt2geojson
+            call python -m pip install psycopg2
+            
+            call exit
+            @echo on
+            """
+    else:
+        batF="""python -m pip install mapbox-vector-tile
+            python -m pip install vt2geojson
+            python -m pip install psycopg2
+            """
+
+        # then the idea is to find the osgeo4w shell path
+        # sys.executable is the base execution path and contains o4w_env.bat
+        # o4w_env.bat setup the osgeo4w shell
+    qgispath = str(os.path.dirname(sys.executable))
+
+    # here you replace the string ->QGISPATH<- with qgis path
+    # so that the script is installation independant
+    batF = batF.replace("->QGISPATH<-",qgispath)
+
+    # and the string ->HOMEPATH<- with the path to your requirements.txt
+
+    # then you write it to a .bat file and run it
+
+    with open("INSTALL.bat","w") as f:
+        f.write(batF)
+    subprocess.run(["INSTALL.bat"])
+
+try:
+    from mapbox_vector_tile import decode
+    from vt2geojson.features import Layer
+    import psycopg2
+except (ModuleNotFoundError, ImportError):
+    install_requirements()
+    time.sleep(8)
+    #import pip
+    #pip.main(['install', 'mapbox-vector-tile'])
+    from mapbox_vector_tile import decode
 try:
     from mapbox_vector_tile import decode
 except (ModuleNotFoundError, ImportError):

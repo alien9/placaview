@@ -11,10 +11,11 @@ from .tools import vt_bytes_to_geojson
 MESSAGE_CATEGORY = 'Download task'
 
 class SignsDownloader(QgsTask):
+    layer:QgsVectorLayer
     def __init__(self, key, layer, total, boundary, extents):
         super().__init__("Downloading", QgsTask.CanCancel)
         self.duration = 1
-        self.layer=layer
+        self.layer:QgsVectorLayer=layer
         self.boundary=boundary
         self.total = total
         self.work = 0
@@ -59,15 +60,25 @@ class SignsDownloader(QgsTask):
                             if bf.geometry().contains(geo):
                                 inside_boundary = True
                         if inside_boundary:
-                            fet.setGeometry(geo)
-                            fet["id"] = properties.get("id")
-                            fet["first_seen_at"] = properties.get(
-                                "first_seen_at")
-                            fet["last_seen_at"] = properties.get(
-                                "last_seen_at")
-                            fet["value"] = properties.get("value")
-                            self.layer.dataProvider().addFeatures([fet])
-                            self.layer.commitChanges()
+                            self.layer.selectByExpression(f"\"id\"='{properties.get('id')}'")
+                            fus = self.layer.selectedFeatures()
+                            if len(fus):
+                                fus[0]["first_seen_at"] = properties.get(
+                                    "first_seen_at")
+                                fus[0]["last_seen_at"] = properties.get(
+                                    "last_seen_at")
+                                fus[0]["value"] = properties.get("value")
+                                self.layer.updateFeature(fus[0])
+                            else:
+                                fet.setGeometry(geo)
+                                fet["id"] = properties.get("id")
+                                fet["first_seen_at"] = properties.get(
+                                    "first_seen_at")
+                                fet["last_seen_at"] = properties.get(
+                                    "last_seen_at")
+                                fet["value"] = properties.get("value")
+                                self.layer.dataProvider().addFeatures([fet])
+                                self.layer.commitChanges()
         return True
 
     def finished(self, result):        

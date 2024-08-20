@@ -1,0 +1,8 @@
+Tipo de veículo
+Início / término
+Embarque / desembarque
+Carga / descarga
+Exceção
+Horário
+Fiscalização eletrônica
+Quantidade de vagas

@@ -123,7 +123,11 @@ class SignsEditor(QMainWindow, FormClass):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        print("is inittinh")
+        self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
+        print(kwargs.get("signs_layer"))
         self.setupUi(self)
+
 
     def showEvent(self, event):
         self.connect_signals()
@@ -134,7 +138,6 @@ class SignsEditor(QMainWindow, FormClass):
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
         self.sign_id = kwargs.get('sign')
-        self.taskManager = kwargs.get("task_manager")
         self.sign_images = kwargs.get("sign_images")
         if "selected_sign" in kwargs:
             self.sign: QgsFeature = kwargs.get("selected_sign")
@@ -143,7 +146,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         self.filter=kwargs.get("filter")
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        cbx.addItem("Selecione...", None)
+        cbx.addItem("", "")
         for t in self.SUPORTE_TIPO:
             cbx.addItem(t, t)
         cbx.setCurrentIndex(0)
@@ -168,6 +171,7 @@ class SignsEditor(QMainWindow, FormClass):
             lambda: self.save_continue())
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
+        self.open_record()
         
     def get_canvas(self):
         if self.canvas is None:
@@ -197,6 +201,9 @@ class SignsEditor(QMainWindow, FormClass):
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
         
     def set_minimap(self):
+        if not self.sign:
+            self.load_next_record()
+            return
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
         boulder: QgsGeometry = EquidistanceBuffer().buffer(
             self.sign.geometry(
@@ -292,11 +299,9 @@ class SignsEditor(QMainWindow, FormClass):
             self.otask = QgsTask.fromFunction(
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
-        print("Will set map tool")
         self.set_map_tool()
         
     def after_get_images(self, *args, **kwargs):
-        print("AFTER GET IMAGES")
         self.sign_images=[]
         photos = args[1]
         if "images" in photos:
@@ -320,25 +325,49 @@ class SignsEditor(QMainWindow, FormClass):
     def save_continue(self):
         self.spinners()
         self.save_sign()
+        self.close_record()
         self.load_next_record()
+    
+    def open_record(self):
+        if not self.sign:
+            return
+        self.signs_layer.startEditing()
+        self.signs_layer.changeAttributeValue(
+            self.sign.id(), self.sign.fieldNameIndex("opened"), os.getenv("USERNAME"))
+        self.signs_layer.commitChanges()
         
+    def close_record(self): 
+        if not self.sign:
+            return
+        self.signs_layer.startEditing()
+        self.signs_layer.changeAttributeValue(
+            self.sign.id(), self.sign.fieldNameIndex("opened"), None)
+        self.signs_layer.commitChanges()
+    
     def load_next_record(self):
         self.reset_form()
-        m=self.signs_layer.minimumValue(self.signs_layer.fields().indexOf('certain')) 
-        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0")  
+        m=self.signs_layer.minimumValue(self.signs_layer.fields().indexOf('certain'))
+        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null")  
         req=QgsFeatureRequest(expr)
         fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
+        fids=list(filter(lambda x: x[2] in self.filter, fids))
+        print("10 fides", fids)
         if len(fids)>0:
             fids.sort()
         else:
             expr = QgsExpression( f"\"saved\" is null")  
             req=QgsFeatureRequest(expr)
             fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
-        fids=list(filter(lambda x: x[2] in self.filter, fids))
+            print(fids)
+            fids=list(filter(lambda x: x[2] in self.filter, fids))
         if len(fids)>0:   
             self.sign=self.signs_layer.getFeature(fids[0][1])
+            self.open_record()
             self.sign_id=fids[0][1]
             self.sign_images=[]
+            if self.sign["road"] is not None:
+                print(f"\"{self.conf.get('roads_pk')}\"='{self.sign['road']}'")
+                s=self.roads_layer.selectByExpression(f"\"{self.conf.get('roads_pk')}\"='{self.sign['road']}'", QgsVectorLayer.SetSelection)
             def go(task, wait_time):
                 return self.get_images()
             self.otask = QgsTask.fromFunction(
@@ -353,6 +382,7 @@ class SignsEditor(QMainWindow, FormClass):
     
     def save_sign_close(self):
         self.save_sign()
+        self.close_record()
         self.reloadSign.emit()
         self.close()
 
@@ -361,7 +391,6 @@ class SignsEditor(QMainWindow, FormClass):
             QCheckBox, "correctly_identified").isChecked()
         is_not_a_sign = self.findChild(
             QCheckBox, "not_a_sign").isChecked()
-        
         if self.code is not None:
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
@@ -469,6 +498,10 @@ class SignsEditor(QMainWindow, FormClass):
             self.sign_images_index = len(self.sign_images)-1
         self.navigate()
 
+    def close(self):
+        self.close_record()
+        super().close()        
+        
     def connect_signals(self):
         print("will connect signals")
         self.findChild(
