@@ -309,6 +309,7 @@ class SignsEditor(QMainWindow, FormClass):
             for photo in photos.get("images", {}).get("data", []):
                 self.sign_images.append(photo)
             self.navigate()
+            self.set_minimap()
         
     def get_images(self):
         url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
@@ -351,11 +352,10 @@ class SignsEditor(QMainWindow, FormClass):
         req=QgsFeatureRequest(expr)
         fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
         fids=list(filter(lambda x: x[2] in self.filter, fids))
-        print("10 fides", fids)
         if len(fids)>0:
             fids.sort()
         else:
-            expr = QgsExpression( f"\"saved\" is null")  
+            expr = QgsExpression( f"\"saved\" is null and opened is null")  
             req=QgsFeatureRequest(expr)
             fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
             print(fids)
@@ -365,9 +365,6 @@ class SignsEditor(QMainWindow, FormClass):
             self.open_record()
             self.sign_id=fids[0][1]
             self.sign_images=[]
-            if self.sign["road"] is not None:
-                print(f"\"{self.conf.get('roads_pk')}\"='{self.sign['road']}'")
-                s=self.roads_layer.selectByExpression(f"\"{self.conf.get('roads_pk')}\"='{self.sign['road']}'", QgsVectorLayer.SetSelection)
             def go(task, wait_time):
                 return self.get_images()
             self.otask = QgsTask.fromFunction(

@@ -79,6 +79,9 @@ class PlacaView:
     projector: QgsCoordinateReferenceSystem = None
     matcher: RoadsMatcher = None
     seletor: PlacaSelector = None
+    total_matches:int=0
+    geocoded:int=0
+    geocodable=[]
 
     def __init__(self, iface):
         """Constructor.
@@ -1096,6 +1099,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_progress_changed(self, *args, **kwargs):
+        print("setting progressssss", args)
         try:
             self.geocoder_progress.setValue(round(args[0]))
         except:
@@ -1103,8 +1107,23 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
 
     def end_match(self, result=None):
         print("will now end it")
-        self.matcher = None
-        self.geocoder_progress.close()
+        self.geocoded+=1
+        print(result)
+        
+        if self.geocoded<=self.total_matches:
+            self.geocode()
+            if self.geocoded % 5 == 0:
+                print("hora de gorfar")
+                self.signs_layer.commitChanges(False)
+                self.signs_layer.startEditing()
+        else:
+            self.signs_layer.commitChanges()
+        #self.matcher = None
+        try:
+            print("clising ")
+            self.geocoder_progress.close()
+        except Exception as x:
+            print(x)
 
     def match_segment_roads(self):
         """
@@ -1124,15 +1143,23 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         self.geocoder_progress = QProgressBar()
         self.create_signs_fields()
         progressMessageBar.pushWidget(self.geocoder_progress)
-        if self.matcher is None:
-            self.matcher: RoadsMatcher = RoadsMatcher(
-                signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
-            self.matcher.progressChanged.connect(self.match_progress_changed)
-            self.matcher.taskCompleted.connect(self.end_match)
-            self.taskManager.addTask(self.matcher)
-        else:
-            print("cancellar")
-            self.matcher.cancel()
+        request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
+        self.geocodable=[f.id() for f in signs_layer.getFeatures(request)]
+        self.total_matches=len(self.geocodable)
+        print("have to geocode", self.geocodable)
+        self.geocoded=0
+        self.signs_layer.startEditing()
+        self.geocode()
+        
+    def geocode(self):
+        feature=self.geocodable[self.geocoded]
+        self.matcher: RoadsMatcher = RoadsMatcher(feature_id=feature, total=self.total_matches, done=self.geocoded,
+            signs_layer=None, roads_layer=self.roads_layer, conf=self.conf, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
+        self.matcher.progressChanged.connect(self.match_progress_changed)
+        self.matcher.taskCompleted.connect(self.end_match)
+        self.taskManager.addTask(self.matcher)
+        #else:
+            #self.matcher.cancel()
 
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
         r = QgsGeometry(road_geometry)
