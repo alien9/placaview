@@ -42,11 +42,15 @@ class RoadsMatcher(QgsTask):
         
         print("create req")
         request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
+        #request.setLimit(100)
         fids=[f.id() for f in self.signs_layer.getFeatures(request)]
         total=len(fids)
         top=0
+        print(f"this is totoal {total}")
+        #self.signs_layer.startEditing()
+        provider:QgsDataProvider=self.signs_layer.dataProvider()
         while top<total:
-            self.signs_layer.startEditing()
+            
             for fid in fids[top:top+10000]:
                 feature=self.signs_layer.getFeature(fid)
                 print(f"done {n} {top}")
@@ -77,7 +81,10 @@ class RoadsMatcher(QgsTask):
                             self.roads_layer.getFeature(x).geometry()), roads))
                     d += 30
                 if len(roads) > 50 or d>300:
-                    self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("out"):1}})
+                    provider.leaveUpdateMode()
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
                 if len(roads):
                     f_roads=[]
                     for r in roads:
@@ -86,15 +93,25 @@ class RoadsMatcher(QgsTask):
                         f_roads.append((distance,r))
                     f_roads.sort()
                     road_feature=self.roads_layer.getFeature(f_roads[0][1])
-                    self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("road"),int(road_feature[self.roads_pk]))
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("road"),int(road_feature[self.roads_pk]))
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("road"):int(road_feature[self.roads_pk])}})
+                    provider.leaveUpdateMode()
+
                     if len(roads)>1:
-                        self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("certain"),f_roads[1][0]-f_roads[0][0])
-                        
+                        #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("certain"),f_roads[1][0]-f_roads[0][0])
+                        provider.enterUpdateMode()
+                        provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("certain"):f_roads[1][0]-f_roads[0][0]}})
+                        provider.leaveUpdateMode()
+                    
                 else:
-                    self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
-                self.signs_layer.commitChanges()
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("out"):1}})
+                    provider.leaveUpdateMode()
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
             print("done", n)
             top+=10000
+            #self.signs_layer.commitChanges(False)
         return True
     
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):

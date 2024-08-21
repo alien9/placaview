@@ -1128,7 +1128,6 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             self.matcher: RoadsMatcher = RoadsMatcher(
                 signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
             self.matcher.progressChanged.connect(self.match_progress_changed)
-            self.matcher.taskCompleted.connect(self.end_match)
             self.taskManager.addTask(self.matcher)
         else:
             print("cancellar")
