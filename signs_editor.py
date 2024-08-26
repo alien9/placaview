@@ -145,7 +145,7 @@ class SignsEditor(QMainWindow, FormClass):
 
     def write_autocomplete(self, field_name, values):
         with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", "a+") as fu:
-            for v in values:
+            for v in list(set(values)):
                 fu.write(f"{v}\n")
             fu.close()
         completer = QCompleter(values, self)
