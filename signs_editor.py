@@ -124,6 +124,7 @@ class SignsEditor(QMainWindow, FormClass):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
+        self.filter=kwargs.get("filter")
         self.setupUi(self)
         edits = self.findChildren(QLineEdit)
         for f in edits:
@@ -144,7 +145,7 @@ class SignsEditor(QMainWindow, FormClass):
         return wordList
 
     def write_autocomplete(self, field_name, values):
-        with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", "a+") as fu:
+        with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", "w+") as fu:
             for v in list(set(values)):
                 fu.write(f"{v}\n")
             fu.close()
@@ -158,11 +159,13 @@ class SignsEditor(QMainWindow, FormClass):
         event.accept()
 
     def post_init(self, *args, **kwargs):
+        print("POST INIT")
         self.iface = kwargs.get("iface")
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
+        print(kwargs)
         if "selected_sign" in kwargs:
             self.sign: QgsFeature = kwargs.get("selected_sign")
         else:

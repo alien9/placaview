@@ -892,12 +892,14 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
                 exists = set(map(lambda x: x[0: -1], fu.readlines()))
             fu.close()
+        print(value)
         return value
         #return list(filter(lambda x: x in exists, value))
 
     def load_signs_filter(self):
         layer:QgsVectorLayer=self.get_signs_layer()
         existing = layer.uniqueValues(layer.fields().indexOf('value'))
+        
         fu = SignsFilter(parent=self.iface.mainWindow(),
                          filter=self.read_filter(), values=existing)
         fu.applyClicked.connect(self.apply_filter)
