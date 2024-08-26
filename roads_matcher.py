@@ -52,74 +52,78 @@ class RoadsMatcher(QgsTask):
         n=0
         self.setProgress(100*self.done/self.total)
         
-        print("top 1")
-        feature:QgsFeature=self.signs_layer.getFeature(self.feature_id)
-        n+=1
-        print(f"will set ptogress to {100*self.done/self.total}")
-        print("progresses")
-        d = 50
-        roads = []
-        if self.isCanceled():
-            return False
-        geom = feature.geometry()
-        projector = QgsCoordinateReferenceSystem(
-            self.buffet.proj_string(geom))
-
-        xform = QgsCoordinateTransform(
-            self.signs_layer.crs(), projector, QgsProject.instance())
-        roads_xform = QgsCoordinateTransform(
-            self.roads_layer.crs(), projector, QgsProject.instance())
-        gt = geom.asWkt()
-        projected = QgsGeometry.fromWkt(gt)
-        projected.transform(xform)
-        while not len(roads) and d < 300:
-            boulder: QgsGeometry = self.buffet.buffer(
-                geom, d, self.signs_layer.crs()
-            )
-            roads = index.intersects(boulder.boundingBox())
-            if len(roads) and len(roads) < 100:
-                roads = list(filter(lambda x: boulder.intersects(
-                    self.roads_layer.getFeature(x).geometry()), roads))
-            d += 30
-        print("GEOCOEDE COMNCLUDED")
-        if len(roads) > 50 or d>300:
-            #feature["out"]=1
-            self.signs_layer.changeAttributeValue(feature.id(), feature.fieldNameIndex("out"),1)
-        elif len(roads):
-            print(f"has {len(roads)} roads")
-            print(roads)
-            f_roads=[]
-            for r in roads:
-                f=self.roads_layer.getFeature(r)
-                distance=self.get_distance_from_road_to_sign(projected, f.geometry(), roads_xform)
-                f_roads.append((distance,r))
+        print("create req")
+        request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
+        #request.setLimit(100)
+        fids=[f.id() for f in self.signs_layer.getFeatures(request)]
+        total=len(fids)
+        top=0
+        print(f"this is totoal {total}")
+        #self.signs_layer.startEditing()
+        provider:QgsDataProvider=self.signs_layer.dataProvider()
+        while top<total:
             
-            f_roads.sort()
-            road_feature=self.roads_layer.getFeature(f_roads[0][1])
-            print("road id")
-            print(road_feature[self.roads_pk] is None)
-            print(type(road_feature[self.roads_pk]))
-            
-            if type(road_feature[self.roads_pk]) is int:
-                
-                print("x",int(road_feature[self.roads_pk]))
-                self.signs_layer.changeAttributeValue(feature.id(), feature.fieldNameIndex("road"),int(road_feature[self.roads_pk]))
-                #feature["road"]=int(road_feature[self.roads_pk])
-                print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            for fid in fids[top:top+10000]:
+                feature=self.signs_layer.getFeature(fid)
+                print(f"done {n} {top}")
+                n+=1
+                self.setProgress(100*n/total)
+                d = 50
+                roads = []
+                if self.isCanceled():
+                    return False
+                geom = feature.geometry()
+                projector = QgsCoordinateReferenceSystem(
+                    self.buffet.proj_string(geom))
 
-            if len(roads)>1:
-                difference=f_roads[1][0]-f_roads[0][0]
-                print("has difference")
-                print(difference)
-                self.signs_layer.changeAttributeValue(feature.id(), feature.fieldNameIndex("certain"),difference)
-                #feature["certain"]=difference
-                print("changeeeeeee")
-                
-        else:
-            self.signs_layer.changeAttributeValue(feature.id(), feature.fieldNameIndex("out"),1)
-            #feature["out"]=1
-            print("oooooooooooooooooooooooooooooooooooooo")
-        #signs_layer.updateFeature(feature)
+                xform = QgsCoordinateTransform(
+                    self.signs_layer.crs(), projector, QgsProject.instance())
+                roads_xform = QgsCoordinateTransform(
+                    self.roads_layer.crs(), projector, QgsProject.instance())
+                gt = geom.asWkt()
+                projected = QgsGeometry.fromWkt(gt)
+                projected.transform(xform)
+                while not len(roads) and d < 300:
+                    boulder: QgsGeometry = self.buffet.buffer(
+                        geom, d, self.signs_layer.crs()
+                    )
+                    roads = index.intersects(boulder.boundingBox())
+                    if len(roads) and len(roads) < 100:
+                        roads = list(filter(lambda x: boulder.intersects(
+                            self.roads_layer.getFeature(x).geometry()), roads))
+                    d += 30
+                if len(roads) > 50 or d>300:
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("out"):1}})
+                    provider.leaveUpdateMode()
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
+                if len(roads):
+                    f_roads=[]
+                    for r in roads:
+                        road_feature=self.roads_layer.getFeature(r)
+                        distance=self.get_distance_from_road_to_sign(projected, road_feature.geometry(), roads_xform)
+                        f_roads.append((distance,r))
+                    f_roads.sort()
+                    road_feature=self.roads_layer.getFeature(f_roads[0][1])
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("road"),int(road_feature[self.roads_pk]))
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("road"):int(road_feature[self.roads_pk])}})
+                    provider.leaveUpdateMode()
+
+                    if len(roads)>1:
+                        #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("certain"),f_roads[1][0]-f_roads[0][0])
+                        provider.enterUpdateMode()
+                        provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("certain"):f_roads[1][0]-f_roads[0][0]}})
+                        provider.leaveUpdateMode()
+                    
+                else:
+                    provider.enterUpdateMode()
+                    provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("out"):1}})
+                    provider.leaveUpdateMode()
+                    #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
+            print("done", n)
+            top+=10000
+            #self.signs_layer.commitChanges(False)
         return True
     
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):

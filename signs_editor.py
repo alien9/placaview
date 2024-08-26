@@ -5,7 +5,7 @@ from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessa
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
-from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit, QTextEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
+from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit, QCompleter, QTextEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
 from qgis.PyQt import uic
 from qgis.PyQt.QtSvg import QGraphicsSvgItem, QSvgRenderer, QSvgWidget
 import qgis.PyQt.QtSvg
@@ -26,29 +26,30 @@ import re
 import json
 import datetime
 from .roads_selector import RoadsSelector
-        
+
 FormClass, eck = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'signs_editor.ui'))
 
+
 class DetectionCanvas(QWidget):
-    rect=[]
+    rect = []
+
     def __init__(self):
         super().__init__()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setPen(QColor(255,0,255,255))
+        painter.setPen(QColor(255, 0, 255, 255))
         if self.rect:
-            for r,s in self.rect:
+            for r, s in self.rect:
                 painter.drawRect(*r)
-                painter.drawText(QPoint(r[0],r[1]),s)
+                painter.drawText(QPoint(r[0], r[1]), s)
 
     def reset_canvas(self):
-        self.rect=[]
+        self.rect = []
         self.repaint()
 
     def draw_rectangle(self, rect, text):
-        print("Will draw the rectangle")
         self.rect.append((rect, text))
         self.repaint()
 
@@ -59,20 +60,18 @@ class SignDataDownloader(QgsTask):
     result = None
     road_id: int = None
     road_name: str = None
-    datatype:str="imagery"
+    datatype: str = "imagery"
 
     def run(self):
         try:
-            if self.datatype=="imagery":
-                url=f"https://graph.mapillary.com/{self.image_id}?access_token={self.key}&fields={self.fields}"
-            if self.datatype=="geometry":
-                url=f'https://graph.mapillary.com/{self.image_id}/detections?access_token={self.key}&fields=geometry,value'
-            print(url)
-            r=requests.get(url)
+            if self.datatype == "imagery":
+                url = f"https://graph.mapillary.com/{self.image_id}?access_token={self.key}&fields={self.fields}"
+            if self.datatype == "geometry":
+                url = f'https://graph.mapillary.com/{self.image_id}/detections?access_token={self.key}&fields=geometry,value'
+            r = requests.get(url)
             if r.status_code == 200:
                 self.result = r.json()
                 return True
-            print("problem")
             print(r.status_code)
             return False
         except Exception as e:
@@ -86,8 +85,9 @@ class SignDataDownloader(QgsTask):
         self.key = kwargs.get('mapillary_key')
         self.image_id = kwargs.get('image').get("id")
         self.fields = kwargs.get('fields')
-        if "datatype"in kwargs:
-            self.datatype=kwargs.get("datatype")
+        if "datatype" in kwargs:
+            self.datatype = kwargs.get("datatype")
+
 
 class SignsEditor(QMainWindow, FormClass):
     SUPORTE_TIPO = [
@@ -118,23 +118,47 @@ class SignsEditor(QMainWindow, FormClass):
     reloadSign: pyqtSignal = pyqtSignal()
     streetview: str = ""
     mapillary: str = ""
-    filter: list=[]
-    canvas:DetectionCanvas=None
+    filter: list = []
+    canvas: DetectionCanvas = None
 
     def __init__(self, *args, **kwargs):
         super().__init__()
-        print("is inittinh")
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
-        print(kwargs.get("signs_layer"))
         self.setupUi(self)
+        edits = self.findChildren(QLineEdit)
+        for f in edits:
+            field_name = f.objectName()
+            auto_complete_values = self.read_autocomplete(field_name)
+            if auto_complete_values:
+                completer = QCompleter(auto_complete_values, self)
+                completer.setCaseSensitivity(Qt.CaseInsensitive)
+                completer.setFilterMode(Qt.MatchContains)
+                f.setCompleter(completer)
 
+    def read_autocomplete(self, field_name):
+        wordList = []
+        if os.path.isfile(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt"):
+            with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt") as fu:
+                wordList = [line.rstrip() for line in fu.readlines()]
+            fu.close()
+        return wordList
+
+    def write_autocomplete(self, field_name, values):
+        with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", "a+") as fu:
+            for v in values:
+                fu.write(f"{v}\n")
+            fu.close()
+        completer = QCompleter(values, self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchContains)
+        self.findChild(QLineEdit, field_name).setCompleter(completer)
 
     def showEvent(self, event):
         self.connect_signals()
         event.accept()
 
     def post_init(self, *args, **kwargs):
-        self.iface=kwargs.get("iface")
+        self.iface = kwargs.get("iface")
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
         self.sign_id = kwargs.get('sign')
@@ -144,19 +168,21 @@ class SignsEditor(QMainWindow, FormClass):
         else:
             self.load_next_record()
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
-        self.filter=kwargs.get("filter")
+        self.filter = kwargs.get("filter")
         cbx: QComboBox = self.findChild(QComboBox, "suporte")
         cbx.addItem("", "")
         for t in self.SUPORTE_TIPO:
             cbx.addItem(t, t)
         cbx.setCurrentIndex(0)
-        
+
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
-        
-        self.findChild(QPushButton, "mapillary_url").clicked.connect(self.open_mapillary)
-        self.findChild(QPushButton, "streetview_url").clicked.connect(self.open_streetview)
-        
+
+        self.findChild(QPushButton, "mapillary_url").clicked.connect(
+            self.open_mapillary)
+        self.findChild(QPushButton, "streetview_url").clicked.connect(
+            self.open_streetview)
+
         # load mapillary key
         self.mapillary_key = ""
         self.boundary = None
@@ -172,34 +198,34 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
         self.open_record()
-        
+
     def get_canvas(self):
         if self.canvas is None:
-            self.canvas=DetectionCanvas()
-            grid:QGridLayout=self.findChild(QGridLayout, "web_grid_layout")
-            grid.addWidget(self.canvas,0,0, Qt.AlignCenter)
+            self.canvas = DetectionCanvas()
+            grid: QGridLayout = self.findChild(QGridLayout, "web_grid_layout")
+            grid.addWidget(self.canvas, 0, 0, Qt.AlignCenter)
         return self.canvas
-        
+
     def organize(self):
-        g=QDesktopWidget().availableGeometry()
-        fu=self.findChild(QWebView, "webView")
+        g = QDesktopWidget().availableGeometry()
+        fu = self.findChild(QWebView, "webView")
         fu.setFixedWidth(g.width()-370)
         fu.setFixedHeight(g.height()-120)
-        canvas=self.get_canvas()
+        canvas = self.get_canvas()
         canvas.setFixedWidth(g.width()-370)
         canvas.setFixedHeight(g.height()-120)
         canvas.setStyleSheet("background-color:black;")
-        
-    def open_mapillary(self):       
+
+    def open_mapillary(self):
         QDesktopServices.openUrl(QUrl(self.mapillary))
-    
-    def open_streetview(self):       
+
+    def open_streetview(self):
         QDesktopServices.openUrl(QUrl(self.streetview))
 
     def spinners(self):
         self.findChild(QWebView, "webView").load(
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
-        
+
     def set_minimap(self):
         if not self.sign:
             self.load_next_record()
@@ -229,7 +255,7 @@ class SignsEditor(QMainWindow, FormClass):
         canvas.setLayers([layer, self.roads_layer])
         canvas.setExtent(boulder.boundingBox())
         canvas.redrawAllLayers()
-        
+
         if not self.placas:
             with open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"), "r") as flu:
                 self.placas = [fu[:-1] for fu in flu.readlines()]
@@ -240,30 +266,31 @@ class SignsEditor(QMainWindow, FormClass):
             with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
                 self.faces = json.loads(flu.read())
                 flu.close()
-        
-        
-        self.findChild(QLabel, "mapillary_type_label").setText(self.sign["value"])
-        
+
+        self.findChild(QLabel, "mapillary_type_label").setText(
+            self.sign["value"])
+
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])
-        
+
         but = self.findChild(QPushButton, "mapillarytype")
         if os.path.isfile(os.path.join(
-            os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")):
+                os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")):
             but.setIcon(QIcon(os.path.join(
                 os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
-        
-        self.road_id=None
-        if type(self.sign["road"])==int:
+
+        self.road_id = None
+        if type(self.sign["road"]) == int:
             self.road_id = int(self.sign["road"])
-            expr = QgsExpression(f'"{self.conf.get("roads_pk")}" = {self.road_id}')
+            expr = QgsExpression(
+                f'"{self.conf.get("roads_pk")}" = {self.road_id}')
             road: QgsFeature = next(
                 self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
             road_name = road[self.conf.get("roads_field_name")]
             self.findChild(QTextEdit, "road_segment").setText(road_name)
-        self.findChild(QTextEdit, "text1").setText(self.sign["text1"] or "")
-        self.findChild(QTextEdit, "text2").setText(self.sign["text2"] or "")        
+        self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
+        self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
         self.findChild(QLineEdit, "face").setText("")
         if self.code != 'NULL':
             self.set_sign(self.code)
@@ -300,9 +327,9 @@ class SignsEditor(QMainWindow, FormClass):
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
         self.set_map_tool()
-        
+
     def after_get_images(self, *args, **kwargs):
-        self.sign_images=[]
+        self.sign_images = []
         photos = args[1]
         if "images" in photos:
             self.sign_images_index = 0
@@ -310,7 +337,7 @@ class SignsEditor(QMainWindow, FormClass):
                 self.sign_images.append(photo)
             self.navigate()
             self.set_minimap()
-        
+
     def get_images(self):
         url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
@@ -319,16 +346,14 @@ class SignsEditor(QMainWindow, FormClass):
         if fu.status_code == 200:
             photos = fu.json()
             return photos
-        print(fu.status_code)
-        print("and now")
         return
-    
+
     def save_continue(self):
         self.spinners()
         self.save_sign()
         self.close_record()
         self.load_next_record()
-    
+
     def open_record(self):
         if not self.sign:
             return
@@ -336,47 +361,53 @@ class SignsEditor(QMainWindow, FormClass):
         self.signs_layer.changeAttributeValue(
             self.sign.id(), self.sign.fieldNameIndex("opened"), os.getenv("USERNAME"))
         self.signs_layer.commitChanges()
-        
-    def close_record(self): 
+
+    def close_record(self):
         if not self.sign:
             return
         self.signs_layer.startEditing()
         self.signs_layer.changeAttributeValue(
             self.sign.id(), self.sign.fieldNameIndex("opened"), None)
         self.signs_layer.commitChanges()
-    
+
     def load_next_record(self):
         self.reset_form()
-        m=self.signs_layer.minimumValue(self.signs_layer.fields().indexOf('certain'))
-        expr = QgsExpression( f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null")  
-        req=QgsFeatureRequest(expr)
-        fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
-        fids=list(filter(lambda x: x[2] in self.filter, fids))
-        if len(fids)>0:
+        m = self.signs_layer.minimumValue(
+            self.signs_layer.fields().indexOf('certain'))
+        expr = QgsExpression(
+            f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null")
+        req = QgsFeatureRequest(expr)
+        fids = [(f["certain"], f.id(), f["value"])
+                for f in self.signs_layer.getFeatures(req)]
+        fids = list(filter(lambda x: x[2] in self.filter, fids))
+        if len(fids) > 0:
             fids.sort()
         else:
-            expr = QgsExpression( f"\"saved\" is null and opened is null")  
-            req=QgsFeatureRequest(expr)
-            fids=[(f["certain"],f.id(), f["value"]) for f in self.signs_layer.getFeatures(req)]
-            print(fids)
-            fids=list(filter(lambda x: x[2] in self.filter, fids))
-        if len(fids)>0:   
-            self.sign=self.signs_layer.getFeature(fids[0][1])
+            expr = QgsExpression(f"\"saved\" is null and opened is null")
+            req = QgsFeatureRequest(expr)
+            fids = [(f["certain"], f.id(), f["value"])
+                    for f in self.signs_layer.getFeatures(req)]
+            fids = list(filter(lambda x: x[2] in self.filter, fids))
+        if len(fids) > 0:
+            self.sign = self.signs_layer.getFeature(fids[0][1])
             self.open_record()
-            self.sign_id=fids[0][1]
-            self.sign_images=[]
+            self.sign_id = fids[0][1]
+            self.sign_images = []
+
             def go(task, wait_time):
                 return self.get_images()
             self.otask = QgsTask.fromFunction(
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
             self.set_minimap()
-    
+
     def reset_form(self):
         self.findChild(QCheckBox, "not_a_sign").setChecked(False)
+        self.findChild(QCheckBox, "remember2").setChecked(False)
+        self.findChild(QCheckBox, "remember1").setChecked(False)
         self.findChild(QCheckBox, "correctly_identified").setChecked(False)
         self.findChild(QTextEdit, "code_text").setText("")
-    
+
     def save_sign_close(self):
         self.save_sign()
         self.close_record()
@@ -396,21 +427,26 @@ class SignsEditor(QMainWindow, FormClass):
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("face"), self.face)
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text1"), self.findChild(QTextEdit, "text1").toPlainText())
+                self.sign.id(), self.sign.fieldNameIndex("text1"), self.findChild(QLineEdit, "text1").text())
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QTextEdit, "text2").toPlainText())
+                self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QLineEdit, "text2").text())
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QComboBox, "suporte").currentText())
-            status=1
+            status = 1
             if is_not_a_sign:
-                status=3
+                status = 3
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("status"), status)
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("saved"),True)
+                self.sign.id(), self.sign.fieldNameIndex("saved"), True)
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("user"), os.getenv("USERNAME")
             )
+            for k in [1,2]:
+                if self.findChild(QCheckBox, f"remember{k}").isChecked():
+                    words = set(self.read_autocomplete(f"text{k}"))
+                    words.add(self.findChild(QLineEdit, f"text{k}").text())
+                    self.write_autocomplete(f"text{k}", words)
             self.signs_layer.commitChanges()
         if is_correct:
             dictionary = {}
@@ -436,8 +472,6 @@ class SignsEditor(QMainWindow, FormClass):
         fu.exec()
 
     def set_sign(self, *args, **kwargs):
-        print(os.path.join(
-            os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg"))
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg")))
         self.findChild(QTextEdit, "code_text").setText(args[0])
@@ -454,14 +488,14 @@ class SignsEditor(QMainWindow, FormClass):
                 os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")) as fu:
             svg = fu.read()
         fu.close()
-        
-        if self.code=="R-15":
+
+        if self.code == "R-15":
             svg = svg.replace(
                 "</svg>", f'<text x="400" y="470" font-size="200" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
-        elif self.code=="R-19":
+        elif self.code == "R-19":
             svg = svg.replace(
                 "</svg>", f'<text x="400" y="500" font-size="400" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
-        else:    
+        else:
             svg = svg.replace(
                 "</svg>", f'<text x="400" y="500" font-size="400" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
         with open(os.path.join(
@@ -472,22 +506,19 @@ class SignsEditor(QMainWindow, FormClass):
             os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg")))
 
     def forward(self, *args, **kwargs):
-        print("FORWARDSS")
         self.sign_images_index += 1
         self.sign_images_index = self.sign_images_index % len(self.sign_images)
         self.navigate()
 
     def navigate(self):
-        print("navidage")
         self.dl = SignDataDownloader(
             mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at,detections.value,detections.geometry')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
-        #self.geo_dl=SignDataDownloader(
+        # self.geo_dl=SignDataDownloader(
         #    mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='geometry', datatype="geometry")
-        #self.geo_dl.taskCompleted.connect(self.show_geometry)
-        #QgsApplication.taskManager().addTask(self.geo_dl)
-
+        # self.geo_dl.taskCompleted.connect(self.show_geometry)
+        # QgsApplication.taskManager().addTask(self.geo_dl)
 
     def backward(self):
         self.sign_images_index -= 1
@@ -497,10 +528,9 @@ class SignsEditor(QMainWindow, FormClass):
 
     def close(self):
         self.close_record()
-        super().close()        
-        
+        super().close()
+
     def connect_signals(self):
-        print("will connect signals")
         self.findChild(
             QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton, "pushButton_forward").clicked.connect(
@@ -509,44 +539,41 @@ class SignsEditor(QMainWindow, FormClass):
             self.backward)
 
     def get_point_layer_by_name(self, name):
-        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name() == name, QgsProject.instance().mapLayers().values()))
+        layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
+                      QgsWkbTypes.Point, QgsWkbTypes.MultiPoint] and x.name() == name, QgsProject.instance().mapLayers().values()))
         if layers:
             return layers[0]
-        
-    def show_geometry(self, *args, **kwargs):
-        print("THIS IS RETURN OF GEOMETRY")
-        if self.geo_dl.result is None:
-            return
-        print(self.geo_dl.result)
-        print(self.sign.id())
-        print(self.sign["id"])
-        
+
     def show_image(self, *args, **kwargs):
-        import base64, mapbox_vector_tile
+        import base64
+        import mapbox_vector_tile
         if self.dl.result is None:
             return
-        cg=self.dl.result.get("computed_geometry")
+        cg = self.dl.result.get("computed_geometry")
         if cg is None:
             return
-        geometries=list(filter(lambda x: x.get("value")==self.sign["value"], self.dl.result.get("detections").get("data")))
+        geometries = list(filter(lambda x: x.get(
+            "value") == self.sign["value"], self.dl.result.get("detections").get("data")))
         if len(geometries):
-            canvas=self.get_canvas()
+            canvas = self.get_canvas()
             canvas.reset_canvas()
             for geok in geometries:
-                geo=geok.get('geometry')
-                vector=base64.decodebytes(geo.encode('utf-8'))
+                geo = geok.get('geometry')
+                vector = base64.decodebytes(geo.encode('utf-8'))
                 decoded_geometry = mapbox_vector_tile.decode(vector)
                 detection_coordinates = decoded_geometry['mpy-or']['features'][0]['geometry']['coordinates']
-                web=self.findChild(QWebView, "webView")
-                pixel_coords = [[[x/4096 * web.width(), y/4096 * web.height()] for x,y in tuple(coord_pair)] for coord_pair in detection_coordinates]
-                ih=int(pixel_coords[0][0][1]-pixel_coords[0][2][1])
-                iw=int(pixel_coords[0][1][0]-pixel_coords[0][3][0])
-                vy=[int(pixel_coords[0][3][0]),int(web.height()-pixel_coords[0][2][1])-ih,iw,ih]
-                canvas.draw_rectangle(vy,geok.get("value"))
-                
-        g=self.dl.result.get("computed_geometry").get("coordinates")
-        self.streetview=f"http://maps.google.com/maps?q=&layer=c&cbll={g[1]},{g[0]}"
-        self.mapillary=f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}"
+                web = self.findChild(QWebView, "webView")
+                pixel_coords = [[[x/4096 * web.width(), y/4096 * web.height()]
+                                 for x, y in tuple(coord_pair)] for coord_pair in detection_coordinates]
+                ih = int(pixel_coords[0][0][1]-pixel_coords[0][2][1])
+                iw = int(pixel_coords[0][1][0]-pixel_coords[0][3][0])
+                vy = [int(pixel_coords[0][3][0]), int(
+                    web.height()-pixel_coords[0][2][1])-ih, iw, ih]
+                canvas.draw_rectangle(vy, geok.get("value"))
+
+        g = self.dl.result.get("computed_geometry").get("coordinates")
+        self.streetview = f"http://maps.google.com/maps?q=&layer=c&cbll={g[1]},{g[0]}"
+        self.mapillary = f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}"
         arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
         if arrows_layer is None:
@@ -587,7 +614,7 @@ class SignsEditor(QMainWindow, FormClass):
         l.append(arrows_layer)
         canvas.setLayers(l)
         canvas.redrawAllLayers()
-        #self.findChild(QWebView, "webView").load(
+        # self.findChild(QWebView, "webView").load(
         #    QUrl(self.dl.result.get("thumb_1024_url")))
         self.findChild(QWebView, "webView").setHtml(f"<html>\
             <head></head>\
@@ -597,10 +624,9 @@ class SignsEditor(QMainWindow, FormClass):
              \
              \
                  </html>")
-        #https://graph.mapillary.com/:image_id/detections
-        
+        # https://graph.mapillary.com/:image_id/detections
+
     def set_map_tool(self):
-        print("setting map toool")  
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
 
         self.mapTool = RoadsSelector(canvas, self.roads_layer)
@@ -608,10 +634,8 @@ class SignsEditor(QMainWindow, FormClass):
         self.mapTool.setLayer(self.roads_layer)
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
         canvas.setMapTool(self.mapTool)
-        
+
     def display_road(self, *args, **kwargs):
-        print("display the road now")
-        self.road_id=args[1][self.conf.get("roads_pk")]
-        print(self.road_id)
-        road_name=args[1][self.conf.get("roads_field_name")]
+        self.road_id = args[1][self.conf.get("roads_pk")]
+        road_name = args[1][self.conf.get("roads_field_name")]
         self.findChild(QTextEdit, "road_segment").setText(road_name)
