@@ -1,0 +1,17 @@
+Tipo de veículo
+Início / término
+Embarque / desembarque
+Carga / descarga
+Exceção
+Horário
+Fiscalização eletrônica
+Quantidade de vagas
+Atenção
+Horário
+Início / término
+Carga / descarga
+Tipo de veículo
+Exceção
+Fiscalização eletrônica
+Quantidade de vagas
+Embarque / desembarque

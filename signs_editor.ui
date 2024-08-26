@@ -286,11 +286,21 @@
                       </widget>
                     </item>
                     <item>
-                      <widget class="QTextEdit" name="text1">
+                      <widget class="QLineEdit" name="text1">
                         <property name="maximumSize">
                           <size>
                             <width>220</width>
-                            <height>50</height>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QCheckBox" name="remember1">
+                        <property name="maximumSize">
+                          <size>
+                            <width>20</width>
+                            <height>25</height>
                           </size>
                         </property>
                       </widget>
@@ -314,11 +324,21 @@
                       </widget>
                     </item>
                     <item>
-                      <widget class="QTextEdit" name="text2">
+                      <widget class="QLineEdit" name="text2">
                         <property name="maximumSize">
                           <size>
                             <width>220</width>
-                            <height>50</height>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QCheckBox" name="remember2">
+                        <property name="maximumSize">
+                          <size>
+                            <width>20</width>
+                            <height>25</height>
                           </size>
                         </property>
                       </widget>

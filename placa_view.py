@@ -79,6 +79,9 @@ class PlacaView:
     projector: QgsCoordinateReferenceSystem = None
     matcher: RoadsMatcher = None
     seletor: PlacaSelector = None
+    total_matches:int=0
+    geocoded:int=0
+    geocodable=[]
 
     def __init__(self, iface):
         """Constructor.
@@ -1096,6 +1099,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_progress_changed(self, *args, **kwargs):
+        print("setting progressssss", args)
         try:
             self.geocoder_progress.setValue(round(args[0]))
         except:
@@ -1103,8 +1107,23 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
 
     def end_match(self, result=None):
         print("will now end it")
-        self.matcher = None
-        self.geocoder_progress.close()
+        self.geocoded+=1
+        print(result)
+        
+        if self.geocoded<=self.total_matches:
+            self.geocode()
+            if self.geocoded % 5 == 0:
+                print("hora de gorfar")
+                self.signs_layer.commitChanges(False)
+                self.signs_layer.startEditing()
+        else:
+            self.signs_layer.commitChanges()
+        #self.matcher = None
+        try:
+            print("clising ")
+            self.geocoder_progress.close()
+        except Exception as x:
+            print(x)
 
     def match_segment_roads(self):
         """
