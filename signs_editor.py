@@ -90,20 +90,6 @@ class SignDataDownloader(QgsTask):
 
 
 class SignsEditor(QMainWindow, FormClass):
-    SUPORTE_TIPO = [
-        "Coluna simples",
-        "Coluna dupla",
-        "Coluna semafórica",
-        "Braço projetado",
-        "Braço projetado duplo",
-        "Semipórtico simples",
-        "Semipórtico duplo",
-        "Pórtico",
-        "Poste Light",
-        "Viaduto",
-        "Passarela",
-        "Outro"
-    ]
     key = None
     sign_id = None
     sign_images: list = []
@@ -170,12 +156,6 @@ class SignsEditor(QMainWindow, FormClass):
             self.load_next_record()
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         self.filter = kwargs.get("filter")
-        #cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        #cbx.addItem("", "")
-        #for t in self.SUPORTE_TIPO:
-        #    cbx.addItem(t, t)
-        #cbx.setCurrentIndex(0)
-
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
 
