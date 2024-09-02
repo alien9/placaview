@@ -159,24 +159,22 @@ class SignsEditor(QMainWindow, FormClass):
         event.accept()
 
     def post_init(self, *args, **kwargs):
-        print("POST INIT")
         self.iface = kwargs.get("iface")
         self.key = kwargs.get('mapillary_key')
         self.conf = kwargs.get('conf')
         self.sign_id = kwargs.get('sign')
         self.sign_images = kwargs.get("sign_images")
-        print(kwargs)
         if "selected_sign" in kwargs:
             self.sign: QgsFeature = kwargs.get("selected_sign")
         else:
             self.load_next_record()
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         self.filter = kwargs.get("filter")
-        cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        cbx.addItem("", "")
-        for t in self.SUPORTE_TIPO:
-            cbx.addItem(t, t)
-        cbx.setCurrentIndex(0)
+        #cbx: QComboBox = self.findChild(QComboBox, "suporte")
+        #cbx.addItem("", "")
+        #for t in self.SUPORTE_TIPO:
+        #    cbx.addItem(t, t)
+        #cbx.setCurrentIndex(0)
 
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
@@ -294,7 +292,8 @@ class SignsEditor(QMainWindow, FormClass):
             self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
         self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
-        self.findChild(QLineEdit, "face").setText("")
+        self.findChild(QLineEdit, "suporte").setText(self.sign["suporte"] or "")
+        self.findChild(QLineEdit, "face").setText(self.sign["face"] or "")
         if self.code != 'NULL':
             self.set_sign(self.code)
             if self.face != 'NULL':
@@ -315,11 +314,11 @@ class SignsEditor(QMainWindow, FormClass):
                         self.findChild(QLineEdit, "face").setText(self.face)
                         self.set_sign_face(self.face)
 
-        cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        cbx.setCurrentIndex(0)
-        if self.sign["suporte"] in self.SUPORTE_TIPO:
-            cbx.setCurrentIndex(
-                1+self.SUPORTE_TIPO.index(self.sign["suporte"]))
+        #cbx: QComboBox = self.findChild(QComboBox, "suporte")
+        #cbx.setCurrentIndex(0)
+        #if self.sign["suporte"] in self.SUPORTE_TIPO:
+        #    cbx.setCurrentIndex(
+        #        1+self.SUPORTE_TIPO.index(self.sign["suporte"]))
         if len(self.sign_images):
             self.sign_images_index = 0
             self.navigate()
@@ -410,6 +409,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QCheckBox, "remember1").setChecked(False)
         self.findChild(QCheckBox, "correctly_identified").setChecked(False)
         self.findChild(QTextEdit, "code_text").setText("")
+        self.findChild(QLineEdit, "suporte").setText("")
 
     def save_sign_close(self):
         self.save_sign()
@@ -434,7 +434,7 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QLineEdit, "text2").text())
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QComboBox, "suporte").currentText())
+                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QLineEdit, "suporte").text())
             status = 1
             if is_not_a_sign:
                 status = 3
