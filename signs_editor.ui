@@ -407,9 +407,9 @@
                     </widget>
                    </item>
                    <item>
-                    <widget class="QComboBox" name="suporte">
+                    <widget class="QLineEdit" name="suporte">
                      <property name="maximumSize">
-                      <size>
+                      <size>  
                        <width>200</width>
                        <height>25</height>
                       </size>

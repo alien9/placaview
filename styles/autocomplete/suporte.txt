@@ -1,0 +1,15 @@
+Coluna simples 
+Coluna dupla
+Coluna semafórica cilíndrica
+Coluna semafórica cônica
+Coluna semafórica simples
+Braço projetado cilíndrico
+Braço projetado cônico
+Braço projetado duplo
+Semipórtico simples
+Semipórtico duplo
+Pórtico
+Poste Light
+Viaduto
+Passarela
+Outro
