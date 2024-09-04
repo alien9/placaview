@@ -25,14 +25,14 @@ import qgis
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl, QDate
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton
+from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit
 from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApplication, QgsTask, QgsMarkerSymbol, QgsFillSymbol
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
-from qgis.gui import QgsMapToolIdentifyFeature
+from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
@@ -55,10 +55,7 @@ from .placa_view_dockwidget import PlacaViewDockWidget
 from .roads_matcher import RoadsMatcher
 from .placa_selector import PlacaSelector
 import os.path
-import os
-import json
-import requests
-import math
+import os, json, requests, datetime, math, re
 
 class SignsLayer(QgsVectorLayer):
     pass
@@ -167,7 +164,6 @@ class PlacaView:
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
         self.roads_field_name = self.conf.get("roads_field_name", False)
-        print(self.conf)
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -398,21 +394,10 @@ class PlacaView:
 
         if not self.pluginIsActive:
             self.pluginIsActive = True
-
-            # print "** STARTING PlacaView"
-
-            # dockwidget may not exist if:
-            #    first run of plugin
-            #    removed on close (see self.onClosePlugin method)
             if self.dockwidget == None:
-                # Create the dockwidget (after translation) and keep reference
                 self.dockwidget = PlacaViewDockWidget()
-
-            # connect to provide cleanup on closing of dockwidget
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.dockwidget.photoClick.connect(self.load_signs_editor)
-            # show the dockwidget
-            # TODO: fix to allow choice of dock location
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             self.get_first_polygonal_layer()
@@ -421,7 +406,45 @@ class PlacaView:
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
             self.prepare_roads_and_signs()
+            self.create_signs_fields()
+            if not "from" in self.conf:
+                idx = self.signs_layer.fields().indexOf('first_seen_at')
+                self.conf["from"]=self.signs_layer.minimumValue(idx)
+            if not "to" in self.conf:
+                idx = self.signs_layer.fields().indexOf('first_seen_at')
+                self.conf["to"]=self.signs_layer.maximumValue(idx)
+            d:datetime.datetime=datetime.datetime.fromtimestamp(0.001*self.conf["from"])
+            fromdate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "fromdate")
+            fromdate.setDate(QDate(d.year, d.month, d.day))
+            d=datetime.datetime.fromtimestamp(0.001*self.conf["to"])
+            todate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "todate")
+            todate.setDate(QDate(d.year, d.month, d.day))
+            fromdate.dateValueChanged.connect(self.refilter)
+            todate.dateValueChanged.connect(self.refilter)
+            self.refilter()
             
+    def refilter(self):
+        expression=[]
+        if not self.dockwidget.findChild(QgsDateEdit, "fromdate").isNull():
+            fro=self.dockwidget.findChild(QgsDateEdit, "fromdate").date()
+            fro_ts=1000*int(datetime.datetime(fro.year(), fro.month(), fro.day()).strftime("%s"))
+            expression.append(f"\"first_seen_at\" > {fro_ts}")
+            self.conf["from"]=fro_ts
+        else:
+            if "from" in self.conf:
+                del self.conf["from"]
+        if not  self.dockwidget.findChild(QgsDateEdit, "todate").isNull():
+            too=self.dockwidget.findChild(QgsDateEdit, "todate").date()
+            to_ts=1000*int(datetime.datetime(too.year(), too.month(), too.day()).strftime("%s"))
+            expression.append(f"\"first_seen_at\" < {to_ts}")
+            self.conf["to"]=to_ts
+        else:
+            if "to" in self.conf:
+                del self.conf["to"] 
+        print(expression)
+        self.signs_layer.setSubsetString(" AND ".join(expression))
+        self.save_conf()
+        
     def prepare_roads_and_signs(self):
         roads = self.conf.get("roads", None)
         if roads is not None:
@@ -455,8 +478,8 @@ class PlacaView:
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
                                           "Mapillary Key:", QLineEdit.Normal,
                                           self.conf.get("mapillary_key", ""))
-        self.conf["mapillary_key"] = text
         if ok:
+            self.conf["mapillary_key"] = text
             self.set_conf("mapillary_key", text)
         self.load_conf()
         
@@ -464,8 +487,8 @@ class PlacaView:
         text, ok = QInputDialog().getText(self.dockwidget, "Connection String",
                                           "PostgreSQL Connection String:", QLineEdit.Normal,
                                           self.conf.get("connection_string", ""))
-        self.conf["connection_string"] = text
         if ok:
+            self.conf["connection_string"] = text
             self.set_conf("connection_string", text)
             self.load_signs_layer_from_database()
 
@@ -742,7 +765,6 @@ class PlacaView:
             mc.setMapTool(mapTool)
     
     def load_signs_layer_from_database(self):
-        import re
         uri = QgsDataSourceUri()
         cstring=self.conf.get("connection_string")
         m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
@@ -815,7 +837,6 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             QgsProject.instance().instance().removeMapLayer(layer)
         print(vlayer.isValid())
         QgsProject.instance().instance().addMapLayer(vlayer)
-        print("addeu")
         print(vlayer.isValid())
         self.set_signs_style(filter=self.read_filter(), layer=vlayer, size=5)
 
@@ -1200,12 +1221,15 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             self.load_signs_editor()
         """
     def create_signs_fields(self):
+        print("creating the signs fields")
         if len(self.conf.get("connection_string", "")):
+            self.migraine()
             return
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")
         roads_pk=self.conf.get("roads_pk")
+        self.signs_layer.updateFields() 
         if not "saved" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("saved", QVariant.Bool)])
@@ -1241,4 +1265,32 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             face = QgsField("face", QVariant.String)
             self.signs_layer.dataProvider().addAttributes([face])
         self.signs_layer.updateFields()        
+        QgsProject.instance().reloadAllLayers()
+
+    def migraine(self):
+        uri = QgsDataSourceUri()
+
+        cstring=self.conf.get("connection_string")
+        m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
+        h={}
+        for p in m:
+            h[p[0]]=p[1]
+        uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
+        uri.setDataSource ("public", "signs", "geom")
+        query="""ALTER TABLE signs ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
+ALTER TABLE signs ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP;
+"""
+        db = QSqlDatabase.addDatabase("QPSQL");
+        db.setHostName(uri.host())
+        db.setDatabaseName(uri.database())
+        db.setPort(int(uri.port()))
+        db.setUserName(uri.username())
+        db.setPassword(uri.password())
+        db.open()
+        # query the table
+        db.exec(query)
+        db.commit()
+        db.close()
+        signs_layer=self.get_signs_layer()
+        signs_layer.reload()
         QgsProject.instance().reloadAllLayers()
