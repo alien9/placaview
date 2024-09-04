@@ -45,6 +45,17 @@
 
                               </widget>
                         </item>
+                        <item row="10" column="0">
+                              <layout class="QHBoxLayout" name="horizontalLayout">
+                                    <item>
+                                          <widget class="QgsDateEdit" name="fromdate" />
+                                    </item>
+                                    <item>
+                                          <widget class="QgsDateEdit" name="todate" />
+                                    </item>
+                              </layout>
+
+                        </item>
                         <item row="1" column="0">
                               <layout class="QHBoxLayout" name="horizontalLayout">
                                     <item column="0">
@@ -111,7 +122,7 @@
                                     <item>
                                           <widget class="QLabel" name="mapillary_label">
                                                 <property name="text">
-                                                      <string>Tipo Mapillary </string>
+                                                      <string>Mapillary Type </string>
                                                 </property>
                                           </widget>
                                     </item>
@@ -132,11 +143,7 @@
                                                 <property name="text">
                                                       <string />
                                                 </property>
-                                                <property name="icon">
-                                                      <iconset>
-                                                            <normaloff>styles/symbols_br/A-2b.svg</normaloff>
-                                                            styles/symbols_br/A-2b.svg</iconset>
-                                                </property>
+
                                           </widget>
                                     </item>
                               </layout>
@@ -145,6 +152,11 @@
             </widget>
       </widget>
       <customwidgets>
+            <customwidget>
+                  <class>QgsDateEdit</class>
+                  <extends>QDateEdit</extends>
+                  <header>qgsdateedit.h</header>
+            </customwidget>
             <customwidget>
                   <class>QWebView</class>
                   <extends>QWidget</extends>
