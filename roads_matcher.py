@@ -17,17 +17,18 @@ class RoadsMatcher(QgsTask):
     feature:QgsFeature
     conf:dict={}
     total:int
+    done:int=0
     feature_id:int
     
     def __init__(self, *args, **kwargs):
-        super().__init__("Matching Roads")#, QgsTask.CanCancel) 
+        super().__init__("Matching Roads", QgsTask.CanCancel) 
         self.conf=kwargs.get("conf")
         self.roads_layer=kwargs.get("roads_layer")
         self.signs_layer=self.get_signs_layer()
         self.roads_field_name=kwargs.get("roads_field_name")
         self.roads_pk=kwargs.get("roads_pk")
         self.total=kwargs.get("total")
-        self.done=kwargs.get("done")
+        self.done=kwargs.get("done",0)
         self.feature_id=kwargs.get("feature_id")
         #self.on_finished=kwargs.get("on_finished")
        
@@ -44,21 +45,19 @@ class RoadsMatcher(QgsTask):
             return layers[0]
         
     def run(self):
-        print("RUN")
         QgsMessageLog.logMessage('Started task geocoder "{}"'.format(
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
         index = QgsSpatialIndex(self.roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
         n=0
-        self.setProgress(100*self.done/self.total)
         
         print("create req")
         request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
         #request.setLimit(100)
         fids=[f.id() for f in self.signs_layer.getFeatures(request)]
         total=len(fids)
+        self.setProgress(0/total)
         top=0
-        print(f"this is totoal {total}")
         #self.signs_layer.startEditing()
         provider:QgsDataProvider=self.signs_layer.dataProvider()
         while top<total:
@@ -139,8 +138,12 @@ class RoadsMatcher(QgsTask):
         #self.on_finished()
                 
     def cancel(self):
-        QgsMessageLog.logMessage(
-            'Task "{name}" was cancelled'.format(name=self.description()),
-            MESSAGE_CATEGORY, Qgis.Info)
-        super().cancel()
+        try:
+            QgsMessageLog.logMessage(
+                'Task "{name}" was cancelled'.format(name=self.description()),
+                MESSAGE_CATEGORY, Qgis.Info)
+            super().cancel()
+        except:
+            pass
+        
 
