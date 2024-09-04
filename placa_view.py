@@ -427,7 +427,7 @@ class PlacaView:
         expression=[]
         if not self.dockwidget.findChild(QgsDateEdit, "fromdate").isNull():
             fro=self.dockwidget.findChild(QgsDateEdit, "fromdate").date()
-            fro_ts=1000*int(datetime.datetime(fro.year(), fro.month(), fro.day()).strftime("%s"))
+            fro_ts=1000*int(datetime.datetime(fro.year(), fro.month(), fro.day()).timestamp())
             expression.append(f"\"first_seen_at\" > {fro_ts}")
             self.conf["from"]=fro_ts
         else:
@@ -435,7 +435,7 @@ class PlacaView:
                 del self.conf["from"]
         if not  self.dockwidget.findChild(QgsDateEdit, "todate").isNull():
             too=self.dockwidget.findChild(QgsDateEdit, "todate").date()
-            to_ts=1000*int(datetime.datetime(too.year(), too.month(), too.day()).strftime("%s"))
+            to_ts=1000*int(datetime.datetime(too.year(), too.month(), too.day()).timestamp())
             expression.append(f"\"first_seen_at\" < {to_ts}")
             self.conf["to"]=to_ts
         else:
