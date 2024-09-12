@@ -464,6 +464,7 @@ class SignsEditor(QMainWindow, FormClass):
                     words.add(self.findChild(QLineEdit, f"text{k}").text())
                     self.write_autocomplete(f"text{k}", words)
             self.signs_layer.commitChanges()
+            
             with open(os.path.join(os.path.dirname(__file__), f"filter.txt"), "a+") as fu:
                 fu.write(f"{placa_style}\n")
             fu.close()
