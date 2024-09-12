@@ -1272,8 +1272,13 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             face = QgsField("face", QVariant.String, "VARCHAR")
             self.signs_layer.dataProvider().addAttributes([face])
         if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
-            vface = QgsField("value_code_face", QVariant.String, "VARCHAR")
+            vface = QgsField("value_code_face", QVariant.String, "VARCHAR",100)
             self.signs_layer.dataProvider().addAttributes([vface])
+            
+            with edit(self.signs_layer):
+                for feature in self.signs_layer.getFeatures():
+                    feature.setAttribute(feature.fieldNameIndex('value_code_face'), f"symbols/{feature['value']}.svg")
+                    self.signs_layer.updateFeature(feature)
             
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
@@ -1290,7 +1295,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             h[p[0]]=p[1]
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", "signs", "geom")
-        query="ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR;"
+        query="ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(100);"
         db = QSqlDatabase.addDatabase("QPSQL");
         db.setHostName(uri.host())
         db.setDatabaseName(uri.database())
