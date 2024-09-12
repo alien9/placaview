@@ -153,7 +153,7 @@
                     <item>
                       <widget class="QLabel" name="mapillary_label">
                         <property name="text">
-                          <string>Tipo Mapillary </string>
+                          <string>Mapillary yype</string>
                         </property>
                       </widget>
                     </item>
@@ -199,7 +199,7 @@
                     <item>
                       <widget class="QLabel" name="mapillary_label">
                         <property name="text">
-                          <string>Tipo Brasileiro </string>
+                          <string>Local type </string>
                         </property>
                       </widget>
                     </item>
@@ -246,7 +246,7 @@
                     <item>
                       <widget class="QLabel" name="face_label">
                         <property name="text">
-                          <string>Valor de Face </string>
+                          <string>Face value</string>
                         </property>
                         <property name="maximumSize">
                           <size>
@@ -275,7 +275,7 @@
                     <item>
                       <widget class="QLabel">
                         <property name="text">
-                          <string>Texto 1</string>
+                          <string>Text 1</string>
                         </property>
                         <property name="maximumSize">
                           <size>
@@ -313,7 +313,7 @@
                     <item>
                       <widget class="QLabel">
                         <property name="text">
-                          <string>Texto 2</string>
+                          <string>Text 2</string>
                         </property>
                         <property name="maximumSize">
                           <size>
@@ -352,7 +352,7 @@
                     <item>
                       <widget class="QLabel">
                         <property name="text">
-                          <string>Segmento</string>
+                          <string>Segment</string>
                         </property>
                         <property name="maximumSize">
                           <size>
@@ -402,7 +402,7 @@
                       </size>
                      </property>
                      <property name="text">
-                      <string>Suporte</string>
+                      <string>Support</string>
                      </property>
                     </widget>
                    </item>
@@ -437,7 +437,7 @@
               </size>
              </property>
              <property name="text">
-              <string>Data</string>
+              <string>Date / Time</string>
              </property>
             </widget>
            </item>

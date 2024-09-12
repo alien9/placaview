@@ -125,6 +125,7 @@ class PlacaView:
         self.pluginIsActive = False
         self.dockwidget = None
         self.taskManager = QgsApplication.taskManager()
+        self.create_signs_fields()
 
     def get_buffer(self):
         yield self.buffer.pop()
@@ -885,16 +886,12 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         signs_layer = layer
         idx = signs_layer.fields().indexOf('value_code_face')
         values = list(signs_layer.uniqueValues(idx))
-        print("that was the codedss ")
         categories = []
         for value in values:
-            print(value)
             style = {
                 "name": os.path.join(self.plugin_dir,"styles", value),
                 'size': size
             }
-            print("create style for symbol")
-            print(style["name"])
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
             category = QgsRendererCategory(value, symbol, str(value))
@@ -930,9 +927,6 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
     def load_signs_filter(self):
         layer:QgsVectorLayer=self.get_signs_layer()
         existing = layer.uniqueValues(layer.fields().indexOf('value_code_face'))
-        print("The fields taht exist")
-        print(existing)
-        
         fu = SignsFilter(parent=self.iface.mainWindow(),
                          filter=self.read_filter(), values=existing)
         fu.applyClicked.connect(self.apply_filter)
@@ -978,7 +972,6 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         except:
             pass
         self.apply_filter(self.read_filter())
-        print("this is closing")
 
     def start_select_features(self):
         self.signs_layer = self.get_signs_layer()
@@ -997,7 +990,6 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             return r.json()
 
     def after_download_image(self, *args, **kwargs):
-        print("AFTER DL")
         result = args[1]
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
@@ -1036,20 +1028,12 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         if not self.dockwidget:
             self.run()
         self.dockwidget.show()
-        print("identified ")
-        print(args)
-        print(args[1])
-        print(args[1].attributes())
-        print(args[0].fields())
-        
-        #print(args[1].attribute(args[0].fields().indexOf('value_face_code')))
-        print(self.signs_layer.fields().indexOf('value_face_code'))
-        print("end identified")
-        print(args[1].attributes())
+        self.signs_layer.updateFields() 
         self.selected_sign = args[1]
         but = self.dockwidget.findChild(QPushButton, "mapillarytype")
+        icon=str(args[1]["value_code_face"])
         but.setIcon(QIcon(os.path.join(
-            self.plugin_dir, "styles", args[1][17])))
+            self.plugin_dir, "styles", icon)))
 
         self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
@@ -1245,9 +1229,9 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         """
     def create_signs_fields(self):
         print("creating the signs fields")
-        if len(self.conf.get("connection_string", "")):
-            self.migraine()
-            return
+        #if len(self.conf.get("connection_string", "")):
+        #    self.migraine()
+        print("will modify the signs layer")
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")
@@ -1271,29 +1255,32 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             self.signs_layer.dataProvider().addAttributes([fi])
         if not "text1" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text1", QVariant.String)])
+                [QgsField("text1", QVariant.String, "VARCHAR")])
         if not "text2" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("text2", QVariant.String)])
+                [QgsField("text2", QVariant.String, "VARCHAR")])
         if not "suporte" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("suporte", QVariant.String)])
+                [QgsField("suporte", QVariant.String, "VARCHAR")])
         if not "user" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("user", QVariant.String)])
+                [QgsField("user", QVariant.String, "VARCHAR")])
         if "code" not in [f.name() for f in self.signs_layer.fields()]:
-            code = QgsField("code", QVariant.String)
+            code = QgsField("code", QVariant.String, "VARCHAR")
             self.signs_layer.dataProvider().addAttributes([code])
         if "face" not in [f.name() for f in self.signs_layer.fields()]:
-            face = QgsField("face", QVariant.String)
+            face = QgsField("face", QVariant.String, "VARCHAR")
             self.signs_layer.dataProvider().addAttributes([face])
         if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
-            vface = QgsField("value_code_face", QVariant.String)
+            vface = QgsField("value_code_face", QVariant.String, "VARCHAR")
             self.signs_layer.dataProvider().addAttributes([vface])
+            
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
 
     def migraine(self):
+        print("DOING MIGRATIONS")
+
         uri = QgsDataSourceUri()
 
         cstring=self.conf.get("connection_string")
@@ -1303,11 +1290,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             h[p[0]]=p[1]
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", "signs", "geom")
-        query="""ALTER TABLE signs ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
-ALTER TABLE signs ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP;
-ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(50);
-UPDATE signs set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';"
-"""
+        query="ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR;"
         db = QSqlDatabase.addDatabase("QPSQL");
         db.setHostName(uri.host())
         db.setDatabaseName(uri.database())
@@ -1316,7 +1299,11 @@ UPDATE signs set value_code_face=case when code is null then 'symbols/'||value e
         db.setPassword(uri.password())
         db.open()
         # query the table
-        db.exec(query)
+        db.exec_(query)
+        db.commit()
+        db.close()
+        db.open()
+        db.exec_("UPDATE signs set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';")
         db.commit()
         db.close()
         print("table was altered")
