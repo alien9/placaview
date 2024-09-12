@@ -271,7 +271,8 @@ class PlacaView:
             parent=self.iface.mainWindow()
         )
         self.add_action(
-            icon_path,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/grid-svgrepo-com.svg"),
             text="Set Roads",
             callback=self.ask_roads_layer,
             parent=self.iface.mainWindow()
@@ -424,6 +425,8 @@ class PlacaView:
             self.refilter()
             
     def refilter(self):
+        if not self.signs_layer:
+            return
         expression=[]
         if not self.dockwidget.findChild(QgsDateEdit, "fromdate").isNull():
             fro=self.dockwidget.findChild(QgsDateEdit, "fromdate").date()
@@ -441,8 +444,8 @@ class PlacaView:
         else:
             if "to" in self.conf:
                 del self.conf["to"] 
-        print(expression)
         self.signs_layer.setSubsetString(" AND ".join(expression))
+        print(f'expression set to {" AND ".join(expression)}')
         self.save_conf()
         
     def prepare_roads_and_signs(self):
@@ -670,6 +673,8 @@ class PlacaView:
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         layer = self.create_signals_vector_layer()
+        self.create_signs_fields()
+        layer.commitChanges()
         #layer.dataProvider().truncate()
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
@@ -706,6 +711,7 @@ class PlacaView:
                 QgsField("first_seen_at",  QVariant.Double),
                 QgsField("last_seen_at",  QVariant.Double),
                 QgsField("value",  QVariant.String),
+                QgsField("value_code_face",  QVariant.String),
                 ]
 
     def create_signals_vector_layer(self):
@@ -794,6 +800,7 @@ class PlacaView:
 	code varchar NULL,
 	face varchar NULL,
     opened varchar NULL,
+    value_code_face varchar NULL,
 	geom public.geometry(point, 4326) NULL,
 	PRIMARY KEY (fid)
 );
@@ -876,14 +883,18 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
         signs_layer = layer
-        idx = signs_layer.fields().indexOf('value')
+        idx = signs_layer.fields().indexOf('value_code_face')
         values = list(signs_layer.uniqueValues(idx))
+        print("that was the codedss ")
         categories = []
         for value in values:
+            print(value)
             style = {
-                "name": os.path.join(self.plugin_dir, f"styles/symbols/{value}.svg"),
+                "name": os.path.join(self.plugin_dir,"styles", value),
                 'size': size
             }
+            print("create style for symbol")
+            print(style["name"])
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
             category = QgsRendererCategory(value, symbol, str(value))
@@ -892,7 +903,8 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             else:
                 category.setRenderState(True)
             categories.append(category)
-        renderer = QgsCategorizedSymbolRenderer('value', categories)
+        
+        renderer = QgsCategorizedSymbolRenderer('value_code_face', categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
 
@@ -909,15 +921,17 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
                 value = list(map(lambda x: x[0: -1], fu.readlines()))
             fu.close()
-        if os.path.isfile(os.path.join(self.plugin_dir, f"existing.txt")):
-            with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
-                exists = set(map(lambda x: x[0: -1], fu.readlines()))
-            fu.close()
+        #if os.path.isfile(os.path.join(self.plugin_dir, f"existing.txt")):
+        #    with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
+        #        exists = set(map(lambda x: x[0: -1], fu.readlines()))
+        #    fu.close()
         return value
 
     def load_signs_filter(self):
         layer:QgsVectorLayer=self.get_signs_layer()
-        existing = layer.uniqueValues(layer.fields().indexOf('value'))
+        existing = layer.uniqueValues(layer.fields().indexOf('value_code_face'))
+        print("The fields taht exist")
+        print(existing)
         
         fu = SignsFilter(parent=self.iface.mainWindow(),
                          filter=self.read_filter(), values=existing)
@@ -928,6 +942,11 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         if self.selected_sign:
             self.selected_sign = self.signs_layer.getFeature(
                 self.selected_sign.id())
+            filter=self.read_filter()
+            if not self.selected_sign["value_code_face"] in filter:
+                filter.append(self.selected_sign["value_code_face"])
+            self.apply_filter(filter)
+            
 
     def load_signs_editor(self):
         self.create_signs_fields()
@@ -958,6 +977,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             QgsProject.instance().removeMapLayer(layer)
         except:
             pass
+        self.apply_filter(self.read_filter())
         print("this is closing")
 
     def start_select_features(self):
@@ -1019,23 +1039,25 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         print("identified ")
         print(args)
         print(args[1])
-        print(args[1].attribute('value'))
+        print(args[1].attributes())
+        print(args[0].fields())
+        
+        #print(args[1].attribute(args[0].fields().indexOf('value_face_code')))
+        print(self.signs_layer.fields().indexOf('value_face_code'))
         print("end identified")
+        print(args[1].attributes())
         self.selected_sign = args[1]
         but = self.dockwidget.findChild(QPushButton, "mapillarytype")
         but.setIcon(QIcon(os.path.join(
-            self.plugin_dir, f"styles/symbols/{args[1].attribute('value')}.svg")))
+            self.plugin_dir, "styles", args[1][17])))
 
         self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
-        print(args[1])
-        print("this was ars1")
-        print(args[1]["fid"])
         self.fid = int(args[1].attribute("fid"))  # primary key
         feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
-        f = QgsFeature()
+        #f = QgsFeature()
 
         def match(task, wait_time):
             self.dockwidget.findChild(QLabel, "street_label").setText("...")
@@ -1048,12 +1070,13 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         # task = QgsTask.fromFunction(
         #    'heavy function', match, wait_time=1)
         # QgsApplication.taskManager().addTask(task)
-        f.setGeometry(feature.geometry())
-        f.setAttributes([feature["value"]])
-        ss_layer.addFeatures([f])
-        ss_layer.commitChanges()
-        ss_layer.updateExtents()
-        ss_layer.triggerRepaint()
+        #f.setGeometry(feature.geometry())
+        #f.setAttributes([feature["value_code_face"]])
+        #f.setAttributes([feature[8]])
+        #ss_layer.addFeatures([f])
+        #ss_layer.commitChanges()
+        #ss_layer.updateExtents()
+        #ss_layer.triggerRepaint()
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
         # w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html></html>")
@@ -1264,6 +1287,9 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         if "face" not in [f.name() for f in self.signs_layer.fields()]:
             face = QgsField("face", QVariant.String)
             self.signs_layer.dataProvider().addAttributes([face])
+        if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
+            vface = QgsField("value_code_face", QVariant.String)
+            self.signs_layer.dataProvider().addAttributes([vface])
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
 
@@ -1279,6 +1305,8 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         uri.setDataSource ("public", "signs", "geom")
         query="""ALTER TABLE signs ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
 ALTER TABLE signs ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP;
+ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(50);
+UPDATE signs set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';"
 """
         db = QSqlDatabase.addDatabase("QPSQL");
         db.setHostName(uri.host())
@@ -1291,6 +1319,10 @@ ALTER TABLE signs ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP;
         db.exec(query)
         db.commit()
         db.close()
+        print("table was altered")
         signs_layer=self.get_signs_layer()
-        signs_layer.reload()
+        if signs_layer:
+            print("reloading the signs layer")
+            signs_layer.reload()
+            signs_layer.triggerRepaint()
         QgsProject.instance().reloadAllLayers()
