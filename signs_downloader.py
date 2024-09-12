@@ -63,12 +63,13 @@ class SignsDownloader(QgsTask):
                             self.layer.selectByExpression(f"\"id\"='{properties.get('id')}'")
                             fus = self.layer.selectedFeatures()
                             if len(fus):
+                                self.layer.startEditing()
                                 fus[0]["first_seen_at"] = properties.get(
                                     "first_seen_at")
                                 fus[0]["last_seen_at"] = properties.get(
                                     "last_seen_at")
                                 fus[0]["value"] = properties.get("value")
-                                self.layer.updateFeature(fus[0])
+                                self.layer.commitChanges()
                             else:
                                 fet.setGeometry(geo)
                                 fet["id"] = properties.get("id")
@@ -77,6 +78,7 @@ class SignsDownloader(QgsTask):
                                 fet["last_seen_at"] = properties.get(
                                     "last_seen_at")
                                 fet["value"] = properties.get("value")
+                                fet["value_code_face"] = f'symbols/{properties.get("value")}.svg'
                                 self.layer.dataProvider().addFeatures([fet])
                                 self.layer.commitChanges()
         return True

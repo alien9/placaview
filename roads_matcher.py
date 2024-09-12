@@ -50,7 +50,8 @@ class RoadsMatcher(QgsTask):
         index = QgsSpatialIndex(self.roads_layer.getFeatures(
         ), flags=QgsSpatialIndex.FlagStoreFeatureGeometries)
         n=0
-        
+        self.setProgress(0)
+
         print("create req")
         request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
         #request.setLimit(100)

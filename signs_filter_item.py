@@ -18,7 +18,8 @@ class SignsFilterItem(QWidget):
     def __init__(self, name, parent=None):
         super(SignsFilterItem, self).__init__(parent)
         self.row = QHBoxLayout()
-        svgWidget = QtSvg.QSvgWidget(os.path.join(os.path.dirname(__file__), f"styles/symbols/{name}.svg"))
+        svgWidget = QtSvg.QSvgWidget(os.path.join(os.path.dirname(__file__), "styles", name))
+        print(os.path.join(os.path.dirname(__file__),"styles",  name))
         svgWidget.setFixedWidth(30)
         svgWidget.setFixedHeight(30)
         self.row.addWidget(svgWidget)

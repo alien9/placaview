@@ -106,11 +106,12 @@ class SignsEditor(QMainWindow, FormClass):
     mapillary: str = ""
     filter: list = []
     canvas: DetectionCanvas = None
+    viewing_index: int=0
 
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
-        self.filter=kwargs.get("filter")
+        self.filter = kwargs.get("filter")
         self.setupUi(self)
         edits = self.findChildren(QLineEdit)
         for f in edits:
@@ -176,9 +177,16 @@ class SignsEditor(QMainWindow, FormClass):
             lambda: self.save_sign_close())
         self.findChild(QPushButton, "pushButton_next").clicked.connect(
             lambda: self.save_continue())
+        self.findChild(QPushButton, "pushButton_next_no_save").clicked.connect(
+            lambda: self.avancate())
+        
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
         self.open_record()
+        
+    def avancate(self):
+        self.viewing_index+=1
+        self.load_next_record()
 
     def get_canvas(self):
         if self.canvas is None:
@@ -272,7 +280,8 @@ class SignsEditor(QMainWindow, FormClass):
             self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
         self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
-        self.findChild(QLineEdit, "suporte").setText(self.sign["suporte"] or "")
+        self.findChild(QLineEdit, "suporte").setText(
+            self.sign["suporte"] or "")
         self.findChild(QLineEdit, "face").setText(self.sign["face"] or "")
         if self.code != 'NULL':
             self.set_sign(self.code)
@@ -294,9 +303,9 @@ class SignsEditor(QMainWindow, FormClass):
                         self.findChild(QLineEdit, "face").setText(self.face)
                         self.set_sign_face(self.face)
 
-        #cbx: QComboBox = self.findChild(QComboBox, "suporte")
-        #cbx.setCurrentIndex(0)
-        #if self.sign["suporte"] in self.SUPORTE_TIPO:
+        # cbx: QComboBox = self.findChild(QComboBox, "suporte")
+        # cbx.setCurrentIndex(0)
+        # if self.sign["suporte"] in self.SUPORTE_TIPO:
         #    cbx.setCurrentIndex(
         #        1+self.SUPORTE_TIPO.index(self.sign["suporte"]))
         if len(self.sign_images):
@@ -354,26 +363,36 @@ class SignsEditor(QMainWindow, FormClass):
 
     def load_next_record(self):
         self.reset_form()
+        if not self.signs_layer:
+            return
         m = self.signs_layer.minimumValue(
             self.signs_layer.fields().indexOf('certain'))
+
         expr = QgsExpression(
-            f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null")
+            f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null and \"status\" is null ")
+
         req = QgsFeatureRequest(expr)
-        fids = [(f["certain"], f.id(), f["value"])
+        fids = [(f["certain"], f.id(), f["value_code_face"])
                 for f in self.signs_layer.getFeatures(req)]
         fids = list(filter(lambda x: x[2] in self.filter, fids))
         if len(fids) > 0:
             fids.sort()
+            print("sortiado")
         else:
-            expr = QgsExpression(f"\"saved\" is null and opened is null")
+            print("more toletrant")
+            expr = QgsExpression(
+                f"\"saved\" is null and opened is null and \"status\" is null ")
             req = QgsFeatureRequest(expr)
-            fids = [(f["certain"], f.id(), f["value"])
+            fids = [(f["certain"], f.id(), f["value_code_face"])
                     for f in self.signs_layer.getFeatures(req)]
             fids = list(filter(lambda x: x[2] in self.filter, fids))
         if len(fids) > 0:
-            self.sign = self.signs_layer.getFeature(fids[0][1])
+            found_index=self.viewing_index % len(fids)
+            print(found_index)
+            print("<JHHJHJHJHJKHKJHKHK")
+            self.sign = self.signs_layer.getFeature(fids[found_index][1])
             self.open_record()
-            self.sign_id = fids[0][1]
+            self.sign_id = fids[found_index][1]
             self.sign_images = []
 
             def go(task, wait_time):
@@ -382,6 +401,11 @@ class SignsEditor(QMainWindow, FormClass):
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
             self.set_minimap()
+        else:
+            dlsg = QMessageBox(self)
+            dlsg.setText("There are no signs to edit")
+            dlsg.exec()
+            self.close()
 
     def reset_form(self):
         self.findChild(QCheckBox, "not_a_sign").setChecked(False)
@@ -406,9 +430,18 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("code"), self.code)
+            vcf = self.code
             if self.face is not None:
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("face"), self.face)
+                placa_style = f"symbols_br_faced/{vcf}-{self.face}.svg"
+                self.signs_layer.changeAttributeValue(
+                    self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
+            else:
+                placa_style = f"symbols_br/{vcf}.svg"
+                self.signs_layer.changeAttributeValue(
+                    self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
+
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("text1"), self.findChild(QLineEdit, "text1").text())
             self.signs_layer.changeAttributeValue(
@@ -425,12 +458,15 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("user"), os.getenv("USERNAME")
             )
-            for k in [1,2]:
+            for k in [1, 2]:
                 if self.findChild(QCheckBox, f"remember{k}").isChecked():
                     words = set(self.read_autocomplete(f"text{k}"))
                     words.add(self.findChild(QLineEdit, f"text{k}").text())
                     self.write_autocomplete(f"text{k}", words)
             self.signs_layer.commitChanges()
+            with open(os.path.join(os.path.dirname(__file__), f"filter.txt"), "a+") as fu:
+                fu.write(f"{placa_style}\n")
+            fu.close()
         if is_correct:
             dictionary = {}
             faces = {}

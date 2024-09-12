@@ -182,7 +182,7 @@
                 <item>
                   <widget class="QCheckBox" name="not_a_sign">
                     <property name="text">
-                      <string>Não é uma placa</string>
+                      <string>Not a Sign</string>
                     </property>
                   </widget>
                 </item>
