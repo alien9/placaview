@@ -1187,15 +1187,15 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         self.geocoder_progress = QProgressBar()
         self.create_signs_fields()
         progressMessageBar.pushWidget(self.geocoder_progress)
-        if self.matcher is None:
-            self.matcher: RoadsMatcher = RoadsMatcher(
-                signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
-            self.matcher.progressChanged.connect(self.match_progress_changed)
-            self.taskManager.addTask(self.matcher)
-        else:
-            print("cancellar")
+        print("matcher ecsist")
+        if self.matcher is not None:
             self.matcher.cancel()
-
+        print("criando matcher")
+        self.matcher: RoadsMatcher = RoadsMatcher(
+            signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
+        self.matcher.progressChanged.connect(self.match_progress_changed)
+        self.taskManager.addTask(self.matcher)
+    
     def get_distance_from_road_to_sign(self, sign_geometry, road_geometry, xform):
         r = QgsGeometry(road_geometry)
         s = QgsGeometry(sign_geometry)
