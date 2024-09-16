@@ -461,3 +461,5 @@ symbols_br_faced/R-19-50.svg
 symbols_br_faced/R-19-50.svg
 symbols_br/R-1.svg
 symbols_br_faced/R-19-50.svg
+symbols_br_faced/R-19-50.svg
+symbols_br_faced/R-19-60.svg

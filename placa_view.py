@@ -1236,6 +1236,8 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")
         roads_pk=self.conf.get("roads_pk")
+        if self.signs_layer is None:
+            return
         self.signs_layer.updateFields() 
         if not "saved" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
