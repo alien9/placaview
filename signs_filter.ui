@@ -31,7 +31,7 @@
                     </widget>
                 </item>
                 <item>
-                <layout class="QHBoxLayout" name="searchLayout"></layout>
+                    <layout class="QHBoxLayout" name="searchLayout"></layout>
                 </item>
                 <item>
                     <layout class="QHBoxLayout" name="horizontalLayout">
@@ -54,6 +54,22 @@
                 <item>
                     <widget class="QListWidget" name="listWidget" />
                 </item>
+                <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout">
+                        <item>
+                            <widget class="QLabel" name="layerslabel">
+                                <property name="text">
+                                    <string>Filter By Layer</string>
+                                </property>
+
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox" />
+                        </item>
+                    </layout>
+                </item>
+
                 <item>
                     <layout class="QHBoxLayout" name="horizontalLayout">
                         <item>

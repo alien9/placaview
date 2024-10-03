@@ -7,7 +7,8 @@ from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, Qgs
 from qgis.core import QgsCategorizedSymbolRenderer
 from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit,  QFormLayout,  QHBoxLayout
 from qgis.PyQt import uic
-
+from qgis.gui import (QgsFieldComboBox, QgsMapLayerComboBox)
+from qgis.core import QgsMapLayerProxyModel
 from qgis.gui import QgsFilterLineEdit
 import os, re
 from .signs_filter_item import SignsFilterItem
@@ -18,8 +19,8 @@ FormClass, _ = uic.loadUiType(os.path.join(
 class SignsFilter(QDialog, FormClass):
     sign_names=None
     selected_signs=set()
-    applyClicked = pyqtSignal(list)
-    
+    applyClicked = pyqtSignal(list, str)
+        
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
@@ -41,6 +42,13 @@ class SignsFilter(QDialog, FormClass):
             item.setSizeHint(row.minimumSizeHint())
             widget.setItemWidget(item, row)
         self.connect_signals()
+        combover:QgsMapLayerComboBox=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox")
+        combover.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        combover.setAllowEmptyLayer(True)
+        combover.setLayer(None)
+        if kwargs["layer_filter"]:
+            combover.setLayer(kwargs["layer_filter"])
+            
             
     def get_signs(self):
         if not self.sign_names:
@@ -64,7 +72,11 @@ class SignsFilter(QDialog, FormClass):
     @pyqtSlot()
     def save_filter(self):
         widget=self.findChild(QListWidget, "listWidget")
-        self.applyClicked.emit(list(self.selected_signs))
+        l=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox").currentLayer()
+        layer_filter=None
+        if l:
+            layer_filter=l.name()            
+        self.applyClicked.emit(list(self.selected_signs),layer_filter)
         self.close()
                     
     def load_filter(self):
