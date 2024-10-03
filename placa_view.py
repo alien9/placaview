@@ -130,6 +130,18 @@ class PlacaView:
     def get_buffer(self):
         yield self.buffer.pop()
 
+    def group_layers(self):
+        root = QgsProject.instance().layerTreeRoot()
+        group = root.findGroup("Signs Database")
+        if not group:
+            group = root.addGroup("Signs Database")
+        for layer in (self.get_signs_layer(),self.get_signs_photo_layer(), self.get_selected_sign_layer):
+            mylayer = root.findLayer(layer.id())
+            myClone = mylayer.clone()
+            parent = mylayer.parent()
+            group.insertChildNode(0, myClone)
+            parent.removeChildNode(mylayer)
+
     def change_layer(self, layer):
         print("changed layer")
         print(layer)
@@ -157,7 +169,8 @@ class PlacaView:
         con = os.path.join(self.plugin_dir, "conf.json")
         if os.path.isfile(con):
             with open(con, "r") as fu:
-                self.conf = json.loads(fu.readlines().pop(0))
+                self.conf = json.loads(fu.read())
+                fu.close()
         if self.conf.get("boundary", False):
             self.boundary = self.get_boundary_by_name(
                 self.conf.get("boundary"))
@@ -331,11 +344,18 @@ class PlacaView:
                 self.iface.attributesToolBar().removeAction(a)
 
         self.click_tool = QAction(QIcon(os.path.join(
-            self.plugin_dir, f"styles/symbols/regulatory--no-straight-through--g2.svg")), "Signs Database", self.iface.mainWindow())
+            self.plugin_dir, f"styles/symbols/regulatory--no-straight-through--g2.svg")), "Select Sign", self.iface.mainWindow())
         self.click_tool.setWhatsThis("Click on the map to edit")
         self.click_tool.setStatusTip("Signs")
         self.click_tool.setCheckable(True)
         self.click_tool.triggered.connect(self.start_select_features)
+
+        self.add_tool = QAction(QIcon(os.path.join(
+            self.plugin_dir, f"styles/symbols/warning--crossroads--g3.svg")), "Create Sign", self.iface.mainWindow())
+        self.add_tool.setWhatsThis("Click on the map to insert a sign")
+        self.add_tool.setStatusTip("Signs")
+        self.add_tool.setCheckable(True)
+        self.add_tool.triggered.connect(self.start_select_features)
 
         actionList = self.iface.mapNavToolToolBar().actions()
 
@@ -353,10 +373,12 @@ class PlacaView:
         group.setExclusive(True)
         for action in actionList:
             group.addAction(action)
-            group.addAction(self.click_tool)
+        group.addAction(self.click_tool)
+        group.addAction(self.add_tool)
 
         # add toolbar button and menu item
         self.iface.attributesToolBar().addAction(self.click_tool)
+        self.iface.attributesToolBar().addAction(self.add_tool)
 
     # --------------------------------------------------------------------------
 
@@ -778,12 +800,13 @@ class PlacaView:
         h={}
         for p in m:
             h[p[0]]=p[1]
+        table_name=self.conf.get("table_name", "signs")
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
-        uri.setDataSource ("public", "signs", "geom")
+        uri.setDataSource ("public", table_name, "geom")
         vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
             #import psycopg2
-            query="""CREATE TABLE public.signs (
+            query=f"""CREATE TABLE public.{table_name} (
 	fid serial4 NOT NULL,
 	id float8 NULL,
 	first_seen_at float8 NULL,
@@ -805,8 +828,8 @@ class PlacaView:
 	geom public.geometry(point, 4326) NULL,
 	PRIMARY KEY (fid)
 );
-CREATE INDEX signs_geom_geom_idx ON public.signs USING gist (geom);
-CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
+CREATE INDEX {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
+CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
 """
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
@@ -838,7 +861,7 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
             db.close()
             print(query)
             QMessageBox.information(None, "DEBUG:", str("Table created"))
-            uri.setDataSource ("public", "signs", "geom")
+            uri.setDataSource ("public", {table_name}, "geom")
             vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         layer = self.get_point_layer_by_name("traffic signs")
         if layer:
@@ -883,6 +906,10 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
     def set_signs_style(self, filter=[], layer=None, size=6):
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
+        if self.conf.get("layer_filter"):
+            lr=self.get_boundary_by_name(self.conf.get("layer_filter"))
+            print(lr)
+            print("WILLL FILTERERRERERERE")
         signs_layer = layer
         idx = signs_layer.fields().indexOf('value_code_face')
         values = list(signs_layer.uniqueValues(idx))
@@ -905,7 +932,8 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
         layer.setRenderer(renderer)
         layer.triggerRepaint()
 
-    def apply_filter(self, value):
+    def apply_filter(self, value, filter_by_layer=None):
+        self.set_conf("layer_filter", filter_by_layer)
         self.set_signs_style(filter=value)
         with open(os.path.join(self.plugin_dir, f"filter.txt"), "w+") as fu:
             for t in value:
@@ -927,8 +955,14 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
     def load_signs_filter(self):
         layer:QgsVectorLayer=self.get_signs_layer()
         existing = layer.uniqueValues(layer.fields().indexOf('value_code_face'))
+        lf=None
+        if "layer_filter" in self.conf:
+            if self.conf["layer_filter"]:
+                if len(self.conf.get("layer_filter", "")):
+                    lf=self.get_boundary_by_name(self.conf["layer_filter"])
+                                            
         fu = SignsFilter(parent=self.iface.mainWindow(),
-                         filter=self.read_filter(), values=existing)
+                         filter=self.read_filter(), values=existing, layer_filter=lf)
         fu.applyClicked.connect(self.apply_filter)
         fu.exec()
 
@@ -944,11 +978,11 @@ CREATE UNIQUE INDEX signs_id_idx ON public.signs (id);
 
     def load_signs_editor(self):
         self.create_signs_fields()
-        fu = SignsEditor(signs_layer=self.signs_layer)
-        fu.reloadSign.connect(self.reload_sign)
-        fu.closeEvent = self.close_signs_editor
-        fu.showMaximized()
-        fu.post_init(
+        self.seditor = SignsEditor(signs_layer=self.signs_layer)
+        self.seditor.reloadSign.connect(self.reload_sign)
+        self.seditor.closeEvent = self.close_signs_editor
+        self.seditor.showMaximized()
+        self.seditor.post_init(
             iface=self.iface,
             sign=self.selected_sign_id,
             mapillary_key=self.conf.get("mapillary_key"),

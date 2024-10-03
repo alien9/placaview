@@ -114,6 +114,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.filter = kwargs.get("filter")
         self.setupUi(self)
         edits = self.findChildren(QLineEdit)
+        print("setting ir up")
         for f in edits:
             field_name = f.objectName()
             auto_complete_values = self.read_autocomplete(field_name)
@@ -122,6 +123,7 @@ class SignsEditor(QMainWindow, FormClass):
                 completer.setCaseSensitivity(Qt.CaseInsensitive)
                 completer.setFilterMode(Qt.MatchContains)
                 f.setCompleter(completer)
+        print("sdone ir up")
 
     def read_autocomplete(self, field_name):
         wordList = []
@@ -141,9 +143,10 @@ class SignsEditor(QMainWindow, FormClass):
         completer.setFilterMode(Qt.MatchContains)
         self.findChild(QLineEdit, field_name).setCompleter(completer)
 
-    def showEvent(self, event):
-        self.connect_signals()
-        event.accept()
+    #def showEvent(self, event):
+    #    print("putststsststststststststststst")
+    #    self.connect_signals()
+    #    event.accept()
 
     def post_init(self, *args, **kwargs):
         self.iface = kwargs.get("iface")
@@ -170,6 +173,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.boundary = None
         self.roads_layer: QgsVectorLayer = kwargs.get("roads_layer")
         self.placas = kwargs.get("placas", None)
+        print("willl serttt miimaaaaaaaa")
         self.set_minimap()
         self.spinners()
         self.organize()
@@ -179,10 +183,10 @@ class SignsEditor(QMainWindow, FormClass):
             lambda: self.save_continue())
         self.findChild(QPushButton, "pushButton_next_no_save").clicked.connect(
             lambda: self.avancate())
-        
         self.findChild(QLineEdit, "face").textChanged.connect(
             self.set_sign_face)
         self.open_record()
+        self.connect_signals()
         
     def avancate(self):
         self.viewing_index+=1
@@ -498,6 +502,7 @@ class SignsEditor(QMainWindow, FormClass):
         self.code = args[0]
 
     def set_sign_face(self, *args, **kwargs):
+        print("SETTTING SIGNS FACE")
         self.face = args[0][0:4]
         if self.code is None:
             return
