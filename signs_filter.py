@@ -73,10 +73,10 @@ class SignsFilter(QDialog, FormClass):
     def save_filter(self):
         widget=self.findChild(QListWidget, "listWidget")
         #l=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox").currentLayer()
-        #layer_filter=None
+        layer_filter=None
         #if l:
         #    layer_filter=l.name()            
-        #self.applyClicked.emit(list(self.selected_signs),layer_filter)
+        self.applyClicked.emit(list(self.selected_signs),layer_filter)
         self.close()
                     
     def load_filter(self):
