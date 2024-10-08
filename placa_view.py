@@ -794,6 +794,7 @@ class PlacaView:
             mc.setMapTool(mapTool)
     
     def load_signs_layer_from_database(self):
+        print("LOADING SINGSN S LAYER FROM DATANASE")
         uri = QgsDataSourceUri()
         cstring=self.conf.get("connection_string")
         m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
@@ -803,6 +804,7 @@ class PlacaView:
         table_name=self.conf.get("table_name", "signs")
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", table_name, "geom")
+        print(table_name)
         vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
             #import psycopg2
@@ -855,20 +857,16 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             db.setPassword(uri.password())
             db.open()
             # query the table
-            print(query)
             db.exec(query)
             db.commit()
             db.close()
-            print(query)
             QMessageBox.information(None, "DEBUG:", str("Table created"))
             uri.setDataSource ("public", {table_name}, "geom")
             vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         layer = self.get_point_layer_by_name("traffic signs")
         if layer:
             QgsProject.instance().instance().removeMapLayer(layer)
-        print(vlayer.isValid())
         QgsProject.instance().instance().addMapLayer(vlayer)
-        print(vlayer.isValid())
         self.set_signs_style(filter=self.read_filter(), layer=vlayer, size=5)
 
     def get_signs_photo_layer(self):
@@ -908,8 +906,6 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             layer = self.get_point_layer_by_name("traffic signs")
         if self.conf.get("layer_filter"):
             lr=self.get_boundary_by_name(self.conf.get("layer_filter"))
-            print(lr)
-            print("WILLL FILTERERRERERERE")
         signs_layer = layer
         idx = signs_layer.fields().indexOf('value_code_face')
         values = list(signs_layer.uniqueValues(idx))
@@ -920,6 +916,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 'size': size
             }
             symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            symbol.deleteSymbolLayer(0)
             symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
             category = QgsRendererCategory(value, symbol, str(value))
             if value not in filter:
@@ -1133,17 +1130,13 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
 
     def get_images(self):
-        print("get images")
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
         fu = requests.get(url)
         #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
-            print("got the images")
             photos = fu.json()
             return photos
-        print(fu.status_code)
-        print("and now")
         return
 
     def page_up(self):
@@ -1161,21 +1154,16 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_progress_changed(self, *args, **kwargs):
-        print("setting progressssss", args)
         try:
             self.geocoder_progress.setValue(round(args[0]))
         except:
             self.matcher.cancel()
 
     def end_match(self, result=None):
-        print("will now end it")
-        self.geocoded+=1
-        print(result)
-        
+        self.geocoded+=1    
         if self.geocoded<=self.total_matches:
             self.geocode()
             if self.geocoded % 5 == 0:
-                print("hora de gorfar")
                 self.signs_layer.commitChanges(False)
                 self.signs_layer.startEditing()
         else:

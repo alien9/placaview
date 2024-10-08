@@ -23,7 +23,7 @@ from qgis.gui import QgsFilterLineEdit
 import os
 import requests
 import re
-import json
+import json, shutil
 import datetime
 from .roads_selector import RoadsSelector
 
@@ -125,16 +125,39 @@ class SignsEditor(QMainWindow, FormClass):
                 f.setCompleter(completer)
         print("sdone ir up")
 
+    def check_path(self):
+        patty=QgsProject.instance().readPath("./")
+        print("CHECKING PATHHHHHHH")
+        print(QgsProject.instance().fileName())
+        if not patty:
+            return False
+        
+        print(f"{QgsProject.instance().fileName()}_data", "ISISISISISISISISI")
+        if not os.path.isdir(f"{QgsProject.instance().fileName()}_data"):
+            os.mkdir(f"{QgsProject.instance().fileName()}_data")
+        if not os.path.isdir(f"{QgsProject.instance().fileName()}_data/autocomplete"):
+            os.mkdir(f"{QgsProject.instance().fileName()}_data/autocomplete")
+        return True
+    
     def read_autocomplete(self, field_name):
         wordList = []
+        if not self.check_path():
+            return
+        patty=f'{QgsProject.instance().fileName()}_data/autocomplete'
         if os.path.isfile(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt"):
-            with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt") as fu:
+            if not os.path.isfile(f"{patty}/{field_name}.txt"):
+                shutil.copy(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt",f"{patty}/{field_name}.txt")
+        if os.path.isfile(f"{patty}/{field_name}.txt"):
+            with open(f"{patty}/{field_name}.txt") as fu:
                 wordList = [line.rstrip() for line in fu.readlines()]
             fu.close()
         return wordList
 
-    def write_autocomplete(self, field_name, values):
-        with open(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", "w+") as fu:
+    def write_autocomplete(self, field_name, values):  
+        if not self.check_path():
+            return
+        patty=f'{QgsProject.instance().fileName()}_data/autocomplete'
+        with open(f"{patty}/{field_name}.txt", "w+") as fu:
             for v in list(set(values)):
                 fu.write(f"{v}\n")
             fu.close()
@@ -173,7 +196,6 @@ class SignsEditor(QMainWindow, FormClass):
         self.boundary = None
         self.roads_layer: QgsVectorLayer = kwargs.get("roads_layer")
         self.placas = kwargs.get("placas", None)
-        print("willl serttt miimaaaaaaaa")
         self.set_minimap()
         self.spinners()
         self.organize()
@@ -392,8 +414,6 @@ class SignsEditor(QMainWindow, FormClass):
             fids = list(filter(lambda x: x[2] in self.filter, fids))
         if len(fids) > 0:
             found_index=self.viewing_index % len(fids)
-            print(found_index)
-            print("<JHHJHJHJHJKHKJHKHK")
             self.sign = self.signs_layer.getFeature(fids[found_index][1])
             self.open_record()
             self.sign_id = fids[found_index][1]
@@ -430,15 +450,16 @@ class SignsEditor(QMainWindow, FormClass):
             QCheckBox, "correctly_identified").isChecked()
         is_not_a_sign = self.findChild(
             QCheckBox, "not_a_sign").isChecked()
+        face=self.findChild(QLineEdit, "face").text()
         if self.code is not None:
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("code"), self.code)
             vcf = self.code
-            if self.face is not None:
+            if face!='':
                 self.signs_layer.changeAttributeValue(
-                    self.sign.id(), self.sign.fieldNameIndex("face"), self.face)
-                placa_style = f"symbols_br_faced/{vcf}-{self.face}.svg"
+                    self.sign.id(), self.sign.fieldNameIndex("face"), face)
+                placa_style = f"symbols_br_faced/{vcf}-{face}.svg"
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
             else:

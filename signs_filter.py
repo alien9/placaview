@@ -24,7 +24,6 @@ class SignsFilter(QDialog, FormClass):
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
-        print("isso eh selected signs")
         self.sign_names=sorted(kwargs.get("values",[]))
         self.setWindowTitle("Signs Filter")
         self.setupUi(self)
@@ -84,7 +83,6 @@ class SignsFilter(QDialog, FormClass):
     
     @pyqtSlot()
     def filter_list(self, *args, **kwargs):
-        print("filtering list")
         term=self.search_term.value()
         #filtered_list = set(filter(lambda x: term in x, self.get_signs()))
         widget=self.findChild(QListWidget, "listWidget")
