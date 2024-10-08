@@ -350,12 +350,12 @@ class PlacaView:
         self.click_tool.setCheckable(True)
         self.click_tool.triggered.connect(self.start_select_features)
 
-        self.add_tool = QAction(QIcon(os.path.join(
-            self.plugin_dir, f"styles/symbols/warning--crossroads--g3.svg")), "Create Sign", self.iface.mainWindow())
-        self.add_tool.setWhatsThis("Click on the map to insert a sign")
-        self.add_tool.setStatusTip("Signs")
-        self.add_tool.setCheckable(True)
-        self.add_tool.triggered.connect(self.start_select_features)
+        #self.add_tool = QAction(QIcon(os.path.join(
+        #    self.plugin_dir, f"styles/symbols/warning--crossroads--g3.svg")), "Create Sign", self.iface.mainWindow())
+        #self.add_tool.setWhatsThis("Click on the map to insert a sign")
+        #self.add_tool.setStatusTip("Signs")
+        #self.add_tool.setCheckable(True)
+        #self.add_tool.triggered.connect(self.start_select_features)
 
         actionList = self.iface.mapNavToolToolBar().actions()
 
@@ -374,11 +374,11 @@ class PlacaView:
         for action in actionList:
             group.addAction(action)
         group.addAction(self.click_tool)
-        group.addAction(self.add_tool)
+        #group.addAction(self.add_tool)
 
         # add toolbar button and menu item
         self.iface.attributesToolBar().addAction(self.click_tool)
-        self.iface.attributesToolBar().addAction(self.add_tool)
+        #self.iface.attributesToolBar().addAction(self.add_tool)
 
     # --------------------------------------------------------------------------
 
