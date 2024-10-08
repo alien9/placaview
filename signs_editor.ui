@@ -416,6 +416,16 @@
                      </property>
                     </widget>
                    </item>
+                   <item>
+                    <widget class="QCheckBox" name="remember_suporte">
+                      <property name="maximumSize">
+                        <size>
+                          <width>20</width>
+                          <height>25</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
                   </layout>
                  </item>
 

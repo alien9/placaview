@@ -24,7 +24,6 @@ class SignsFilter(QDialog, FormClass):
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
-        print("isso eh selected signs")
         self.sign_names=sorted(kwargs.get("values",[]))
         self.setWindowTitle("Signs Filter")
         self.setupUi(self)
@@ -42,12 +41,12 @@ class SignsFilter(QDialog, FormClass):
             item.setSizeHint(row.minimumSizeHint())
             widget.setItemWidget(item, row)
         self.connect_signals()
-        combover:QgsMapLayerComboBox=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox")
-        combover.setFilters(QgsMapLayerProxyModel.PolygonLayer)
-        combover.setAllowEmptyLayer(True)
-        combover.setLayer(None)
-        if kwargs["layer_filter"]:
-            combover.setLayer(kwargs["layer_filter"])
+        #combover:QgsMapLayerComboBox=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox")
+        #combover.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        #combover.setAllowEmptyLayer(True)
+        #combover.setLayer(None)
+        #if kwargs["layer_filter"]:
+        #    combover.setLayer(kwargs["layer_filter"])
             
             
     def get_signs(self):
@@ -72,10 +71,10 @@ class SignsFilter(QDialog, FormClass):
     @pyqtSlot()
     def save_filter(self):
         widget=self.findChild(QListWidget, "listWidget")
-        l=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox").currentLayer()
+        #l=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox").currentLayer()
         layer_filter=None
-        if l:
-            layer_filter=l.name()            
+        #if l:
+        #    layer_filter=l.name()            
         self.applyClicked.emit(list(self.selected_signs),layer_filter)
         self.close()
                     
@@ -84,7 +83,6 @@ class SignsFilter(QDialog, FormClass):
     
     @pyqtSlot()
     def filter_list(self, *args, **kwargs):
-        print("filtering list")
         term=self.search_term.value()
         #filtered_list = set(filter(lambda x: term in x, self.get_signs()))
         widget=self.findChild(QListWidget, "listWidget")
