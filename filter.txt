@@ -378,3 +378,11 @@ regulatory--maximum-speed-limit-80--g1
 warning--horizontal-alignment-left--g3
 regulatory--no-horn--g1
 symbols/information--living-street--g1.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-20.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-30.svg
+symbols_br_faced/R-19-30.svg

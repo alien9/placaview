@@ -306,7 +306,7 @@ class SignsEditor(QMainWindow, FormClass):
             self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
         self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
-        self.findChild(QLineEdit, "suporte").setText(
+        self.findChild(QLineEdit, "textsuporte").setText(
             self.sign["suporte"] or "")
         self.findChild(QLineEdit, "face").setText(self.sign["face"] or "")
         if self.code != 'NULL':
@@ -435,9 +435,12 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QCheckBox, "not_a_sign").setChecked(False)
         self.findChild(QCheckBox, "remember2").setChecked(False)
         self.findChild(QCheckBox, "remember1").setChecked(False)
+        self.findChild(QCheckBox, "remembersuporte").setChecked(False)
         self.findChild(QCheckBox, "correctly_identified").setChecked(False)
         self.findChild(QTextEdit, "code_text").setText("")
-        self.findChild(QLineEdit, "suporte").setText("")
+        self.findChild(QLineEdit, "textsuporte").setText("")
+        self.findChild(QLineEdit, "text1").setText("")
+        self.findChild(QLineEdit, "text2").setText("")
 
     def save_sign_close(self):
         self.save_sign()
@@ -472,7 +475,7 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QLineEdit, "text2").text())
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QLineEdit, "suporte").text())
+                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QLineEdit, "textsuporte").text())
             status = 1
             if is_not_a_sign:
                 status = 3
@@ -483,7 +486,7 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("user"), os.getenv("USERNAME")
             )
-            for k in [1, 2]:
+            for k in ["1", "2", "suporte"]:
                 if self.findChild(QCheckBox, f"remember{k}").isChecked():
                     words = set(self.read_autocomplete(f"text{k}"))
                     words.add(self.findChild(QLineEdit, f"text{k}").text())

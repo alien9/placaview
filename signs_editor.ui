@@ -407,7 +407,7 @@
                     </widget>
                    </item>
                    <item>
-                    <widget class="QLineEdit" name="suporte">
+                    <widget class="QLineEdit" name="textsuporte">
                      <property name="maximumSize">
                       <size>  
                        <width>200</width>
@@ -417,7 +417,7 @@
                     </widget>
                    </item>
                    <item>
-                    <widget class="QCheckBox" name="remember_suporte">
+                    <widget class="QCheckBox" name="remembersuporte">
                       <property name="maximumSize">
                         <size>
                           <width>20</width>
