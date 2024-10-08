@@ -7,7 +7,7 @@ from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, Qgs
 from qgis.core import QgsCategorizedSymbolRenderer
 from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit,  QFormLayout,  QHBoxLayout
 from qgis.PyQt import uic
-from qgis.gui import (QgsFieldComboBox, QgsMapLayerComboBox)
+#from qgis.gui import (QgsFieldComboBox, QgsMapLayerComboBox)
 from qgis.core import QgsMapLayerProxyModel
 from qgis.gui import QgsFilterLineEdit
 import os, re

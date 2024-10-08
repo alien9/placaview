@@ -64,9 +64,9 @@
 
                             </widget>
                         </item>
-                        <item>
+                        <!--item>
                             <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox" />
-                        </item>
+                        </item-->
                     </layout>
                 </item-->
 
