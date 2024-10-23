@@ -114,7 +114,6 @@ class SignsEditor(QMainWindow, FormClass):
         self.filter = kwargs.get("filter")
         self.setupUi(self)
         edits = self.findChildren(QLineEdit)
-        print("setting ir up")
         for f in edits:
             field_name = f.objectName()
             auto_complete_values = self.read_autocomplete(field_name)
@@ -127,12 +126,9 @@ class SignsEditor(QMainWindow, FormClass):
 
     def check_path(self):
         patty=QgsProject.instance().readPath("./")
-        print("CHECKING PATHHHHHHH")
         print(QgsProject.instance().fileName())
         if not patty:
             return False
-        
-        print(f"{QgsProject.instance().fileName()}_data", "ISISISISISISISISI")
         if not os.path.isdir(f"{QgsProject.instance().fileName()}_data"):
             os.mkdir(f"{QgsProject.instance().fileName()}_data")
         if not os.path.isdir(f"{QgsProject.instance().fileName()}_data/autocomplete"):
@@ -149,7 +145,7 @@ class SignsEditor(QMainWindow, FormClass):
                 shutil.copy(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt",f"{patty}/{field_name}.txt")
         if os.path.isfile(f"{patty}/{field_name}.txt"):
             with open(f"{patty}/{field_name}.txt") as fu:
-                wordList = [line.rstrip() for line in fu.readlines()]
+                wordList = [line.rstrip()+" " for line in fu.readlines()]
             fu.close()
         return wordList
 
@@ -471,11 +467,11 @@ class SignsEditor(QMainWindow, FormClass):
                     self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
 
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text1"), self.findChild(QLineEdit, "text1").text())
+                self.sign.id(), self.sign.fieldNameIndex("text1"), re.sub("\\s*$", "", self.findChild(QLineEdit, "text1").text()))
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text2"), self.findChild(QLineEdit, "text2").text())
+                self.sign.id(), self.sign.fieldNameIndex("text2"), re.sub("\\s*$", "", self.findChild(QLineEdit, "text2").text()))
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("suporte"), self.findChild(QLineEdit, "textsuporte").text())
+                self.sign.id(), self.sign.fieldNameIndex("suporte"), re.sub("\\s*$", "", self.findChild(QLineEdit, "textsuporte").text()))
             status = 1
             if is_not_a_sign:
                 status = 3
@@ -489,7 +485,7 @@ class SignsEditor(QMainWindow, FormClass):
             for k in ["1", "2", "suporte"]:
                 if self.findChild(QCheckBox, f"remember{k}").isChecked():
                     words = set(self.read_autocomplete(f"text{k}"))
-                    words.add(self.findChild(QLineEdit, f"text{k}").text())
+                    words.add(re.sub("\\s*$", "", self.findChild(QLineEdit, f"text{k}").text()))
                     self.write_autocomplete(f"text{k}", words)
             self.signs_layer.commitChanges()
             
