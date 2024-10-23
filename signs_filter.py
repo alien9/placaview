@@ -57,7 +57,7 @@ class SignsFilter(QDialog, FormClass):
                     self.sign_names=[n[:-1] for n in fu.readlines()]
                 fu.close()
             else:    
-                self.sign_names= sorted([re.split("(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])
+                self.sign_names= sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])
         return self.sign_names
     
     @pyqtSlot(str, bool)
