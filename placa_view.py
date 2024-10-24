@@ -32,7 +32,8 @@ from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApp
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
-from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit
+from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit, QgsMessageBar
+
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
@@ -99,7 +100,9 @@ class PlacaView:
         self.boundary = None
         self.roads_layer = None
         self.conf = {}
-        self.load_conf()
+        print("WILL LOAD CONF")
+        if QgsProject.instance().fileName()!="":
+            self.load_conf()
 
         # initialize locale
         loc = QSettings().value('locale/userLocale')
@@ -165,9 +168,12 @@ class PlacaView:
             self.load_conf()
         self.conf[key] = value
         self.save_conf()
-        print("saved conf", self.conf)
 
     def load_conf(self):
+        if QgsProject.instance().fileName()=='':
+            print("cannot do anything without a project")
+            self.iface.messageBar().pushMessage("Error", "Please save the project before starting the task.")
+            return False
         self.check_path()
         self.conf = {}
         con = os.path.join(self.plugin_dir, "conf.json")
@@ -176,12 +182,10 @@ class PlacaView:
             if not os.path.isfile(f"{patty}conf.json"):
                 shutil.copy(os.path.join(self.plugin_dir, "conf.json"),f"{patty}conf.json")
         con=f"{patty}/conf.json"
-        print("reading file from ", con)
         if os.path.isfile(con):
             with open(con, "r") as fu:
                 self.conf = json.loads(fu.read())
                 fu.close()
-        print(self.conf)
         if self.conf.get("boundary", False):
             self.boundary = self.get_boundary_by_name(
                 self.conf.get("boundary"))
@@ -189,6 +193,7 @@ class PlacaView:
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
         self.roads_field_name = self.conf.get("roads_field_name", False)
+        return True
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -438,7 +443,8 @@ class PlacaView:
     def run(self):
         """Run method that loads and starts the plugin"""
         print("loading conf")
-        self.load_conf()
+        if not self.load_conf():
+            return
         if not self.pluginIsActive:
             self.pluginIsActive = True
             if self.dockwidget == None:
@@ -524,7 +530,8 @@ class PlacaView:
             self.boundary = None
 
     def ask_mapillary_key(self):
-        self.load_conf()
+        if not self.load_conf():
+            return
         text, ok = QInputDialog().getText(self.dockwidget, "Insert Key",
                                           "Mapillary Key:", QLineEdit.Normal,
                                           self.conf.get("mapillary_key", ""))
@@ -534,7 +541,8 @@ class PlacaView:
         self.load_conf()
         
     def ask_connectionstring(self):
-        self.load_conf()
+        if not self.load_conf():
+            return
         text, ok = QInputDialog().getText(self.dockwidget, "Connection String",
                                           "PostgreSQL Connection String:", QLineEdit.Normal,
                                           self.conf.get("connection_string", ""))
@@ -544,7 +552,8 @@ class PlacaView:
             self.load_signs_layer_from_database()
 
     def ask_roads_layer(self):
-        self.load_conf()
+        if not self.load_conf():
+            return
         if not self.dockwidget:
             self.run()
         names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
@@ -612,7 +621,8 @@ class PlacaView:
             return layers[0]
 
     def ask_boundary_layer(self):
-        self.load_conf()
+        if not self.load_conf():
+            return
         if not self.dockwidget:
             self.run()
         names = [layer.name() for layer in list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [
@@ -696,6 +706,8 @@ class PlacaView:
                 a.setEnabled(actions.get(a.text()))
 
     def download_signs(self):
+        if not self.load_conf():
+            return
         if self.download_task:
             if self.download_task.status() == 2:
                 QgsMessageLog.logMessage('There is an ongoing download.'.format(
@@ -976,6 +988,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         return value
 
     def load_signs_filter(self):
+        if not self.load_conf():
+            return
         layer:QgsVectorLayer=self.get_signs_layer()
         existing = layer.uniqueValues(layer.fields().indexOf('value_code_face'))
         lf=None
@@ -1206,7 +1220,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         match all of the signals with their roads
 
         """
-        self.load_conf()
+        if not self.load_conf():
+            return
         signs_layer: QgsVectorLayer = self.get_signs_layer()
         roads_layer: QgsVectorLayer = self.get_line_by_name(
             self.conf.get("roads"))
@@ -1247,7 +1262,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             fu.close()
 
     def start_editor(self):
-        self.load_conf()
+        if not self.load_conf():
+            return
         roads_layer=self.get_roads_layer()
         if not roads_layer:
             if not self.ask_roads_layer():
