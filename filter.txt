@@ -714,3 +714,8 @@ symbols_br/R-6a.svg
 symbols_br/A-33a.svg
 symbols_br/A-32a.svg
 symbols_br/A-33a.svg
+symbols_br/A-2b.svg
+symbols_br/A-22.svg
+symbols_br/R-24a.svg
+symbols_br/.svg
+symbols_br/A-33a.svg
