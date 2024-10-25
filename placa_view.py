@@ -840,6 +840,8 @@ class PlacaView:
         for p in m:
             h[p[0]]=p[1]
         table_name=self.conf.get("table_name", "signs")
+        if "table" in h:
+            table_name=h["table"]
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", table_name, "geom")
         print(table_name)
