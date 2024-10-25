@@ -23,7 +23,8 @@ from qgis.gui import QgsFilterLineEdit
 import os
 import requests
 import re
-import json, shutil
+import json
+import shutil
 import datetime
 from .roads_selector import RoadsSelector
 
@@ -106,7 +107,7 @@ class SignsEditor(QMainWindow, FormClass):
     mapillary: str = ""
     filter: list = []
     canvas: DetectionCanvas = None
-    viewing_index: int=0
+    viewing_index: int = 0
 
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -125,7 +126,7 @@ class SignsEditor(QMainWindow, FormClass):
         print("sdone ir up")
 
     def check_path(self):
-        patty=QgsProject.instance().readPath("./")
+        patty = QgsProject.instance().readPath("./")
         print(QgsProject.instance().fileName())
         if not patty:
             return False
@@ -134,25 +135,39 @@ class SignsEditor(QMainWindow, FormClass):
         if not os.path.isdir(f"{QgsProject.instance().fileName()}_data/autocomplete"):
             os.mkdir(f"{QgsProject.instance().fileName()}_data/autocomplete")
         return True
-    
+
     def read_autocomplete(self, field_name):
         wordList = []
         if not self.check_path():
             return
-        patty=f'{QgsProject.instance().fileName()}_data/autocomplete'
+        patty = f'{QgsProject.instance().fileName()}_data/autocomplete'
         if os.path.isfile(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt"):
             if not os.path.isfile(f"{patty}/{field_name}.txt"):
-                shutil.copy(f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt",f"{patty}/{field_name}.txt")
+                shutil.copy(
+                    f"{os.path.dirname(__file__)}/styles/autocomplete/{field_name}.txt", f"{patty}/{field_name}.txt")
         if os.path.isfile(f"{patty}/{field_name}.txt"):
             with open(f"{patty}/{field_name}.txt") as fu:
-                wordList = [line.rstrip()+" " for line in fu.readlines()]
+                wordList = set([" "+line.rstrip()+" " for line in fu.readlines()])
             fu.close()
-        return wordList
+            if len(field_name) > 6:
+                fname = str.replace(field_name, "text", "")
+            else:
+                fname=field_name
+            idx = self.signs_layer.fields().indexOf(fname)
+            values = self.signs_layer.uniqueValues(idx)
+            
+            print(field_name, values)
+            for v in values:
+                palabra=" "+str(v)+" "
+                if len(palabra)>2 and palabra!=" NULL ":
+                    wordList.add(palabra)
+            print(wordList)
+            return sorted(list(wordList))
 
-    def write_autocomplete(self, field_name, values):  
+    def write_autocomplete(self, field_name, values):
         if not self.check_path():
             return
-        patty=f'{QgsProject.instance().fileName()}_data/autocomplete'
+        patty = f'{QgsProject.instance().fileName()}_data/autocomplete'
         with open(f"{patty}/{field_name}.txt", "w+") as fu:
             for v in list(set(values)):
                 fu.write(f"{v}\n")
@@ -162,10 +177,20 @@ class SignsEditor(QMainWindow, FormClass):
         completer.setFilterMode(Qt.MatchContains)
         self.findChild(QLineEdit, field_name).setCompleter(completer)
 
-    #def showEvent(self, event):
-    #    print("putststsststststststststststst")
-    #    self.connect_signals()
-    #    event.accept()
+    def set_fields_autocomplete(self):
+        edits = self.findChildren(QLineEdit)
+        patty = f'{QgsProject.instance().fileName()}_data/autocomplete'
+        for f in edits:
+            field_name = f.objectName()
+            if os.path.isfile(f"{patty}/{field_name}.txt"):
+                auto_complete_values = self.read_autocomplete(field_name)
+                idx = self.signs_layer.fields().indexOf(field_name)
+                values = self.signs_layer.uniqueValues(idx)
+                if auto_complete_values:
+                    completer = QCompleter(auto_complete_values, self)
+                    completer.setCaseSensitivity(Qt.CaseInsensitive)
+                    completer.setFilterMode(Qt.MatchContains)
+                    f.setCompleter(completer)
 
     def post_init(self, *args, **kwargs):
         self.iface = kwargs.get("iface")
@@ -205,9 +230,9 @@ class SignsEditor(QMainWindow, FormClass):
             self.set_sign_face)
         self.open_record()
         self.connect_signals()
-        
+
     def avancate(self):
-        self.viewing_index+=1
+        self.viewing_index += 1
         self.load_next_record()
 
     def get_canvas(self):
@@ -409,7 +434,7 @@ class SignsEditor(QMainWindow, FormClass):
                     for f in self.signs_layer.getFeatures(req)]
             fids = list(filter(lambda x: x[2] in self.filter, fids))
         if len(fids) > 0:
-            found_index=self.viewing_index % len(fids)
+            found_index = self.viewing_index % len(fids)
             self.sign = self.signs_layer.getFeature(fids[found_index][1])
             self.open_record()
             self.sign_id = fids[found_index][1]
@@ -449,13 +474,13 @@ class SignsEditor(QMainWindow, FormClass):
             QCheckBox, "correctly_identified").isChecked()
         is_not_a_sign = self.findChild(
             QCheckBox, "not_a_sign").isChecked()
-        face=self.findChild(QLineEdit, "face").text()
+        face = self.findChild(QLineEdit, "face").text()
         if self.code is not None:
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("code"), self.code)
             vcf = self.code
-            if face!='':
+            if face != '':
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("face"), face)
                 placa_style = f"symbols_br_faced/{vcf}-{face}.svg"
@@ -467,11 +492,11 @@ class SignsEditor(QMainWindow, FormClass):
                     self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
 
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text1"), re.sub("\\s*$", "", self.findChild(QLineEdit, "text1").text()))
+                self.sign.id(), self.sign.fieldNameIndex("text1"), re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, "text1").text()))
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("text2"), re.sub("\\s*$", "", self.findChild(QLineEdit, "text2").text()))
+                self.sign.id(), self.sign.fieldNameIndex("text2"), re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, "text2").text()))
             self.signs_layer.changeAttributeValue(
-                self.sign.id(), self.sign.fieldNameIndex("suporte"), re.sub("\\s*$", "", self.findChild(QLineEdit, "textsuporte").text()))
+                self.sign.id(), self.sign.fieldNameIndex("suporte"), re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, "textsuporte").text()))
             status = 1
             if is_not_a_sign:
                 status = 3
@@ -485,10 +510,11 @@ class SignsEditor(QMainWindow, FormClass):
             for k in ["1", "2", "suporte"]:
                 if self.findChild(QCheckBox, f"remember{k}").isChecked():
                     words = set(self.read_autocomplete(f"text{k}"))
-                    words.add(re.sub("\\s*$", "", self.findChild(QLineEdit, f"text{k}").text()))
+                    words.add(
+                        re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, f"text{k}").text()))
                     self.write_autocomplete(f"text{k}", words)
             self.signs_layer.commitChanges()
-            
+
             with open(os.path.join(os.path.dirname(__file__), f"filter.txt"), "a+") as fu:
                 fu.write(f"{placa_style}\n")
             fu.close()
