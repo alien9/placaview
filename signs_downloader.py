@@ -12,7 +12,8 @@ MESSAGE_CATEGORY = 'Download task'
 
 class SignsDownloader(QgsTask):
     layer:QgsVectorLayer
-    def __init__(self, key, layer, total, boundary, extents):
+    interval=None,None
+    def __init__(self, key, layer, total, boundary, extents, from_, to_):
         super().__init__("Downloading", QgsTask.CanCancel)
         self.duration = 1
         self.layer:QgsVectorLayer=layer
@@ -23,6 +24,8 @@ class SignsDownloader(QgsTask):
         self.exception = None
         self.key=key
         self.result=[]
+        self.interval=(from_, to_)
+        
         QgsMessageLog.logMessage('Instanced task "{}"'.format(
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
 
@@ -59,6 +62,12 @@ class SignsDownloader(QgsTask):
                         for bf in boundary_features:
                             if bf.geometry().contains(geo):
                                 inside_boundary = True
+                        if self.interval[0]:
+                            if self.interval[0]>=properties.get("first_seen_at"):
+                                inside_boundary=False
+                        if self.interval[1]:
+                            if self.interval[1]<=properties.get("first_seen_at"):
+                                inside_boundary=False
                         if inside_boundary:
                             self.layer.selectByExpression(f"\"id\"='{properties.get('id')}'")
                             fus = self.layer.selectedFeatures()

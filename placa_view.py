@@ -742,7 +742,8 @@ class PlacaView:
         self.download_progress = QProgressBar()
         progressMessageBar.pushWidget(self.download_progress)
         self.download_task = SignsDownloader(self.conf.get(
-            'mapillary_key'), layer, total_work, self.boundary, (nw, se))
+            'mapillary_key'), layer, total_work, self.boundary, (nw, se), 
+                                             self.conf.get("from"),self.conf.get("to"))
         self.download_task.progressChanged.connect(self.update_progress)
         self.download_task.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(self.download_task)
