@@ -39,6 +39,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -442,7 +443,7 @@ class PlacaView:
 
     def run(self):
         """Run method that loads and starts the plugin"""
-        print("loading conf")
+        print("expressing")
         if not self.load_conf():
             return
         if not self.pluginIsActive:
@@ -1125,20 +1126,12 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         if not roads_layer:
             if not self.ask_roads_layer():
                 return
-        # task = QgsTask.fromFunction(
-        #    'heavy function', match, wait_time=1)
-        # QgsApplication.taskManager().addTask(task)
-        #f.setGeometry(feature.geometry())
-        #f.setAttributes([feature["value_code_face"]])
-        #f.setAttributes([feature[8]])
-        #ss_layer.addFeatures([f])
-        #ss_layer.commitChanges()
-        #ss_layer.updateExtents()
-        #ss_layer.triggerRepaint()
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
         # w.load(QUrl('https://www.google.ca/#q=pyqt'))
-        w.setHtml("<html></html>")
+        w.setHtml("<html><body style='background-color:#000;'></body></html>")
         w.load(QUrl('spinners.gif'))
+        print("LOADED HTML")
+        print(w)
 
         self.current_sign_images_index = -1
         self.current_sign_images = []
@@ -1148,9 +1141,12 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         self.otask = QgsTask.fromFunction(
             'getting images', go, on_finished=self.after_get_images, wait_time=1000)
         QgsApplication.taskManager().addTask(self.otask)
+        web=self.dockwidget.findChild(QWebEngineView, "BE")
+        print("WEB Browser",web)
+        web.load(QUrl("https://gooogle.com/"))
 
         # self.get_images()
-    def set_webview_url(self):
+    def set_webview_url(self): 
         print("this is the main thread")
 
     def after_get_images(self, *args, **kwargs):
