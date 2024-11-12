@@ -155,13 +155,10 @@ class SignsEditor(QMainWindow, FormClass):
                 fname=field_name
             idx = self.signs_layer.fields().indexOf(fname)
             values = self.signs_layer.uniqueValues(idx)
-            
-            print(field_name, values)
             for v in values:
                 palabra=" "+str(v)+" "
                 if len(palabra)>2 and palabra!=" NULL ":
                     wordList.add(palabra)
-            print(wordList)
             return sorted(list(wordList))
 
     def write_autocomplete(self, field_name, values):
@@ -182,15 +179,12 @@ class SignsEditor(QMainWindow, FormClass):
         patty = f'{QgsProject.instance().fileName()}_data/autocomplete'
         for f in edits:
             field_name = f.objectName()
-            if os.path.isfile(f"{patty}/{field_name}.txt"):
-                auto_complete_values = self.read_autocomplete(field_name)
-                idx = self.signs_layer.fields().indexOf(field_name)
-                values = self.signs_layer.uniqueValues(idx)
-                if auto_complete_values:
-                    completer = QCompleter(auto_complete_values, self)
-                    completer.setCaseSensitivity(Qt.CaseInsensitive)
-                    completer.setFilterMode(Qt.MatchContains)
-                    f.setCompleter(completer)
+            auto_complete_values = self.read_autocomplete(field_name)
+            if auto_complete_values:
+                completer = QCompleter(auto_complete_values, self)
+                completer.setCaseSensitivity(Qt.CaseInsensitive)
+                completer.setFilterMode(Qt.MatchContains)
+                f.setCompleter(completer)
 
     def post_init(self, *args, **kwargs):
         self.iface = kwargs.get("iface")
@@ -317,6 +311,7 @@ class SignsEditor(QMainWindow, FormClass):
                 os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
 
         self.road_id = None
+        print("loading road")
         if type(self.sign["road"]) == int:
             self.road_id = int(self.sign["road"])
             expr = QgsExpression(
@@ -479,8 +474,10 @@ class SignsEditor(QMainWindow, FormClass):
             self.signs_layer.startEditing()
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("code"), self.code)
+            self.signs_layer.changeAttributeValue(
+                self.sign.id(), self.sign.fieldNameIndex("road"), self.road_id)
             vcf = self.code
-            if face != '':
+            if face != '':  
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("face"), face)
                 placa_style = f"symbols_br_faced/{vcf}-{face}.svg"

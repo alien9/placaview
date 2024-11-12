@@ -35,10 +35,9 @@ def install_requirements():
     # and the string ->HOMEPATH<- with the path to your requirements.txt
 
     # then you write it to a .bat file and run it
-
-    with open("INSTALL.bat","w") as f:
+    with open(f"INSTALL.bat","w") as f:
         f.write(batF)
-    subprocess.run(["INSTALL.bat"])
+    subprocess.run([f"INSTALL.bat"])
 
 try:
     from mapbox_vector_tile import decode
