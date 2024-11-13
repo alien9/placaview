@@ -1,9 +1,9 @@
 <?xml version = '1.0' encoding = 'UTF-8'?>
 <plugins>
-    <pyqgis_plugin name="RoadMapillarySignsDatabase" version="3.3.10" plugin_id="11">
+    <pyqgis_plugin name="RoadMapillarySignsDatabase" version="3.3.11" plugin_id="11">
         <description><![CDATA[Plugin for mapillary roads signs.]]></description>
         <about><![CDATA[Download the signs and choose the settings.]]></about>
-        <version>3.3.10</version>
+        <version>3.3.11</version>
         <trusted>True</trusted>
         <qgis_minimum_version>3.0.0</qgis_minimum_version>
         <qgis_maximum_version>3.99.0</qgis_maximum_version>
