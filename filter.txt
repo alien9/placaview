@@ -380,3 +380,7 @@ styles/symbols/regulatory--turn-right--g2.svg
 regulatory--road-closed-to-vehicles--g1
 symbols_br_faced/R-19-50.svg
 symbols_br_faced/R-19-50.svg
+symbols_br_faced/R-19-50.svg
+symbols_br_faced/R-19-50.svg
+symbols_br_faced/R-19-60.svg
+symbols_br_faced/R-19-50.svg

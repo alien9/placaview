@@ -39,7 +39,6 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri
-from qgis.PyQt.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -163,6 +162,7 @@ class PlacaView:
         con=f"{patty}conf.json"
         with open(f"{patty}conf.json", "w+") as fu:
             fu.write(json.dumps(self.conf))
+            fu.close()
 
     def set_conf(self, key, value):
         if not self.conf:
@@ -1141,9 +1141,6 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         self.otask = QgsTask.fromFunction(
             'getting images', go, on_finished=self.after_get_images, wait_time=1000)
         QgsApplication.taskManager().addTask(self.otask)
-        web=self.dockwidget.findChild(QWebEngineView, "BE")
-        print("WEB Browser",web)
-        web.load(QUrl("https://gooogle.com/"))
 
         # self.get_images()
     def set_webview_url(self): 

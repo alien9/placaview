@@ -13,32 +13,29 @@ def install_requirements():
             call python -m pip install mapbox-vector-tile
             call python -m pip install vt2geojson
             call python -m pip install psycopg2
+            call python -m pip install future
             
             call exit
             @echo on
             """
+        qgispath = str(os.path.dirname(sys.executable))
+
+        # here you replace the string ->QGISPATH<- with qgis path
+        # so that the script is installation independant
+        batF = batF.replace("->QGISPATH<-",qgispath)
+
+        # and the string ->HOMEPATH<- with the path to your requirements.txt
+
+        # then you write it to a .bat file and run it
+        with open(f"{os.path.expanduser('~')}/INSTALL.bat","w") as f:
+            f.write(batF)
+        subprocess.run([f"{os.path.expanduser('~')}/INSTALL.bat"])
     else:
-        batF="""python -m pip install mapbox-vector-tile
-            python -m pip install vt2geojson
-            python -m pip install psycopg2
-            """
-
-        # then the idea is to find the osgeo4w shell path
-        # sys.executable is the base execution path and contains o4w_env.bat
-        # o4w_env.bat setup the osgeo4w shell
-    qgispath = str(os.path.dirname(sys.executable))
-
-    # here you replace the string ->QGISPATH<- with qgis path
-    # so that the script is installation independant
-    batF = batF.replace("->QGISPATH<-",qgispath)
-
-    # and the string ->HOMEPATH<- with the path to your requirements.txt
-
-    # then you write it to a .bat file and run it
-    with open(f"INSTALL.bat","w") as f:
-        f.write(batF)
-    subprocess.run([f"INSTALL.bat"])
-
+        import pip
+        pip.main(["install","mapbox-vector-tile"])
+        pip.main(["install","vt2geojson"])
+        pip.main(["install","psycopg2"])
+        pip.main(["install","future"])
 try:
     from mapbox_vector_tile import decode
     from vt2geojson.features import Layer
