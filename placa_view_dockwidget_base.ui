@@ -30,23 +30,6 @@
                                     </property>
                               </widget>
                         </item>
-                        <item column="0" row="1">
-                              <widget class="QWebEngineView" name="BE">
-                                    <property name="geometry">
-                                          <rect>
-                                                <x>0</x>
-                                                <y>0</y>
-                                                <width>600</width>
-                                                <height>350</height>
-                                          </rect>
-                                    </property>
-                                    <property name="url">
-                                          <url>
-                                                <string>about:blank</string>
-                                          </url>
-                                    </property>
-                              </widget>
-                        </item>
                         <item column="0" row="0">
                               <widget class="QCommandLinkButton" name="editCommandLinkButton">
                                     <property name="flat">
@@ -178,11 +161,6 @@
                   <class>QWebView</class>
                   <extends>QWidget</extends>
                   <header location="global">QtWebKitWidgets/QWebView</header>
-            </customwidget>
-            <customwidget>
-                  <class>QWebEngineView</class>
-                  <extends>QWidget</extends>
-                  <header location="global">QtWebEngineWidgets/QWebEngineView</header>
             </customwidget>
       </customwidgets>
       <resources />
