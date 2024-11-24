@@ -80,6 +80,7 @@ class PlacaView:
     total_matches:int=0
     geocoded:int=0
     geocodable=[]
+    seditor=None
 
     def __init__(self, iface):
         """Constructor.
@@ -1018,11 +1019,13 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             
 
     def load_signs_editor(self):
+        print("will now load signs editor")
         self.create_signs_fields()
-        self.seditor = SignsEditor(signs_layer=self.signs_layer)
-        self.seditor.reloadSign.connect(self.reload_sign)
-        self.seditor.closeEvent = self.close_signs_editor
-        self.seditor.showMaximized()
+        if self.seditor is None:
+            self.seditor = SignsEditor(signs_layer=self.signs_layer)
+            self.seditor.reloadSign.connect(self.reload_sign)
+            self.seditor.closeEvent = self.close_signs_editor
+            self.seditor.showMaximized()
         self.seditor.post_init(
             iface=self.iface,
             sign=self.selected_sign_id,
@@ -1036,6 +1039,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         )
 
     def close_signs_editor(self, *args, **kwargs):
+        self.seditor=None
         try:
             layer = self.get_point_layer_by_name("popup_sign")
             QgsProject.instance().removeMapLayer(layer)
