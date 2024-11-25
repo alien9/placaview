@@ -463,10 +463,10 @@ class PlacaView:
             self.prepare_roads_and_signs()
             self.create_signs_fields()
             if not "from" in self.conf:
-                idx = self.signs_layer.fields().indexOf('first_seen_at')
+                idx = self.signs_layer.fields().indexOf('last_seen_at')
                 self.conf["from"]=self.signs_layer.minimumValue(idx)
             if not "to" in self.conf:
-                idx = self.signs_layer.fields().indexOf('first_seen_at')
+                idx = self.signs_layer.fields().indexOf('last_seen_at')
                 self.conf["to"]=self.signs_layer.maximumValue(idx)
             d:datetime.datetime=datetime.datetime.fromtimestamp(0.001*self.conf["from"])
             fromdate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "fromdate")
@@ -485,7 +485,7 @@ class PlacaView:
         if not self.dockwidget.findChild(QgsDateEdit, "fromdate").isNull():
             fro=self.dockwidget.findChild(QgsDateEdit, "fromdate").date()
             fro_ts=1000*int(datetime.datetime(fro.year(), fro.month(), fro.day()).timestamp())
-            expression.append(f"\"first_seen_at\" > {fro_ts}")
+            expression.append(f"\"last_seen_at\" > {fro_ts}")
             self.conf["from"]=fro_ts
         else:
             if "from" in self.conf:
@@ -493,7 +493,7 @@ class PlacaView:
         if not  self.dockwidget.findChild(QgsDateEdit, "todate").isNull():
             too=self.dockwidget.findChild(QgsDateEdit, "todate").date()
             to_ts=1000*int(datetime.datetime(too.year(), too.month(), too.day()).timestamp())
-            expression.append(f"\"first_seen_at\" < {to_ts}")
+            expression.append(f"\"last_seen_at\" < {to_ts}")
             self.conf["to"]=to_ts
         else:
             if "to" in self.conf:
