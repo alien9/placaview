@@ -755,9 +755,9 @@ class PlacaView:
             self.download_progress.setValue(round(args[0]))
         except:
             pass
-        layer = self.get_point_layer_by_name("traffic signs")
-        layer.updateExtents()
-        self.get_signs_layer().triggerRepaint()
+        #layer = self.get_point_layer_by_name("traffic signs")
+        #layer.updateExtents()
+        #self.get_signs_layer().triggerRepaint()
 
     def render_signs_layer(self):
         self.download_task=None
@@ -779,10 +779,8 @@ class PlacaView:
                 ]
 
     def create_signals_vector_layer(self):
-        print("get or greate")
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
-            print("alerady had")
             return vl
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
         pr = vl.dataProvider()
@@ -791,7 +789,6 @@ class PlacaView:
         # add fields
         pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
-        print("created")
         return vl
 
     def save_signs_layer(self):
