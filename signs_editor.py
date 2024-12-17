@@ -317,10 +317,13 @@ class SignsEditor(QMainWindow, FormClass):
             self.road_id = int(self.sign["road"])
             expr = QgsExpression(
                 f'"{self.conf.get("roads_pk")}" = {self.road_id}')
-            road: QgsFeature = next(
-                self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
-            road_name = road[self.conf.get("roads_field_name")]
-            self.findChild(QTextEdit, "road_segment").setText(road_name)
+            road:QgsFeature=None
+            for co in self.roads_layer.getFeatures(QgsFeatureRequest(expr)):
+                road=co
+            #road: QgsFeature = next(
+                #self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
+                road_name = road[self.conf.get("roads_field_name")]
+                self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
         self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
         self.findChild(QLineEdit, "textsuporte").setText(
