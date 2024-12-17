@@ -1342,6 +1342,9 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 for feature in self.signs_layer.getFeatures():
                     feature.setAttribute(feature.fieldNameIndex('value_code_face'), f"symbols/{feature['value']}.svg")
                     self.signs_layer.updateFeature(feature)
+        if "observations" not in [f.name() for f in self.signs_layer.fields()]:
+            oface = QgsField("observations", QVariant.String, "VARCHAR",400)
+            self.signs_layer.dataProvider().addAttributes([oface])
             
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
