@@ -39,6 +39,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -453,6 +454,7 @@ class PlacaView:
                 self.dockwidget = PlacaViewDockWidget()
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.dockwidget.photoClick.connect(self.load_signs_editor)
+            self.dockwidget.findChild(QPushButton, "pushButton_edit").clicked.connect(self.load_signs_editor)
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             self.get_first_polygonal_layer()
@@ -1070,6 +1072,12 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
+    def browse_to(self, image_id):
+        #url=f"https://www.mapillary.com/app/?access_token={self.conf.get('mapillary_key')}&pKey={image_id}"
+        url=f"https://www.mapillary.com/embed?image_key={image_id}&style=photo"
+        self.dockwidget.findChild(QWebEngineView, "webEngineView").load(QUrl(url))
+        print(f"https://www.mapillary.com/app/?pKey={image_id}")
+        
     def show_image(self, image_id):
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
@@ -1117,8 +1125,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
-        #f = QgsFeature()
-
+        
         def match(task, wait_time):
             self.dockwidget.findChild(QLabel, "street_label").setText("...")
             self.match_segment_roads()
@@ -1128,11 +1135,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             if not self.ask_roads_layer():
                 return
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
-        # w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html><body style='background-color:#000;'></body></html>")
         w.load(QUrl('spinners.gif'))
-        print("LOADED HTML")
-        print(w)
 
         self.current_sign_images_index = -1
         self.current_sign_images = []
@@ -1165,6 +1169,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 image_layer.dataProvider().addFeatures([fet])
             image_layer.triggerRepaint()
             self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
+            self.browse_to(photos.get("images", {}).get("data", [])[0]["id"])
 
     def get_images(self):
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'

@@ -30,6 +30,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 #from qgis.core import *
 from qgis.PyQt.QtWidgets import *
 #from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
