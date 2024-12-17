@@ -39,7 +39,6 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri
-from qgis.PyQt.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -1072,12 +1071,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
-    def browse_to(self, image_id):
-        #url=f"https://www.mapillary.com/app/?access_token={self.conf.get('mapillary_key')}&pKey={image_id}"
-        url=f"https://www.mapillary.com/embed?image_key={image_id}&style=photo"
-        self.dockwidget.findChild(QWebEngineView, "webEngineView").load(QUrl(url))
-        print(f"https://www.mapillary.com/app/?pKey={image_id}")
-        
+
     def show_image(self, image_id):
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
@@ -1169,8 +1163,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 image_layer.dataProvider().addFeatures([fet])
             image_layer.triggerRepaint()
             self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
-            self.browse_to(photos.get("images", {}).get("data", [])[0]["id"])
-
+            
     def get_images(self):
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
