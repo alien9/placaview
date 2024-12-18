@@ -20,6 +20,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.gui import QgsMapCanvas, QgsMapToolIdentifyFeature
 from .equidistance_buffer import EquidistanceBuffer
 from qgis.gui import QgsFilterLineEdit
+from qgis.core import NULL
 import os
 import requests
 import re
@@ -316,15 +317,21 @@ class SignsEditor(QMainWindow, FormClass):
             self.road_id = int(self.sign["road"])
             expr = QgsExpression(
                 f'"{self.conf.get("roads_pk")}" = {self.road_id}')
-            road: QgsFeature = next(
-                self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
-            road_name = road[self.conf.get("roads_field_name")]
-            self.findChild(QTextEdit, "road_segment").setText(road_name)
+            road:QgsFeature=None
+            for co in self.roads_layer.getFeatures(QgsFeatureRequest(expr)):
+                road=co
+            #road: QgsFeature = next(
+                #self.roads_layer.getFeatures(QgsFeatureRequest(expr)))
+                road_name = road[self.conf.get("roads_field_name")]
+                self.findChild(QTextEdit, "road_segment").setText(road_name)
         self.findChild(QLineEdit, "text1").setText(self.sign["text1"] or "")
         self.findChild(QLineEdit, "text2").setText(self.sign["text2"] or "")
         self.findChild(QLineEdit, "textsuporte").setText(
             self.sign["suporte"] or "")
         self.findChild(QLineEdit, "face").setText(self.sign["face"] or "")
+        self.findChild(QTextEdit, "observations").setText(self.sign["observations"] or "")
+        self.findChild(QLineEdit, "sign_id_edit").setText(str(int(self.sign["id"])) or "")
+        self.findChild(QLineEdit, "sign_id_edit").setReadOnly(True)
         if self.code != 'NULL':
             self.set_sign(self.code)
             if self.face != 'NULL':
@@ -404,24 +411,29 @@ class SignsEditor(QMainWindow, FormClass):
         self.signs_layer.commitChanges()
 
     def load_next_record(self):
+        geo=None
+        if self.sign:
+            geo=QgsPointXY(self.sign.geometry().constGet())
         self.reset_form()
         if not self.signs_layer:
             return
         m = self.signs_layer.minimumValue(
             self.signs_layer.fields().indexOf('certain'))
-
+        distance = QgsDistanceArea()
         expr = QgsExpression(
             f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null and \"status\" is null ")
-
         req = QgsFeatureRequest(expr)
-        fids = [(f["certain"], f.id(), f["value_code_face"])
-                for f in self.signs_layer.getFeatures(req)]
-        fids = list(filter(lambda x: x[2] in self.filter, fids))
-        if len(fids) > 0:
-            fids.sort()
-            print("sortiado")
+        if geo:
+            if re.match("^PostgreSQL.*",self.signs_layer.dataProvider().storageType()):
+                fids = sorted([(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
+                        for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))], key=lambda a: a[3])
+            else:
+                fids = [(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
+                    for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))]
         else:
-            print("more toletrant")
+            fids = [(f["certain"], f.id(), f["value_code_face"], 0)
+                    for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))]
+        if len(fids) == 0:
             expr = QgsExpression(
                 f"\"saved\" is null and opened is null and \"status\" is null ")
             req = QgsFeatureRequest(expr)
@@ -457,6 +469,8 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QLineEdit, "textsuporte").setText("")
         self.findChild(QLineEdit, "text1").setText("")
         self.findChild(QLineEdit, "text2").setText("")
+        self.findChild(QLineEdit, "sign_id_edit").setText("")
+        self.findChild(QLineEdit, "sign_id_edit").setReadOnly(True)
 
     def save_sign_close(self):
         self.save_sign()
@@ -494,6 +508,13 @@ class SignsEditor(QMainWindow, FormClass):
                 self.sign.id(), self.sign.fieldNameIndex("text2"), re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, "text2").text()))
             self.signs_layer.changeAttributeValue(
                 self.sign.id(), self.sign.fieldNameIndex("suporte"), re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, "textsuporte").text()))
+            tu=self.findChild(QTextEdit, "observations").toPlainText()
+            if len(tu):
+                self.signs_layer.changeAttributeValue(
+                    self.sign.id(), self.sign.fieldNameIndex("observations"), self.findChild(QTextEdit, "observations").toPlainText())
+            else:
+                self.signs_layer.changeAttributeValue(
+                    self.sign.id(), self.sign.fieldNameIndex("observations"),NULL)
             status = 1
             if is_not_a_sign:
                 status = 3

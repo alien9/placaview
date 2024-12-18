@@ -547,3 +547,14 @@ symbols/warning--steep-descent--g2.svg
 symbols/regulatory--go-straight-or-turn-right--g3.svg
 symbols/regulatory--trams-and-buses-only--g1.svg
 symbols/regulatory--no-straight-through--g2.svg
+symbols_br/A-32b.svg
+symbols_br/A-5b.svg
+symbols_br/R-6c.svg
+symbols_br/R-6c.svg
+symbols_br/A-33a.svg
+symbols_br/.svg
+symbols_br/.svg
+symbols_br/A-1a.svg
+symbols_br/A-1a.svg
+symbols_br/R-24a.svg
+symbols_br/R-24a.svg

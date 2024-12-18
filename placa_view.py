@@ -453,6 +453,7 @@ class PlacaView:
                 self.dockwidget = PlacaViewDockWidget()
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.dockwidget.photoClick.connect(self.load_signs_editor)
+            #self.dockwidget.findChild(QPushButton, "pushButton_edit").clicked.connect(self.load_signs_editor)
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
             self.get_first_polygonal_layer()
@@ -1070,6 +1071,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
+
     def show_image(self, image_id):
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
@@ -1117,8 +1119,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         feature = self.get_signs_layer().getFeature(self.fid)
         ss_layer.dataProvider().truncate()
         ss_layer.startEditing()
-        #f = QgsFeature()
-
+        
         def match(task, wait_time):
             self.dockwidget.findChild(QLabel, "street_label").setText("...")
             self.match_segment_roads()
@@ -1128,11 +1129,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             if not self.ask_roads_layer():
                 return
         w: QWebView = self.dockwidget.findChild(QWebView, "webView")
-        # w.load(QUrl('https://www.google.ca/#q=pyqt'))
         w.setHtml("<html><body style='background-color:#000;'></body></html>")
         w.load(QUrl('spinners.gif'))
-        print("LOADED HTML")
-        print(w)
 
         self.current_sign_images_index = -1
         self.current_sign_images = []
@@ -1165,7 +1163,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 image_layer.dataProvider().addFeatures([fet])
             image_layer.triggerRepaint()
             self.show_image(photos.get("images", {}).get("data", [])[0]["id"])
-
+            
     def get_images(self):
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         print(url)
@@ -1344,6 +1342,9 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
                 for feature in self.signs_layer.getFeatures():
                     feature.setAttribute(feature.fieldNameIndex('value_code_face'), f"symbols/{feature['value']}.svg")
                     self.signs_layer.updateFeature(feature)
+        if "observations" not in [f.name() for f in self.signs_layer.fields()]:
+            oface = QgsField("observations", QVariant.String, "VARCHAR",400)
+            self.signs_layer.dataProvider().addAttributes([oface])
             
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()

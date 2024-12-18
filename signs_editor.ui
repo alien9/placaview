@@ -68,7 +68,7 @@
 
                 </item>
               </layout>
-              
+
 
             </item>
             <item>
@@ -124,10 +124,10 @@
                   <widget class="QPushButton" name="streetview_url">
                     <property name="maximumSize">
                       <size>
-                       <width>100</width>
-                       <height>16777215</height>
+                        <width>100</width>
+                        <height>16777215</height>
                       </size>
-                     </property>
+                    </property>
                     <property name="text">
                       <string>Streetview</string>
                     </property>
@@ -138,10 +138,10 @@
                   <widget class="QPushButton" name="mapillary_url">
                     <property name="maximumSize">
                       <size>
-                       <width>100</width>
-                       <height>16777215</height>
+                        <width>100</width>
+                        <height>16777215</height>
                       </size>
-                     </property>
+                    </property>
                     <property name="text">
                       <string>Mapillary</string>
                     </property>
@@ -188,6 +188,44 @@
                 </item>
 
                 <item>
+                  <layout class="QHBoxLayout" name="h_id">
+                    <item>
+                      <widget class="QLabel" name="id_label">
+                        <property name="text">
+                          <string>Sign ID</string>
+                        </property>
+                        <property name="maximumSize">
+                          <size>
+                            <width>180</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QLabel" name="sign_id">
+                        <property name="maximumSize">
+                          <size>
+                            <width>200</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                  <item>
+                      <widget class="QLineEdit" name="sign_id_edit">
+                        <property name="maximumSize">
+                          <size>
+                            <width>200</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
+                </item>
+
+                <item>
                   <widget class="QLabel" name="mapillary_type_label">
                     <property name="text">
                       <string>type</string>
@@ -212,7 +250,7 @@
                           </size>
                         </property>
                       </widget>
-                     </item>
+                    </item>
 
                     <item>
                       <widget class="QPushButton" name="brasiltype">
@@ -375,6 +413,35 @@
                   </layout>
                 </item>
 
+
+                <item>
+                  <layout class="QHBoxLayout">
+                    <item>
+                      <widget class="QLabel">
+                        <property name="text">
+                          <string>Observations</string>
+                        </property>
+                        <property name="maximumSize">
+                          <size>
+                            <width>80</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QTextEdit" name="observations">
+                        <property name="maximumSize">
+                          <size>
+                            <width>220</width>
+                            <height>50</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                  </layout>
+                </item>
+
                 <item>
                   <layout class="QHBoxLayout" name="h_face">
                     <item>
@@ -389,46 +456,43 @@
                 </item>
 
 
-
-
-                 <item>
+                <item>
                   <layout class="QHBoxLayout" name="h_suporte">
-                   <item>
-                    <widget class="QLabel" name="suporte_label">
-                     <property name="maximumSize">
-                      <size>
-                       <width>150</width>
-                       <height>25</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>Support</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QLineEdit" name="textsuporte">
-                     <property name="maximumSize">
-                      <size>  
-                       <width>200</width>
-                       <height>25</height>
-                      </size>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QCheckBox" name="remembersuporte">
-                      <property name="maximumSize">
-                        <size>
-                          <width>20</width>
-                          <height>25</height>
-                        </size>
-                      </property>
-                    </widget>
-                  </item>
+                    <item>
+                      <widget class="QLabel" name="suporte_label">
+                        <property name="maximumSize">
+                          <size>
+                            <width>150</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                        <property name="text">
+                          <string>Support</string>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QLineEdit" name="textsuporte">
+                        <property name="maximumSize">
+                          <size>
+                            <width>200</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
+                    <item>
+                      <widget class="QCheckBox" name="remembersuporte">
+                        <property name="maximumSize">
+                          <size>
+                            <width>20</width>
+                            <height>25</height>
+                          </size>
+                        </property>
+                      </widget>
+                    </item>
                   </layout>
-                 </item>
-
+                </item>
 
 
               </layout>
@@ -438,31 +502,31 @@
 
         <item>
           <layout class="QHBoxLayout" name="h_date">
-           <item>
-            <widget class="QLabel" name="date_label">
-             <property name="maximumSize">
-              <size>
-               <width>150</width>
-               <height>25</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>Date / Time</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="date">
-             <property name="maximumSize">
-              <size>
-               <width>200</width>
-               <height>25</height>
-              </size>
-             </property>
-            </widget>
-           </item>
+            <item>
+              <widget class="QLabel" name="date_label">
+                <property name="maximumSize">
+                  <size>
+                    <width>150</width>
+                    <height>25</height>
+                  </size>
+                </property>
+                <property name="text">
+                  <string>Date / Time</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QLabel" name="date">
+                <property name="maximumSize">
+                  <size>
+                    <width>200</width>
+                    <height>25</height>
+                  </size>
+                </property>
+              </widget>
+            </item>
           </layout>
-         </item>
+        </item>
 
 
         <item>
@@ -471,10 +535,10 @@
               <widget class="QPushButton" name="pushButton_cancel">
                 <property name="maximumSize">
                   <size>
-                   <width>250</width>
-                   <height>16777215</height>
+                    <width>250</width>
+                    <height>16777215</height>
                   </size>
-                 </property>
+                </property>
                 <property name="text">
                   <string>Cancel</string>
                 </property>
@@ -484,10 +548,10 @@
               <widget class="QPushButton" name="pushButton_save">
                 <property name="maximumSize">
                   <size>
-                   <width>250</width>
-                   <height>16777215</height>
+                    <width>250</width>
+                    <height>16777215</height>
                   </size>
-                 </property>
+                </property>
                 <property name="text">
                   <string>Save</string>
                 </property>
@@ -498,10 +562,10 @@
               <widget class="QPushButton" name="pushButton_next">
                 <property name="maximumSize">
                   <size>
-                   <width>250</width>
-                   <height>16777215</height>
+                    <width>250</width>
+                    <height>16777215</height>
                   </size>
-                 </property>
+                </property>
                 <property name="text">
                   <string>Save And Go</string>
                 </property>
@@ -513,10 +577,10 @@
               <widget class="QPushButton" name="pushButton_next_no_save">
                 <property name="maximumSize">
                   <size>
-                   <width>250</width>
-                   <height>16777215</height>
+                    <width>250</width>
+                    <height>16777215</height>
                   </size>
-                 </property>
+                </property>
                 <property name="text">
                   <string>Next</string>
                 </property>
