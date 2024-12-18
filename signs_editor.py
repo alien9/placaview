@@ -424,10 +424,12 @@ class SignsEditor(QMainWindow, FormClass):
             f"\"saved\" is null and \"certain\" is not null and \"certain\" > 0 and opened is null and \"status\" is null ")
         req = QgsFeatureRequest(expr)
         if geo:
-            fids = sorted([(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
-                    for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))], key=lambda a: a[3])
-            #fids = [(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
-            #        for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))]
+            if re.match("^PostgreSQL.*",self.signs_layer.dataProvider().storageType()):
+                fids = sorted([(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
+                        for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))], key=lambda a: a[3])
+            else:
+                fids = [(f["certain"], f.id(), f["value_code_face"], distance.measureLine(geo, QgsPointXY(f.geometry().constGet())))
+                    for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))]
         else:
             fids = [(f["certain"], f.id(), f["value_code_face"], 0)
                     for f in list(filter(lambda x: x["value_code_face"] in self.filter, self.signs_layer.getFeatures(req)))]
