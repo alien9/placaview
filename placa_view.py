@@ -746,7 +746,7 @@ class PlacaView:
         progressMessageBar.pushWidget(self.download_progress)
         self.download_task = SignsDownloader(self.conf.get(
             'mapillary_key'), layer, total_work, self.boundary, (nw, se), 
-                                             self.conf.get("from"),self.conf.get("to"))
+                                             self.conf.get("from"),self.conf.get("to"), self.read_filter())
         self.download_task.progressChanged.connect(self.update_progress)
         self.download_task.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(self.download_task)
@@ -840,16 +840,14 @@ class PlacaView:
         h={}
         for p in m:
             h[p[0]]=p[1]
-        table_name=self.conf.get("table_name", "signs")
-        if "table" in h:
-            table_name=h["table"]
+        table_name=h.get("table_name", "signs")
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", table_name, "geom")
         print(table_name)
         vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
             #import psycopg2
-            query=f"""CREATE TABLE public.{table_name} (
+            query=f"""CREATE TABLE if not exists  public.{table_name} (
 	fid serial4 NOT NULL,
 	id float8 NULL,
 	first_seen_at float8 NULL,
@@ -871,9 +869,11 @@ class PlacaView:
 	geom public.geometry(point, 4326) NULL,
 	PRIMARY KEY (fid)
 );
-CREATE INDEX {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
-CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
+CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
+CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (id);
 """
+            print(query)
+            return
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
             except:
@@ -890,7 +890,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             cur.close()
             
             
-            db = QSqlDatabase.addDatabase("QPSQL");
+            """             db = QSqlDatabase.addDatabase("QPSQL");
             db.setHostName(uri.host())
             db.setDatabaseName(uri.database())
             db.setPort(int(uri.port()))
@@ -900,9 +900,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
             # query the table
             db.exec(query)
             db.commit()
-            db.close()
-            QMessageBox.information(None, "DEBUG:", str("Table created"))
-            uri.setDataSource ("public", {table_name}, "geom")
+            db.close() """
+            uri.setDataSource ("public", table_name, "geom")
             vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         layer = self.get_point_layer_by_name("traffic signs")
         if layer:
@@ -945,6 +944,7 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
     def set_signs_style(self, filter=[], layer=None, size=6):
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
+        self.create_signs_fields()
         if self.conf.get("layer_filter"):
             lr=self.get_boundary_by_name(self.conf.get("layer_filter"))
         signs_layer = layer
@@ -1290,8 +1290,8 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         """
     def create_signs_fields(self):
         print("creating the signs fields")
-        #if len(self.conf.get("connection_string", "")):
-        #    self.migraine()
+        if len(self.conf.get("connection_string", "")):
+            self.migraine()
         print("will modify the signs layer")
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
@@ -1359,24 +1359,24 @@ CREATE UNIQUE INDEX {table_name}_id_idx ON public.{table_name} (id);
         h={}
         for p in m:
             h[p[0]]=p[1]
-        uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
-        uri.setDataSource ("public", "signs", "geom")
-        query="ALTER TABLE signs ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(100);"
-        db = QSqlDatabase.addDatabase("QPSQL");
-        db.setHostName(uri.host())
-        db.setDatabaseName(uri.database())
-        db.setPort(int(uri.port()))
-        db.setUserName(uri.username())
-        db.setPassword(uri.password())
-        db.open()
-        # query the table
-        db.exec_(query)
-        db.commit()
-        db.close()
-        db.open()
-        db.exec_("UPDATE signs set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';")
-        db.commit()
-        db.close()
+            
+            
+        table_name=h.get("table_name", "signs")
+        try:
+            conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
+        except:
+            print("I am unable to connect to the database") 
+
+        cur = conn.cursor()
+        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS revision integer default 0;")
+        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(100);")
+        cur.execute(f"UPDATE {table_name} set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';")
+
+
+        conn.commit() # <--- makes sure the change is shown in the database
+        conn.close()
+        cur.close()
+
         print("table was altered")
         signs_layer=self.get_signs_layer()
         if signs_layer:

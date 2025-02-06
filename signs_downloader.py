@@ -13,7 +13,8 @@ MESSAGE_CATEGORY = 'Download task'
 class SignsDownloader(QgsTask):
     layer:QgsVectorLayer
     interval=None,None
-    def __init__(self, key, layer, total, boundary, extents, from_, to_):
+    filter=[]
+    def __init__(self, key, layer, total, boundary, extents, from_, to_, filter_):
         super().__init__("Downloading", QgsTask.CanCancel)
         self.duration = 1
         self.layer:QgsVectorLayer=layer
@@ -25,7 +26,7 @@ class SignsDownloader(QgsTask):
         self.key=key
         self.result=[]
         self.interval=(from_, to_)
-        
+        self.filter=filter_
         QgsMessageLog.logMessage('Instanced task "{}"'.format(
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
 
@@ -36,6 +37,17 @@ class SignsDownloader(QgsTask):
         z=14        
         fields=self.layer.dataProvider().fields()
         boundary_features = list(self.boundary.getFeatures())
+        idx = fields.indexOf('revision')
+        
+        revision=self.layer.maximumValue(idx)
+        if str(revision)=='NULL':
+            revision=0
+        else:
+            revision+=1
+        QgsMessageLog.logMessage(f"Revision is {revision}", MESSAGE_CATEGORY, level=Qgis.Info)
+        inserted_records=0
+        updated_records=0
+        self.layer.startEditing()        
         for x in range(nw[0], se[0]):
             for y in range(se[1], nw[1]):
                 self.work += 1
@@ -62,23 +74,35 @@ class SignsDownloader(QgsTask):
                         for bf in boundary_features:
                             if bf.geometry().contains(geo):
                                 inside_boundary = True
-                        if self.interval[0]:
-                            if self.interval[0]>=properties.get("first_seen_at"):
-                                inside_boundary=False
-                        if self.interval[1]:
-                            if self.interval[1]<=properties.get("first_seen_at"):
-                                inside_boundary=False
+
                         if inside_boundary:
-                            self.layer.selectByExpression(f"\"id\"='{properties.get('id')}'")
-                            fus = self.layer.selectedFeatures()
-                            if len(fus):
-                                self.layer.startEditing()
-                                fus[0]["first_seen_at"] = properties.get(
+                            e=QgsFeatureRequest()
+                            e.setFilterExpression(f"\"id\"='{properties.get('id')}'")
+                            fui=self.layer.dataProvider().getFeatures(e)
+                            feature=None
+                            for f in fui:
+                                feature = f
+                            if feature is not None:
+                                self.layer.dataProvider().enterUpdateMode()
+                                if feature["first_seen_at"] != properties.get("first_seen_at") or feature["last_seen_at"] != properties.get("last_seen_at") or feature["value"] != properties.get("value"):
+                                    updated_records+=1
+                                feature["first_seen_at"] = properties.get(
                                     "first_seen_at")
-                                fus[0]["last_seen_at"] = properties.get(
+                                feature["last_seen_at"] = properties.get(
                                     "last_seen_at")
-                                fus[0]["value"] = properties.get("value")
-                                self.layer.commitChanges()
+                                feature["value"] = properties.get("value")
+                                feature["revision"]=revision
+                                self.layer.dataProvider().changeAttributeValues({
+                                    int(feature["fid"]):{
+                                        fields.indexOf("value"):properties.get("value"),
+                                        fields.indexOf("first_seen_at"):properties.get(
+                                    "first_seen_at"),
+                                        fields.indexOf("last_seen_at"):properties.get(
+                                    "last_seen_at"),
+                                        fields.indexOf("revision"):revision
+                                    }
+                                })
+                                self.layer.dataProvider().leaveUpdateMode()
                             else:
                                 fet.setGeometry(geo)
                                 fet["id"] = properties.get("id")
@@ -87,9 +111,15 @@ class SignsDownloader(QgsTask):
                                 fet["last_seen_at"] = properties.get(
                                     "last_seen_at")
                                 fet["value"] = properties.get("value")
+                                fet["revision"]=revision
                                 fet["value_code_face"] = f'symbols/{properties.get("value")}.svg'
-                                self.layer.dataProvider().addFeatures([fet])
-                                self.layer.commitChanges()
+                                try:
+                                    self.layer.dataProvider().addFeatures([fet])
+                                    inserted_records+=1
+                                except:
+                                    QgsMessageLog.logMessage("cannot insert",MESSAGE_CATEGORY, level=Qgis.Info)
+        self.layer.commitChanges()
+        QgsMessageLog.logMessage(f"{inserted_records}  inserted, {updated_records} updated",MESSAGE_CATEGORY, level=Qgis.Info)
         return True
 
     def finished(self, result):        
