@@ -83,26 +83,27 @@ class SignsDownloader(QgsTask):
                             for f in fui:
                                 feature = f
                             if feature is not None:
-                                self.layer.dataProvider().enterUpdateMode()
-                                if feature["first_seen_at"] != properties.get("first_seen_at") or feature["last_seen_at"] != properties.get("last_seen_at") or feature["value"] != properties.get("value"):
-                                    updated_records+=1
-                                feature["first_seen_at"] = properties.get(
-                                    "first_seen_at")
-                                feature["last_seen_at"] = properties.get(
-                                    "last_seen_at")
-                                feature["value"] = properties.get("value")
-                                feature["revision"]=revision
-                                self.layer.dataProvider().changeAttributeValues({
-                                    int(feature["fid"]):{
-                                        fields.indexOf("value"):properties.get("value"),
-                                        fields.indexOf("first_seen_at"):properties.get(
-                                    "first_seen_at"),
-                                        fields.indexOf("last_seen_at"):properties.get(
-                                    "last_seen_at"),
-                                        fields.indexOf("revision"):revision
-                                    }
-                                })
-                                self.layer.dataProvider().leaveUpdateMode()
+                                if str(feature["fid"])!='NULL':
+                                    self.layer.dataProvider().enterUpdateMode()
+                                    if feature["first_seen_at"] != properties.get("first_seen_at") or feature["last_seen_at"] != properties.get("last_seen_at") or feature["value"] != properties.get("value"):
+                                        updated_records+=1
+                                    feature["first_seen_at"] = properties.get(
+                                        "first_seen_at")
+                                    feature["last_seen_at"] = properties.get(
+                                        "last_seen_at")
+                                    feature["value"] = properties.get("value")
+                                    feature["revision"]=revision
+                                    self.layer.dataProvider().changeAttributeValues({
+                                        int(feature["fid"]):{
+                                            fields.indexOf("value"):properties.get("value"),
+                                            fields.indexOf("first_seen_at"):properties.get(
+                                        "first_seen_at"),
+                                            fields.indexOf("last_seen_at"):properties.get(
+                                        "last_seen_at"),
+                                            fields.indexOf("revision"):revision
+                                        }
+                                    })
+                                    self.layer.dataProvider().leaveUpdateMode()
                             else:
                                 fet.setGeometry(geo)
                                 fet["id"] = properties.get("id")
