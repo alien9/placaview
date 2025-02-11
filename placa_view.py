@@ -444,7 +444,6 @@ class PlacaView:
 
     def run(self):
         """Run method that loads and starts the plugin"""
-        print("expressing")
         if not self.load_conf():
             return
         if not self.pluginIsActive:
@@ -469,13 +468,14 @@ class PlacaView:
             if not "to" in self.conf:
                 idx = self.signs_layer.fields().indexOf('last_seen_at')
                 self.conf["to"]=self.signs_layer.maximumValue(idx)
-            d:datetime.datetime=datetime.datetime.fromtimestamp(0.001*self.conf["from"])
-            fromdate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "fromdate")
-            fromdate.setDate(QDate(d.year, d.month, d.day))
-            
-            d=datetime.datetime.fromtimestamp(0.001*self.conf["to"])
             todate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "todate")
-            todate.setDate(QDate(d.year, d.month, d.day))
+            fromdate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "fromdate")
+            if self.conf["from"]:
+                d:datetime.datetime=datetime.datetime.fromtimestamp(0.001*self.conf["from"])
+                fromdate.setDate(QDate(d.year, d.month, d.day))
+            if self.conf["to"]:
+                d=datetime.datetime.fromtimestamp(0.001*self.conf["to"])
+                todate.setDate(QDate(d.year, d.month, d.day))
             fromdate.dateValueChanged.connect(self.refilter)
             todate.dateValueChanged.connect(self.refilter)
             self.refilter()
@@ -786,6 +786,9 @@ class PlacaView:
         # add fields
         pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
+        self.save_signs_layer()
+        QgsProject.instance().removeMapLayer(vl)
+        
         return vl
 
     def save_signs_layer(self):
@@ -802,6 +805,7 @@ class PlacaView:
             layer, patty, QgsCoordinateTransformContext(), QgsVectorFileWriter.SaveVectorOptions())
 
     def get_signs_layer(self):
+        print("creating signs layer")
         self.signs_layer = self.get_point_layer_by_name("traffic signs")
         if not self.signs_layer:
             self.load_signs_layer()
@@ -817,17 +821,19 @@ class PlacaView:
             QgsProject.instance().removeMapLayer(l.id())
         uri = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
-        if os.path.isfile(uri):
-            self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
-            QgsProject.instance().addMapLayer(self.signs_layer)
-            self.set_signs_style(filter=self.read_filter(),
-                                 layer=self.signs_layer)
-            mapTool = None
-            mc = self.iface.mapCanvas()
-            mapTool = QgsMapToolIdentifyFeature(mc)
-            mapTool.setLayer(self.signs_layer)
-            mc.setMapTool(mapTool)
-    
+        print(f"will create {uri}")
+        if not os.path.isfile(uri):
+            self.create_signals_vector_layer()
+        self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
+        QgsProject.instance().addMapLayer(self.signs_layer)
+        self.set_signs_style(filter=self.read_filter(),
+                                layer=self.signs_layer)
+        mapTool = None
+        mc = self.iface.mapCanvas()
+        mapTool = QgsMapToolIdentifyFeature(mc)
+        mapTool.setLayer(self.signs_layer)
+        mc.setMapTool(mapTool)
+                
     def load_signs_layer_from_database(self):
         uri = QgsDataSourceUri()
         cstring=self.conf.get("connection_string")
@@ -1295,6 +1301,18 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         if not "saved" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("saved", QVariant.Bool)])
+        if not "id" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("id", QVariant.Double)])
+        if not "first_seen_at" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("first_seen_at", QVariant.Double)])
+        if not "last_seen_at" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("last_seen_at", QVariant.Double)])
+        if not "revision" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("revision", QVariant.Int)])
         if not "road" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("road", QVariant.Int)])
@@ -1325,6 +1343,9 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.signs_layer.dataProvider().addAttributes([code])
         if "face" not in [f.name() for f in self.signs_layer.fields()]:
             face = QgsField("face", QVariant.String, "VARCHAR")
+            self.signs_layer.dataProvider().addAttributes([face])
+        if "value" not in [f.name() for f in self.signs_layer.fields()]:
+            face = QgsField("value", QVariant.String, "VARCHAR")
             self.signs_layer.dataProvider().addAttributes([face])
         if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
             vface = QgsField("value_code_face", QVariant.String, "VARCHAR",100)

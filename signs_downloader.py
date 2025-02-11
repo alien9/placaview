@@ -40,6 +40,8 @@ class SignsDownloader(QgsTask):
         idx = fields.indexOf('revision')
         
         revision=self.layer.maximumValue(idx)
+        if revision is None:
+            revision=0
         if str(revision)=='NULL':
             revision=0
         else:
