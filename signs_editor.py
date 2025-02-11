@@ -128,7 +128,6 @@ class SignsEditor(QMainWindow, FormClass):
 
     def check_path(self):
         patty = QgsProject.instance().readPath("./")
-        print(QgsProject.instance().fileName())
         if not patty:
             return False
         if not os.path.isdir(f"{QgsProject.instance().fileName()}_data"):
@@ -312,7 +311,6 @@ class SignsEditor(QMainWindow, FormClass):
                 os.path.dirname(__file__), f"styles/symbols/{self.sign.attribute('value')}.svg")))
 
         self.road_id = None
-        print("loading road")
         if type(self.sign["road"]) == int:
             self.road_id = int(self.sign["road"])
             expr = QgsExpression(
@@ -332,6 +330,14 @@ class SignsEditor(QMainWindow, FormClass):
         self.findChild(QTextEdit, "observations").setText(self.sign["observations"] or "")
         self.findChild(QLineEdit, "sign_id_edit").setText(str(int(self.sign["id"])) or "")
         self.findChild(QLineEdit, "sign_id_edit").setReadOnly(True)
+        
+        dt = datetime.datetime.fromtimestamp(
+            0.001*self.sign["first_seen_at"])
+        self.findChild(QLabel, "first_seen").setText(f'First seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
+        dt = datetime.datetime.fromtimestamp(
+            0.001*self.sign["last_seen_at"])
+        self.findChild(QLabel, "last_seen").setText(f'Last seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
+
         if self.code != 'NULL':
             self.set_sign(self.code)
             if self.face != 'NULL':
@@ -677,8 +683,7 @@ class SignsEditor(QMainWindow, FormClass):
         dt = datetime.datetime.fromtimestamp(
             0.001*self.dl.result.get("captured_at"))
         # str(self.dl.result.get("captured_at")))
-        self.findChild(QLabel, "date").setText(
-            dt.strftime("%m/%d/%Y, %H:%M:%S"))
+        self.findChild(QLabel, "date").setText(f'Image date:{dt.strftime("%m/%d/%Y, %H:%M:%S")}')
         fu = QgsFeature()
         fu.setAttributes(
             [self.dl.result.get("id"), self.dl.result.get("computed_compass_angle")])

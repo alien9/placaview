@@ -472,6 +472,7 @@ class PlacaView:
             d:datetime.datetime=datetime.datetime.fromtimestamp(0.001*self.conf["from"])
             fromdate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "fromdate")
             fromdate.setDate(QDate(d.year, d.month, d.day))
+            
             d=datetime.datetime.fromtimestamp(0.001*self.conf["to"])
             todate:QgsDateEdit=self.dockwidget.findChild(QgsDateEdit, "todate")
             todate.setDate(QDate(d.year, d.month, d.day))
@@ -500,7 +501,6 @@ class PlacaView:
             if "to" in self.conf:
                 del self.conf["to"] 
         self.signs_layer.setSubsetString(" AND ".join(expression))
-        print(f'expression set to {" AND ".join(expression)}')
         self.save_conf()
         
     def prepare_roads_and_signs(self):
@@ -511,8 +511,6 @@ class PlacaView:
                 self.set_roads_layer(
                     roads, self.conf.get("roads_field_name"), self.conf.get("roads_pk"))
             except Exception as x:
-                print("exception when setting roads layer")
-                print(x)
                 self.roads_layer = None
         try:
             if self.roads_layer:
@@ -520,7 +518,6 @@ class PlacaView:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
                         f"Roads: {self.roads_layer.name()}")
         except Exception as x:
-            print("exception while labeling roads layer")
             print(x)
             self.roads_layer = None
         try:
@@ -615,7 +612,6 @@ class PlacaView:
         self.roads_layer.setLabelsEnabled(True)
         self.roads_layer.setLabeling(layer_settings)
         self.roads_layer.triggerRepaint()
-        print("roads layer ok")
 
     def get_roads_layer(self):
         layers = list(filter(lambda x: hasattr(x, 'fields') and x.wkbType() in [QgsWkbTypes.LineString, QgsWkbTypes.MultiLineString] and x.name(
@@ -833,7 +829,6 @@ class PlacaView:
             mc.setMapTool(mapTool)
     
     def load_signs_layer_from_database(self):
-        print("LOADING SINGSN S LAYER FROM DATANASE")
         uri = QgsDataSourceUri()
         cstring=self.conf.get("connection_string")
         m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
@@ -843,7 +838,6 @@ class PlacaView:
         table_name=h.get("table_name", "signs")
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", table_name, "geom")
-        print(table_name)
         vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
             #import psycopg2
@@ -872,8 +866,6 @@ class PlacaView:
 CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
 CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (id);
 """
-            print(query)
-            return
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
             except:
