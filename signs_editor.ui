@@ -503,23 +503,30 @@
         <item>
           <layout class="QHBoxLayout" name="h_date">
             <item>
-              <widget class="QLabel" name="date_label">
+              <widget class="QLabel" name="date">
                 <property name="maximumSize">
                   <size>
-                    <width>150</width>
+                    <width>280</width>
                     <height>25</height>
                   </size>
-                </property>
-                <property name="text">
-                  <string>Date / Time</string>
                 </property>
               </widget>
             </item>
             <item>
-              <widget class="QLabel" name="date">
+              <widget class="QLabel" name="first_seen">
                 <property name="maximumSize">
                   <size>
-                    <width>200</width>
+                    <width>240</width>
+                    <height>25</height>
+                  </size>
+                </property>
+              </widget>
+            </item> 
+            <item>
+              <widget class="QLabel" name="last_seen">
+                <property name="maximumSize">
+                  <size>
+                    <width>240</width>
                     <height>25</height>
                   </size>
                 </property>
