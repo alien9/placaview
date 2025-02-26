@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+  <class>DownloadParameters</class>
+  <widget class="QDialog" name="DownloadParameters">
+    <widget class="QWidget" name="verticalLayoutWidget">
+      <property name="geometry">
+        <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>600</width>
+          <height>400</height>
+        </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+
+        <item>
+          <layout class="QHBoxLayout" name="h_date">
+            <property name="leftMargin">
+              <number>22</number>
+            </property>
+            <property name="rightMargin">
+              <number>22</number>
+            </property>
+            <item>
+              <widget class="QLabel" name="label_h">
+                <property name="text">
+                  <string>First Seen</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QgsDateEdit" name="first_from" />
+            </item>
+            <item>
+              <widget class="QgsDateEdit" name="first_to" />
+            </item>
+          </layout>
+        </item>
+
+
+        <item>
+          <layout class="QHBoxLayout" name="h_date_l">
+            <property name="leftMargin">
+              <number>22</number>
+            </property>
+            <property name="rightMargin">
+              <number>22</number>
+            </property>
+            <item>
+              <widget class="QLabel" name="label_f">
+                <property name="text">
+                  <string>Last Seen</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QgsDateEdit" name="last_from" />
+            </item>
+            <item>
+              <widget class="QgsDateEdit" name="last_to" />
+            </item>
+          </layout>
+        </item>
+
+
+        <item>
+          <layout class="QHBoxLayout" name="h_name">
+            <property name="leftMargin">
+              <number>22</number>
+            </property>
+            <property name="rightMargin">
+              <number>22</number>
+            </property>
+            <item>
+              <widget class="QLabel" name="label_p">
+                <property name="text">
+                  <string>Term</string>
+                </property>
+              </widget>
+            </item>
+            <item>
+              <widget class="QLineEdit" name="term" />
+            </item>
+          </layout>
+        </item>
+
+
+        <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+            <item>
+              <widget class="QPushButton" name="pushButton_cancel">
+                <property name="maximumSize">
+                  <size>
+                    <width>250</width>
+                    <height>16777215</height>
+                  </size>
+                </property>
+                <property name="text">
+                  <string>Cancel</string>
+                </property>
+              </widget>
+            </item>
+
+            <item>
+              <widget class="QPushButton" name="pushButton_download">
+                <property name="maximumSize">
+                  <size>
+                    <width>250</width>
+                    <height>16777215</height>
+                  </size>
+                </property>
+                <property name="text">
+                  <string>Next</string>
+                </property>
+              </widget>
+            </item>
+
+          </layout>
+        </item>
+      </layout>
+    </widget>
+  </widget>
+  <customwidgets>
+    <customwidget>
+      <class>QWebView</class>
+      <extends>QWidget</extends>
+      <header location="global">QtWebKitWidgets/QWebView</header>
+    </customwidget>
+    <customwidget>
+      <class>QgsMapCanvas</class>
+      <extends>QWidget</extends>
+      <header location="global">qgis/gui</header>
+    </customwidget>
+    <customwidget>
+      <class>QSvgWidget</class>
+      <extends>QWidget</extends>
+      <header location="global">QSvgWidget</header>
+    </customwidget>
+  </customwidgets>
+  <resources />
+  <connections />
+</ui>
