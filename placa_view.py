@@ -55,6 +55,7 @@ from .signs_selector import SignsSelector
 from .placa_view_dockwidget import PlacaViewDockWidget
 from .roads_matcher import RoadsMatcher
 from .placa_selector import PlacaSelector
+from .dl_parameters import DownloadParameters
 import os.path
 import os, json, requests, datetime, math, re, shutil
 
@@ -81,6 +82,7 @@ class PlacaView:
     geocoded:int=0
     geocodable=[]
     seditor=None
+    download_parameters=None
 
     def __init__(self, iface):
         """Constructor.
@@ -101,7 +103,6 @@ class PlacaView:
         self.boundary = None
         self.roads_layer = None
         self.conf = {}
-        print("WILL LOAD CONF")
         if QgsProject.instance().fileName()!="":
             self.load_conf()
 
@@ -325,6 +326,13 @@ class PlacaView:
                          "styles/icons/dl.svg"),
             text="Download Signs",
             callback=self.download_signs,
+            parent=self.iface.mainWindow()
+        )
+        self.add_action(
+            os.path.join(self.plugin_dir,
+                         "styles/icons/dl.svg"),
+            text="Download Signs with Patrameters",
+            callback=self.download_signs_with_parameters,
             parent=self.iface.mainWindow()
         )
         """
@@ -703,8 +711,23 @@ class PlacaView:
         for a in self.actions:
             if a.text() in actions:
                 a.setEnabled(actions.get(a.text()))
+    
+    def close_download_parameters(self, *args, **kwargs):
+        self.download_parameters=None
 
-    def download_signs(self):
+    def download_signs_with_parameters(self):
+        if self.download_parameters is None:            
+            self.download_parameters=DownloadParameters(parent=self.iface.mainWindow(),)
+            self.download_parameters.applyClicked.connect(self.download_signs)
+            self.download_parameters.exec()
+        else:
+            self.download_parameters.exec()
+            
+    def download_signs(self, params=None):
+        print("will download with parameters")
+        
+        QgsMessageLog.logMessage('Download "{}"'.format(
+            str(params)), "Messages", Qgis.Info)
         if not self.load_conf():
             return
         if self.download_task:
@@ -742,7 +765,7 @@ class PlacaView:
         progressMessageBar.pushWidget(self.download_progress)
         self.download_task = SignsDownloader(self.conf.get(
             'mapillary_key'), layer, total_work, self.boundary, (nw, se), 
-                                             self.conf.get("from"),self.conf.get("to"), self.read_filter())
+                                             self.conf.get("from"),self.conf.get("to"), self.read_filter(), params)
         self.download_task.progressChanged.connect(self.update_progress)
         self.download_task.taskCompleted.connect(self.render_signs_layer)
         self.taskManager.addTask(self.download_task)
@@ -788,7 +811,7 @@ class PlacaView:
         QgsProject.instance().addMapLayer(vl)
         self.save_signs_layer()
         QgsProject.instance().removeMapLayer(vl)
-        
+        vl = self.get_point_layer_by_name("traffic signs")
         return vl
 
     def save_signs_layer(self):
@@ -1022,6 +1045,9 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.seditor.reloadSign.connect(self.reload_sign)
             self.seditor.closeEvent = self.close_signs_editor
             self.seditor.showMaximized()
+        else:
+            self.seditor.setWindowState(self.seditor.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+            self.seditor.activateWindow()
         self.seditor.post_init(
             iface=self.iface,
             sign=self.selected_sign_id,
