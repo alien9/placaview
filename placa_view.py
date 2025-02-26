@@ -330,8 +330,8 @@ class PlacaView:
         )
         self.add_action(
             os.path.join(self.plugin_dir,
-                         "styles/icons/dl.svg"),
-            text="Download Signs with Patrameters",
+                         "styles/icons/cloud-arrow-down-svgrepo-com.svg"),
+            text="Download Signs with Parameters",
             callback=self.download_signs_with_parameters,
             parent=self.iface.mainWindow()
         )
@@ -724,8 +724,6 @@ class PlacaView:
             self.download_parameters.exec()
             
     def download_signs(self, params=None):
-        print("will download with parameters")
-        
         QgsMessageLog.logMessage('Download "{}"'.format(
             str(params)), "Messages", Qgis.Info)
         if not self.load_conf():
