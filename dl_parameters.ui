@@ -122,6 +122,11 @@
   </widget>
   <customwidgets>
     <customwidget>
+      <class>QgsDateEdit</class>
+      <extends>QDateEdit</extends>
+      <header>qgsdateedit.h</header>
+    </customwidget>
+    <customwidget>
       <class>QWebView</class>
       <extends>QWidget</extends>
       <header location="global">QtWebKitWidgets/QWebView</header>
