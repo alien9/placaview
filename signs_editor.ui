@@ -29,7 +29,7 @@
               <layout class="QGridLayout" name="web_grid_layout">
                 <item row="0" column="0">
 
-                  <widget class="QWebView" name="webView">
+                  <widget class="QWebEngineView" name="webView">
                     <property name="minimumSize">
                       <size>
                         <width>1024</width>
@@ -212,7 +212,7 @@
                         </property>
                       </widget>
                     </item>
-                  <item>
+                    <item>
                       <widget class="QLineEdit" name="sign_id_edit">
                         <property name="maximumSize">
                           <size>
@@ -521,7 +521,7 @@
                   </size>
                 </property>
               </widget>
-            </item> 
+            </item>
             <item>
               <widget class="QLabel" name="last_seen">
                 <property name="maximumSize">
@@ -604,6 +604,11 @@
       <class>QWebView</class>
       <extends>QWidget</extends>
       <header location="global">QtWebKitWidgets/QWebView</header>
+    </customwidget>
+    <customwidget>
+      <class>QWebEngineView</class>
+      <extends>QWidget</extends>
+      <header location="global">QtWebEngineWidgets/QWebEngineView</header>
     </customwidget>
     <customwidget>
       <class>QgsMapCanvas</class>

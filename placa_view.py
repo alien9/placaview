@@ -1089,7 +1089,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             return r.json()
 
     def after_download_image(self, *args, **kwargs):
-        result = args[1]
+        result = args[1])
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 

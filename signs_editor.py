@@ -17,6 +17,7 @@ from qgis.core import *
 from qgis.PyQt.QtCore import pyqtSignal, QPoint, QRectF
 from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.PyQt.QtWebKitWidgets import QWebView
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.gui import QgsMapCanvas, QgsMapToolIdentifyFeature
 from .equidistance_buffer import EquidistanceBuffer
 from qgis.gui import QgsFilterLineEdit
@@ -234,11 +235,14 @@ class SignsEditor(QMainWindow, FormClass):
             self.canvas = DetectionCanvas()
             grid: QGridLayout = self.findChild(QGridLayout, "web_grid_layout")
             grid.addWidget(self.canvas, 0, 0, Qt.AlignCenter)
+            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, on=True)
+            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
         return self.canvas
 
     def organize(self):
         g = QDesktopWidget().availableGeometry()
-        fu = self.findChild(QWebView, "webView")
+        fu = self.findChild(QWebEngineView, "webView")
         fu.setFixedWidth(g.width()-370)
         fu.setFixedHeight(g.height()-120)
         canvas = self.get_canvas()
@@ -253,7 +257,7 @@ class SignsEditor(QMainWindow, FormClass):
         QDesktopServices.openUrl(QUrl(self.streetview))
 
     def spinners(self):
-        self.findChild(QWebView, "webView").load(
+        self.findChild(QWebEngineView, "webView").load(
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
 
     def set_minimap(self):
@@ -657,7 +661,7 @@ class SignsEditor(QMainWindow, FormClass):
                 vector = base64.decodebytes(geo.encode('utf-8'))
                 decoded_geometry = mapbox_vector_tile.decode(vector)
                 detection_coordinates = decoded_geometry['mpy-or']['features'][0]['geometry']['coordinates']
-                web = self.findChild(QWebView, "webView")
+                web = self.findChild(QWebEngineView, "webView")
                 pixel_coords = [[[x/4096 * web.width(), y/4096 * web.height()]
                                  for x, y in tuple(coord_pair)] for coord_pair in detection_coordinates]
                 ih = int(pixel_coords[0][0][1]-pixel_coords[0][2][1])
@@ -668,9 +672,10 @@ class SignsEditor(QMainWindow, FormClass):
 
         g = self.dl.result.get("computed_geometry").get("coordinates")
         self.streetview = f"http://maps.google.com/maps?q=&layer=c&cbll={g[1]},{g[0]}"
-        self.mapillary = f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}"
+        self.mapillary = f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}&focus=photo"
         arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
+
         if arrows_layer is None:
             arrows_layer = QgsVectorLayer(
                 'Point?crs=EPSG:4326', 'arrows_popup_layer', 'memory')
@@ -708,16 +713,15 @@ class SignsEditor(QMainWindow, FormClass):
         l.append(arrows_layer)
         canvas.setLayers(l)
         canvas.redrawAllLayers()
-        # self.findChild(QWebView, "webView").load(
-        #    QUrl(self.dl.result.get("thumb_1024_url")))
-        self.findChild(QWebView, "webView").setHtml(f"<html>\
-            <head></head>\
-             <body style=\"background-size:100% 100%;background-image:url({self.dl.result.get('thumb_1024_url')})\"></body>\
-             \
-             \
-             \
-             \
-                 </html>")
+        self.findChild(QWebEngineView, "webView").setUrl(QUrl(self.mapillary))
+        #self.findChild(QWebEngineView, "webView").setHtml(f"<html>\
+        #    <head></head>\
+        #     <body style=\"background-size:100% 100%;background-image:url({self.dl.result.get('thumb_1024_url')})\"></body>\
+        #     \
+        #     \
+        #     \
+        #     \
+        #        </html>")
         # https://graph.mapillary.com/:image_id/detections
 
     def set_map_tool(self):

@@ -132,6 +132,11 @@
       <header location="global">QtWebKitWidgets/QWebView</header>
     </customwidget>
     <customwidget>
+      <class>QWebEngineView</class>
+      <extends>QWidget</extends>
+      <header location="global">QtWebEngineWidgets/QWebEngineView</header>
+    </customwidget>
+    <customwidget>
       <class>QgsMapCanvas</class>
       <extends>QWidget</extends>
       <header location="global">qgis/gui</header>

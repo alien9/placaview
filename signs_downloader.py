@@ -5,6 +5,7 @@ from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.core import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtWebKitWidgets import QWebView
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.PyQt.QtCore import *
 from .tools import vt_bytes_to_geojson
 
