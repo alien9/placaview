@@ -17,6 +17,8 @@ from qgis.core import *
 from qgis.PyQt.QtCore import pyqtSignal, QPoint, QRectF
 from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.PyQt.QtWebKitWidgets import QWebView
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
+
 from qgis.gui import QgsMapCanvas, QgsMapToolIdentifyFeature
 from .equidistance_buffer import EquidistanceBuffer
 from qgis.gui import QgsFilterLineEdit
