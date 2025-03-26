@@ -713,16 +713,11 @@ class SignsEditor(QMainWindow, FormClass):
         l.append(arrows_layer)
         canvas.setLayers(l)
         canvas.redrawAllLayers()
-        self.findChild(QWebEngineView, "webView").setUrl(QUrl(self.mapillary))
-        #self.findChild(QWebEngineView, "webView").setHtml(f"<html>\
-        #    <head></head>\
-        #     <body style=\"background-size:100% 100%;background-image:url({self.dl.result.get('thumb_1024_url')})\"></body>\
-        #     \
-        #     \
-        #     \
-        #     \
-        #        </html>")
-        # https://graph.mapillary.com/:image_id/detections
+        current_url=self.findChild(QWebEngineView, "webView").url().toString()
+        if re.search("mapillary\.com", current_url):
+            self.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{self.mapillary}\"")
+        else:
+            self.findChild(QWebEngineView, "webView").setUrl(QUrl(self.mapillary))
 
     def set_map_tool(self):
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
