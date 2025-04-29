@@ -5,7 +5,7 @@ from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessa
 from qgis.core import QgsProject, QgsWkbTypes, QgsMapLayer, QgsVectorFileWriter
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 from qgis.core import QgsCategorizedSymbolRenderer
-from qgis.PyQt.QtWidgets import QApplication, QWidget,  QLineEdit, QCompleter, QTextEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
+from qgis.PyQt.QtWidgets import QDockWidget, QApplication, QWidget,  QLineEdit, QCompleter, QTextEdit,  QFormLayout,  QHBoxLayout, QGraphicsView, QVBoxLayout, QApplication, QWidget, QVBoxLayout, QGraphicsView, QGraphicsScene
 from qgis.PyQt import uic
 from qgis.PyQt.QtSvg import QGraphicsSvgItem, QSvgRenderer, QSvgWidget
 import qgis.PyQt.QtSvg
@@ -32,29 +32,6 @@ from .roads_selector import RoadsSelector
 
 FormClass, eck = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'signs_editor.ui'))
-
-
-class DetectionCanvas(QWidget):
-    rect = []
-
-    def __init__(self):
-        super().__init__()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setPen(QColor(255, 0, 255, 255))
-        if self.rect:
-            for r, s in self.rect:
-                painter.drawRect(*r)
-                painter.drawText(QPoint(r[0], r[1]), s)
-
-    def reset_canvas(self):
-        self.rect = []
-        self.repaint()
-
-    def draw_rectangle(self, rect, text):
-        self.rect.append((rect, text))
-        self.repaint()
 
 
 class SignDataDownloader(QgsTask):
@@ -92,7 +69,7 @@ class SignDataDownloader(QgsTask):
             self.datatype = kwargs.get("datatype")
 
 
-class SignsEditor(QMainWindow, FormClass):
+class SignsEditor(QDockWidget, FormClass):
     key = None
     sign_id = None
     sign_images: list = []
@@ -105,10 +82,11 @@ class SignsEditor(QMainWindow, FormClass):
     dictionary = {}
     faces = {}
     reloadSign: pyqtSignal = pyqtSignal()
+    showUrl: pyqtSignal = pyqtSignal(str)
+    drawGeometries: pyqtSignal = pyqtSignal(object)
     streetview: str = ""
     mapillary: str = ""
     filter: list = []
-    canvas: DetectionCanvas = None
     viewing_index: int = 0
 
     def __init__(self, *args, **kwargs):
@@ -206,15 +184,13 @@ class SignsEditor(QMainWindow, FormClass):
             self.open_mapillary)
         self.findChild(QPushButton, "streetview_url").clicked.connect(
             self.open_streetview)
-
+        self.spinners()
         # load mapillary key
         self.mapillary_key = ""
         self.boundary = None
         self.roads_layer: QgsVectorLayer = kwargs.get("roads_layer")
         self.placas = kwargs.get("placas", None)
         self.set_minimap()
-        self.spinners()
-        self.organize()
         self.findChild(QPushButton, "pushButton_save").clicked.connect(
             lambda: self.save_sign_close())
         self.findChild(QPushButton, "pushButton_next").clicked.connect(
@@ -230,26 +206,6 @@ class SignsEditor(QMainWindow, FormClass):
         self.viewing_index += 1
         self.load_next_record()
 
-    def get_canvas(self):
-        if self.canvas is None:
-            self.canvas = DetectionCanvas()
-            grid: QGridLayout = self.findChild(QGridLayout, "web_grid_layout")
-            grid.addWidget(self.canvas, 0, 0, Qt.AlignCenter)
-            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, on=True)
-            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-
-        return self.canvas
-
-    def organize(self):
-        g = QDesktopWidget().availableGeometry()
-        fu = self.findChild(QWebEngineView, "webView")
-        fu.setFixedWidth(g.width()-370)
-        fu.setFixedHeight(g.height()-120)
-        canvas = self.get_canvas()
-        canvas.setFixedWidth(g.width()-370)
-        canvas.setFixedHeight(g.height()-120)
-        canvas.setStyleSheet("background-color:black;")
-
     def open_mapillary(self):
         QDesktopServices.openUrl(QUrl(self.mapillary))
 
@@ -257,8 +213,7 @@ class SignsEditor(QMainWindow, FormClass):
         QDesktopServices.openUrl(QUrl(self.streetview))
 
     def spinners(self):
-        self.findChild(QWebEngineView, "webView").load(
-            QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
+        self.showUrl.emit(f"file://{os.path.dirname(__file__)}/styles/lg.gif")
 
     def set_minimap(self):
         if not self.sign:
@@ -301,8 +256,11 @@ class SignsEditor(QMainWindow, FormClass):
                 self.faces = json.loads(flu.read())
                 flu.close()
 
-        self.findChild(QLabel, "mapillary_type_label").setText(
-            self.sign["value"])
+        if not self.sign["value"]:
+            pass
+        else:
+            self.findChild(QLabel, "mapillary_type_label").setText(
+                self.sign["value"])
 
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
@@ -332,7 +290,10 @@ class SignsEditor(QMainWindow, FormClass):
             self.sign["suporte"] or "")
         self.findChild(QLineEdit, "face").setText(self.sign["face"] or "")
         self.findChild(QTextEdit, "observations").setText(self.sign["observations"] or "")
-        self.findChild(QLineEdit, "sign_id_edit").setText(str(int(self.sign["id"])) or "")
+        if not self.sign["id"]:
+            pass
+        else:
+            self.findChild(QLineEdit, "sign_id_edit").setText(str(int(self.sign["id"])) or "")
         self.findChild(QLineEdit, "sign_id_edit").setReadOnly(True)
         
         dt = datetime.datetime.fromtimestamp(
@@ -606,8 +567,11 @@ class SignsEditor(QMainWindow, FormClass):
 
     def forward(self, *args, **kwargs):
         self.sign_images_index += 1
-        self.sign_images_index = self.sign_images_index % len(self.sign_images)
-        self.navigate()
+        if len(self.sign_images)>0:
+            self.sign_images_index = self.sign_images_index % len(self.sign_images)
+            self.navigate()
+        else:
+            QgsMessageLog.logMessage('No images to this place')
 
     def navigate(self):
         self.dl = SignDataDownloader(
@@ -644,8 +608,6 @@ class SignsEditor(QMainWindow, FormClass):
             return layers[0]
 
     def show_image(self, *args, **kwargs):
-        import base64
-        import mapbox_vector_tile
         if self.dl.result is None:
             return
         cg = self.dl.result.get("computed_geometry")
@@ -654,6 +616,10 @@ class SignsEditor(QMainWindow, FormClass):
         geometries = list(filter(lambda x: x.get(
             "value") == self.sign["value"], self.dl.result.get("detections").get("data")))
         if len(geometries):
+            print("should download geometries")
+            self.drawGeometries.emit(geometries)
+            #show these into the browser's canvas
+            """
             canvas = self.get_canvas()
             canvas.reset_canvas()
             for geok in geometries:
@@ -669,10 +635,11 @@ class SignsEditor(QMainWindow, FormClass):
                 vy = [int(pixel_coords[0][3][0]), int(
                     web.height()-pixel_coords[0][2][1])-ih, iw, ih]
                 canvas.draw_rectangle(vy, geok.get("value"))
-
+            """
+            
         g = self.dl.result.get("computed_geometry").get("coordinates")
         self.streetview = f"http://maps.google.com/maps?q=&layer=c&cbll={g[1]},{g[0]}"
-        self.mapillary = f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}&focus=photo"
+        self.mapillary = f"https://www.mapillary.com/app/?lat={g[1]}&lng={g[0]}&z=17&pKey={self.dl.result.get('id')}&focus=photo&trafficSign=all"
         arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
 
@@ -713,11 +680,7 @@ class SignsEditor(QMainWindow, FormClass):
         l.append(arrows_layer)
         canvas.setLayers(l)
         canvas.redrawAllLayers()
-        current_url=self.findChild(QWebEngineView, "webView").url().toString()
-        if re.search("mapillary\.com", current_url):
-            self.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{self.mapillary}\"")
-        else:
-            self.findChild(QWebEngineView, "webView").setUrl(QUrl(self.mapillary))
+        self.showUrl.emit(self.mapillary)
 
     def set_map_tool(self):
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")

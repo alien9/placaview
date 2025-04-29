@@ -38,7 +38,8 @@ from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
-from qgis.core import QgsVectorLayer, QgsDataSourceUri
+from qgis.core import QgsVectorLayer, QgsDataSourceUri, QgsEditorWidgetSetup
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -52,12 +53,14 @@ from .signs_filter import SignsFilter
 from .signs_editor import SignsEditor
 from .roads_config import RoadsConfig
 from .signs_selector import SignsSelector
+from .signs_insert import SignsInsert
 from .placa_view_dockwidget import PlacaViewDockWidget
+from .browser import Browser
 from .roads_matcher import RoadsMatcher
 from .placa_selector import PlacaSelector
 from .dl_parameters import DownloadParameters
 import os.path
-import os, json, requests, datetime, math, re, shutil
+import os, json, requests, datetime, math, re, shutil, time
 
 class SignsLayer(QgsVectorLayer):
     pass
@@ -81,8 +84,10 @@ class PlacaView:
     total_matches:int=0
     geocoded:int=0
     geocodable=[]
-    seditor=None
+    seditor:SignsEditor=None
     download_parameters=None
+    browser:Browser=None
+    
 
     def __init__(self, iface):
         """Constructor.
@@ -129,6 +134,7 @@ class PlacaView:
             self.toolbar.setObjectName(u'PlacaView')
         self.pluginIsActive = False
         self.dockwidget = None
+        self.browser=None
         self.taskManager = QgsApplication.taskManager()
         #self.create_signs_fields()
 
@@ -387,13 +393,12 @@ class PlacaView:
         self.click_tool.setCheckable(True)
         self.click_tool.triggered.connect(self.start_select_features)
 
-        #self.add_tool = QAction(QIcon(os.path.join(
-        #    self.plugin_dir, f"styles/symbols/warning--crossroads--g3.svg")), "Create Sign", self.iface.mainWindow())
-        #self.add_tool.setWhatsThis("Click on the map to insert a sign")
-        #self.add_tool.setStatusTip("Signs")
-        #self.add_tool.setCheckable(True)
-        #self.add_tool.triggered.connect(self.start_select_features)
-
+        self.add_tool = QAction(QIcon(os.path.join(
+            self.plugin_dir, f"styles/symbols/warning--crossroads--g3.svg")), "Create Sign", self.iface.mainWindow())
+        self.add_tool.setWhatsThis("Click on the map to insert a sign")
+        self.add_tool.setStatusTip("Signs")
+        self.add_tool.setCheckable(True)
+        self.add_tool.triggered.connect(self.start_insert_feature)
         actionList = self.iface.mapNavToolToolBar().actions()
 
         # Add actions from QGIS attributes toolbar (handling QWidgetActions)
@@ -411,11 +416,11 @@ class PlacaView:
         for action in actionList:
             group.addAction(action)
         group.addAction(self.click_tool)
-        #group.addAction(self.add_tool)
+        group.addAction(self.add_tool)
 
         # add toolbar button and menu item
         self.iface.attributesToolBar().addAction(self.click_tool)
-        #self.iface.attributesToolBar().addAction(self.add_tool)
+        self.iface.attributesToolBar().addAction(self.add_tool)
 
     # --------------------------------------------------------------------------
 
@@ -456,8 +461,16 @@ class PlacaView:
             return
         if not self.pluginIsActive:
             self.pluginIsActive = True
-            if self.dockwidget == None:
-                self.dockwidget = PlacaViewDockWidget()
+            if self.browser == None:
+                self.browser=Browser()
+            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.browser)
+            self.browser.show()
+            
+            
+            #if self.dockwidget == None:
+            self.dockwidget = PlacaViewDockWidget()
+            print("instance created")
+            print(self.dockwidget)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.dockwidget.photoClick.connect(self.load_signs_editor)
             #self.dockwidget.findChild(QPushButton, "pushButton_edit").clicked.connect(self.load_signs_editor)
@@ -971,19 +984,22 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         values = list(signs_layer.uniqueValues(idx))
         categories = []
         for value in values:
-            style = {
-                "name": os.path.join(self.plugin_dir,"styles", value),
-                'size': size
-            }
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-            symbol.deleteSymbolLayer(0)
-            symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
-            category = QgsRendererCategory(value, symbol, str(value))
-            if value not in filter:
-                category.setRenderState(False)
+            if not value:
+                QgsMessageLog.logMessage("Null code-face-value found")
             else:
-                category.setRenderState(True)
-            categories.append(category)
+                style = {
+                    "name": os.path.join(self.plugin_dir,"styles", value),
+                    'size': size
+                }
+                symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+                symbol.deleteSymbolLayer(0)
+                symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
+                category = QgsRendererCategory(value, symbol, str(value))
+                if value not in filter:
+                    category.setRenderState(False)
+                else:
+                    category.setRenderState(True)
+                categories.append(category)
         
         renderer = QgsCategorizedSymbolRenderer('value_code_face', categories)
         layer.setRenderer(renderer)
@@ -1033,7 +1049,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             if not self.selected_sign["value_code_face"] in filter:
                 filter.append(self.selected_sign["value_code_face"])
             self.apply_filter(filter)
-            
 
     def load_signs_editor(self):
         print("will now load signs editor")
@@ -1041,8 +1056,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         if self.seditor is None:
             self.seditor = SignsEditor(signs_layer=self.signs_layer)
             self.seditor.reloadSign.connect(self.reload_sign)
+            self.seditor.showUrl.connect(self.show_url)
             self.seditor.closeEvent = self.close_signs_editor
-            self.seditor.showMaximized()
+            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.seditor)
+            self.seditor.show()
         else:
             self.seditor.setWindowState(self.seditor.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
             self.seditor.activateWindow()
@@ -1071,6 +1088,20 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         except:
             pass
         self.apply_filter(self.read_filter())
+        
+    def insert_sign(self, *args, **kwargs):
+        print(args)
+        console.log("insert a point here")
+
+    def start_insert_feature(self):
+        self.signs_layer = self.get_signs_layer()
+        if not self.signs_layer:
+            return
+        self.iface.setActiveLayer(self.signs_layer)
+        mapTool = SignsInsert(self.iface, self.signs_layer)
+        mapTool.signInserted.connect(self.insert_sign)
+        self.iface.mapCanvas().setMapTool(mapTool)
+
 
     def start_select_features(self):
         self.signs_layer = self.get_signs_layer()
@@ -1134,8 +1165,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         icon=str(args[1]["value_code_face"])
         but.setIcon(QIcon(os.path.join(
             self.plugin_dir, "styles", icon)))
-
-        self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
+        if not args[1].attribute("id"):
+            pass
+        else:
+            self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         ss_layer = self.get_selected_sign_layer()
         self.fid = int(args[1].attribute("fid"))  # primary key
         feature = self.get_signs_layer().getFeature(self.fid)
@@ -1310,6 +1343,100 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.prepare_roads_and_signs()
             self.load_signs_editor()
         """
+    def setColumnVisibility(self, layer, columnName, visible ):
+        QgsMessageLog.logMessage(f"setting {columnName} Vidibility")
+        config = layer.attributeTableConfig()
+        columns = config.columns()
+        for column in columns:
+            if column.name == columnName:
+                column.hidden = not visible
+                break
+        config.setColumns( columns )
+        layer.setAttributeTableConfig( config )
+         
+    def feature_added(self, *args, **kwargs):
+        QgsMessageLog.logMessage("adding a feature")
+        """Handles the QgsFeatureAdded event."""
+        # Do something when a new feature is added, e.g., print feature_id or layer information.
+        layer=self.get_signs_layer()
+        fields=layer.fields()
+        feature = layer.getFeature(args[0])
+        attr=feature.attributes()
+        print(attr)        
+        print("this is my feature coder")
+        if len(attr)==0:
+            return
+        
+        if fields.indexOf('code')>0:
+            print("has code")
+            if attr[fields.indexOf("code")] is not None:
+                vcf = attr[fields.indexOf("code")]
+                if attr[fields.indexOf("face")] != '' and attr[fields.indexOf("face")] is not None and str(attr[fields.indexOf("face")])!="NULL":
+                    placa_style = f"symbols_br_faced/{vcf}-{feature['face']}.svg"
+                else:
+                    placa_style = f"symbols_br/{vcf}.svg"
+                attr[fields.indexOf("value_code_face")]= placa_style
+                feature['value_code_face']= placa_style
+                
+        if fields.indexOf('first_seen_at') > 0:
+            if attr[fields.indexOf("first_seen_at")] is None:
+                if attr[fields.indexOf("first_seen_at_date")] is not None:
+                    dt=datetime.datetime.strptime(attr[fields.indexOf("first_seen_at_date")], "%Y-%m-%d")
+                    feature["first_seen_at"]=1000*time.mktime(dt.timetuple())                
+        if fields.indexOf('last_seen_at') > 0:
+            if attr[fields.indexOf("last_seen_at")] is None:
+                if attr[fields.indexOf("last_seen_at_date")] is not None:
+                    dt=datetime.datetime.strptime(attr[fields.indexOf("last_seen_at_date")], "%Y-%m-%d")
+                    feature["last_seen_at"]=1000*time.mktime(dt.timetuple())
+            layer.updateFeature(feature)    
+            
+    def generate_signs_form(self):
+        QgsMessageLog.logMessage('generating the form')
+        layer = self.get_signs_layer()
+        
+        
+        date_config = {'allow_null': True,
+              'calendar_popup': True,
+              'display_format': 'yyyy-MM-dd',
+              'field_format': 'yyyy-MM-dd',
+              'field_iso_format': False}
+        fields = layer.fields()
+        field_idx = fields.indexOf('last_seen_at_date')
+        QgsMessageLog.logMessage("This is a message:"+str(field_idx))
+        
+        if field_idx >= 0:
+            date_widget_setup = QgsEditorWidgetSetup('DateTime',date_config)
+            layer.setEditorWidgetSetup(field_idx, date_widget_setup)
+            layer.setDefaultValueDefinition(field_idx, QgsDefaultValue('now()'))
+            layer.setEditorWidgetSetup(fields.indexOf('first_seen_at_date'), date_widget_setup)
+            layer.setDefaultValueDefinition(fields.indexOf('first_seen_at_date'), QgsDefaultValue('now()'))            
+            sign_names={}
+            for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])  :
+                sign_names[name]=name
+                
+            QgsMessageLog.logMessage("sign names discovered")
+            layer.setEditorWidgetSetup(fields.indexOf('value'), QgsEditorWidgetSetup('ValueMap', {"map": sign_names, "Editable":True}))
+            br_sign_names={}
+            for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols_br'))]):
+                br_sign_names[name]=name
+            layer.setEditorWidgetSetup(fields.indexOf('text1'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+            layer.setEditorWidgetSetup(fields.indexOf('text2'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+            layer.setEditorWidgetSetup(fields.indexOf('suporte'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+            layer.setEditorWidgetSetup(fields.indexOf('code'), QgsEditorWidgetSetup('ValueMap', {"Editable":True, "map":br_sign_names}))
+            layer.setEditorWidgetSetup(fields.indexOf('first_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('last_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('user'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('open'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('status'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('value_code_face'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            layer.setEditorWidgetSetup(fields.indexOf('certain'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+            try:
+                layer.featureAdded.disconnect()
+            except:
+                pass
+            # Connect the signal to the handler function
+            layer.featureAdded.connect(self.feature_added)
+
     def create_signs_fields(self):
         print("creating the signs fields")
         if len(self.conf.get("connection_string", "")):
@@ -1374,6 +1501,12 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
             vface = QgsField("value_code_face", QVariant.String, "VARCHAR",100)
             self.signs_layer.dataProvider().addAttributes([vface])
+        if "first_seen_at_date" not in [f.name() for f in self.signs_layer.fields()]:
+            vface = QgsField("first_seen_at_date", QVariant.String, "VARCHAR",10)
+            self.signs_layer.dataProvider().addAttributes([vface])
+        if "last_seen_at_date" not in [f.name() for f in self.signs_layer.fields()]:
+            vface = QgsField("last_seen_at_date", QVariant.String, "VARCHAR",10)
+            self.signs_layer.dataProvider().addAttributes([vface])
             
             with edit(self.signs_layer):
                 for feature in self.signs_layer.getFeatures():
@@ -1385,6 +1518,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
+        self.generate_signs_form()
 
     def migraine(self):
         print("DOING MIGRATIONS")
@@ -1421,3 +1555,15 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             signs_layer.reload()
             signs_layer.triggerRepaint()
         QgsProject.instance().reloadAllLayers()
+    
+    def show_url(self, url):
+        print("SOUKUHKUHKH", url)
+        if self.browser:
+            print(self.browser)
+            print(self.browser.findChild(QWebEngineView, "webView"))
+            if self.browser.findChild(QWebEngineView, "webView"):
+                current_url=self.browser.findChild(QWebEngineView, "webView").url().toString()
+                if re.search("mapillary\.com", current_url) and re.search("mapillary\.com", url):
+                    self.browser.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{url}\"")
+                else:
+                    self.browser.findChild(QWebEngineView, "webView").setUrl(QUrl(url))
