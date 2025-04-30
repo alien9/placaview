@@ -521,7 +521,8 @@ class PlacaView:
         else:
             if "to" in self.conf:
                 del self.conf["to"] 
-        self.signs_layer.setSubsetString(" AND ".join(expression))
+        express=" AND ".join(expression)
+        self.signs_layer.setSubsetString(f"last_seen_at is null or ({express})")
         self.save_conf()
         
     def prepare_roads_and_signs(self):
@@ -985,23 +986,26 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         values = list(signs_layer.uniqueValues(idx))
         categories = []
         for value in values:
+            print("\FILTERING ", value)
             if not value:
-                QgsMessageLog.logMessage("Null code-face-value found")
+                v="unknown_sign.svg"
+            
             else:
-                style = {
-                    "name": os.path.join(self.plugin_dir,"styles", value),
-                    'size': size
-                }
-                symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-                symbol.deleteSymbolLayer(0)
-                symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
-                category = QgsRendererCategory(value, symbol, str(value))
-                if value not in filter:
-                    category.setRenderState(False)
-                else:
-                    category.setRenderState(True)
-                categories.append(category)
-        
+                v=value
+            style = {
+                "name": os.path.join(self.plugin_dir,"styles", v),
+                'size': size
+            }
+            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+            symbol.deleteSymbolLayer(0)
+            symbol.appendSymbolLayer(QgsSvgMarkerSymbolLayer.create(style))
+            category = QgsRendererCategory(v, symbol, str(v))
+            if value not in filter:
+                category.setRenderState(False)
+            else:
+                category.setRenderState(True)
+            categories.append(category)
+    
         renderer = QgsCategorizedSymbolRenderer('value_code_face', categories)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
@@ -1090,18 +1094,29 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             pass
         self.apply_filter(self.read_filter())
         
-    def insert_sign(self, *args, **kwargs):
-        print(args)
-        console.log("insert a point here")
+    def insert_sign(self, point, button):
+        print(point)
+        print("insert a point here")
+        layer=self.get_signs_layer()
+        vpr = layer.dataProvider()
+        f = QgsFeature()
+        f.setGeometry(QgsGeometry.fromPointXY(point))
+        #f.setAttributes([idx]) #added line
+        vpr.addFeatures([f])
+        layer.commitChanges()
+        layer.updateExtents()
+        QgsProject.instance().reloadAllLayers()
 
     def start_insert_feature(self):
+        print("inserting point")
         self.signs_layer = self.get_signs_layer()
         if not self.signs_layer:
             return
+        print("got signs layer")
         self.iface.setActiveLayer(self.signs_layer)
-        mapTool = SignsInsert(self.iface, self.signs_layer)
-        mapTool.signInserted.connect(self.insert_sign)
-        self.iface.mapCanvas().setMapTool(mapTool)
+        self.mapTool = SignsInsert(self.iface.mapCanvas())
+        self.mapTool.canvasClicked.connect(self.insert_sign)
+        self.iface.mapCanvas().setMapTool(self.mapTool)
 
 
     def start_select_features(self):
@@ -1403,7 +1418,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
               'field_iso_format': False}
         fields = layer.fields()
         field_idx = fields.indexOf('last_seen_at_date')
-        QgsMessageLog.logMessage("This is a message:"+str(field_idx))
         
         if field_idx >= 0:
             date_widget_setup = QgsEditorWidgetSetup('DateTime',date_config)

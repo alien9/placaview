@@ -13,15 +13,12 @@ class SignsInsert(QgsMapToolEmitPoint):
 
     signInserted = pyqtSignal(object, object)
 
-    def __init__(self, iface, layer):
-        self.iface = iface
-        self.canvas = self.iface.mapCanvas()
-        self.layer = layer #self.iface.activeLayer()
-        QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.iface.mapCanvas().setMapTool(self)
-
+    #def __init__(self, canvas):
+        #QgsMapToolEmitPoint.__init__(self, canvas)
+        #canvas.setMapTool(self)
+    """ 
     def insert_sign_at(self, *args, **kwargs):
-        print("inserting sifng")
+        print("inserting sifng oooo")
         print(args)
                     
     def canvasReleaseEvent(self, mouseEvent):
@@ -29,8 +26,5 @@ class SignsInsert(QgsMapToolEmitPoint):
             
     def canvasPressEvent(self, event):
         print("presss")
-        
-    def deactivate(self):
-        self.layer.removeSelection()
-        
+    """
         

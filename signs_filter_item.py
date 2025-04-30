@@ -15,9 +15,13 @@ class SignsFilterItem(QWidget):
     check:QCheckBox
     changed = pyqtSignal(str, bool)
     
-    def __init__(self, name, parent=None):
+    def __init__(self, sign_name, parent=None):
         super(SignsFilterItem, self).__init__(parent)
         self.row = QHBoxLayout()
+        if not sign_name:
+            name="unknown_sign.svg"
+        else:
+            name=sign_name
         svgWidget = QtSvg.QSvgWidget(os.path.join(os.path.dirname(__file__), "styles", name))
         print(os.path.join(os.path.dirname(__file__),"styles",  name))
         svgWidget.setFixedWidth(30)
