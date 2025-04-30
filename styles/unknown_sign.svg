@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   width="791.48932"
+   height="791.48932"
+   id="svg29062"
+   viewBox="0 0 791.48933 791.48926"
+   sodipodi:docname="unknown_sign.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata
+     id="metadata29068">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs29066" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     id="namedview29064"
+     showgrid="false"
+     inkscape:zoom="1.0132796"
+     inkscape:cx="395.74466"
+     inkscape:cy="395.74466"
+     inkscape:window-x="0"
+     inkscape:window-y="32"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Layer1028"
+     showguides="false"
+     inkscape:document-rotation="0"
+     inkscape:showpageshadow="2"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <g
+     id="Layer1028"
+     transform="matrix(65.957993,0,0,65.957993,-9815.143,-1157.5892)">
+    <path
+       d="m 154.8089,18.8004 c 2.6229,0 4.75,2.1271 4.75,4.75 0,2.6229 -2.1271,4.7499 -4.75,4.7499 -2.6229,0 -4.7499,-2.127 -4.7499,-4.7499 0,-2.6229 2.127,-4.75 4.7499,-4.75 z m 6,4.75 c 0,-3.3131 -2.6869,-6 -6,-6 -3.3131,0 -5.9999,2.6869 -5.9999,6 0,3.3131 2.6868,5.9999 5.9999,5.9999 3.3131,0 6,-2.6868 6,-5.9999 z"
+       style="fill:#ff0000;fill-rule:evenodd"
+       id="path27527" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:11.2395px;line-height:1.25;font-family:sans-serif;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.0151612"
+       x="151.56911"
+       y="27.583771"
+       id="text241"><tspan
+         sodipodi:role="line"
+         id="tspan239"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.2395px;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans';stroke-width:0.0151612"
+         x="151.56911"
+         y="27.583771">?</tspan></text>
+  </g>
+</svg>
