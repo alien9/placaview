@@ -3,9 +3,11 @@ import os, platform
 import sys, time
 import subprocess
 from pathlib import Path
+from qgis.core import QgsMessageLog
 
 def install_requirements():
     if platform.uname().system=="Windows":
+        QgsMessageLog.logMessage("Installing requirements for windows...")
         #definition of the bat file as as string
         #it will be equivalent to manually type these commands line by line
         batF="""@echo off
@@ -32,20 +34,24 @@ def install_requirements():
         subprocess.run([f"{os.path.expanduser('~')}/INSTALL.bat"])
     else:
         import pip
+        QgsMessageLog.logMessage("installing requirements")
         pip.main(["install","mapbox-vector-tile"])
         pip.main(["install","vt2geojson"])
         pip.main(["install","psycopg2"])
         pip.main(["install","future"])
+        pip.main(["install", "PyQtWebEngine"])
+
 try:
     from mapbox_vector_tile import decode
     from vt2geojson.features import Layer
+    from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
     import psycopg2
 except (ModuleNotFoundError, ImportError):
     install_requirements()
     time.sleep(8)
     #import pip
     #pip.main(['install', 'mapbox-vector-tile'])
-    from mapbox_vector_tile import decode
+    #from mapbox_vector_tile import decode
 try:
     from mapbox_vector_tile import decode
 except (ModuleNotFoundError, ImportError):

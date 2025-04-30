@@ -20,7 +20,6 @@ from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.gui import QgsMapCanvas, QgsMapToolIdentifyFeature
 from qgis.PyQt import QtGui, QtWidgets, uic
 from .equidistance_buffer import EquidistanceBuffer
-from .detection_canvas import DetectionCanvas
 from qgis.gui import QgsFilterLineEdit
 from qgis.core import NULL
 import os
@@ -37,8 +36,6 @@ FormClass, eck = uic.loadUiType(os.path.join(
 
 class Browser(QtWidgets.QDockWidget, FormClass):
     url="about:blank"
-    canvas: DetectionCanvas=None
-    
     def __init__(self, parent=None):
         """Constructor."""
         super(Browser, self).__init__(parent)
@@ -77,29 +74,3 @@ class Browser(QtWidgets.QDockWidget, FormClass):
 
     def close(self):
         super().close()
-
-    def get_canvas(self):
-        if self.canvas is None:
-            self.canvas = DetectionCanvas()
-            grid: QGridLayout = self.findChild(QGridLayout, "gridLayout")
-            grid.addWidget(self.canvas, 0, 0, Qt.AlignCenter)
-            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, on=True)
-            self.canvas.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        return self.canvas
-    
-    def draw_geometries(self, geometries):
-        canvas = self.get_canvas()
-        canvas.reset_canvas()
-        for geok in geometries:
-            geo = geok.get('geometry')
-            vector = base64.decodebytes(geo.encode('utf-8'))
-            decoded_geometry = mapbox_vector_tile.decode(vector)
-            detection_coordinates = decoded_geometry['mpy-or']['features'][0]['geometry']['coordinates']
-            web = self.findChild(QWebEngineView, "webView")
-            pixel_coords = [[[x/4096 * web.width(), y/4096 * web.height()]
-                                for x, y in tuple(coord_pair)] for coord_pair in detection_coordinates]
-            ih = int(pixel_coords[0][0][1]-pixel_coords[0][2][1])
-            iw = int(pixel_coords[0][1][0]-pixel_coords[0][3][0])
-            vy = [int(pixel_coords[0][3][0]), int(
-                web.height()-pixel_coords[0][2][1])-ih, iw, ih]
-            canvas.draw_rectangle(vy, geok.get("value"))

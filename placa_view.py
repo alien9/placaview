@@ -21,6 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+from .tools import *
 import qgis
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
@@ -39,7 +40,6 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
 from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri, QgsEditorWidgetSetup
-from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 
 # from qgis.core import *
 # from qgis.PyQt.QtWidgets import *
@@ -48,7 +48,6 @@ from .equidistance_buffer import EquidistanceBuffer
 from .signs_downloader import SignsDownloader
 # Initialize Qt resources from file resources.py
 from .resources import *
-from .tools import *
 from .signs_filter import SignsFilter
 from .signs_editor import SignsEditor
 from .roads_config import RoadsConfig
@@ -61,6 +60,7 @@ from .placa_selector import PlacaSelector
 from .dl_parameters import DownloadParameters
 import os.path
 import os, json, requests, datetime, math, re, shutil, time
+from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 
 class SignsLayer(QgsVectorLayer):
     pass
@@ -906,6 +906,7 @@ class PlacaView:
 CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
 CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (id);
 """
+            print("TABLE WAS CREATED")
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
             except:
@@ -1539,8 +1540,9 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             print("I am unable to connect to the database") 
 
         cur = conn.cursor()
-        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS revision integer default 0;")
-        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS value_code_face VARCHAR(100);")
+        
+        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS \"revision\" integer default 0;")
+        cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS \"value_code_face\" VARCHAR(100);")
         cur.execute(f"UPDATE {table_name} set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';")
 
 
