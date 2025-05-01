@@ -51,26 +51,5 @@ class Browser(QtWidgets.QDockWidget, FormClass):
         self.findChild(QWebEngineView, "webView").load(
             QUrl(f"file://{os.path.dirname(__file__)}/styles/lg.gif"))
 
-    def after_get_images(self, *args, **kwargs):
-        self.sign_images = []
-        photos = args[1]
-        if "images" in photos:
-            self.sign_images_index = 0
-            for photo in photos.get("images", {}).get("data", []):
-                self.sign_images.append(photo)
-            self.navigate()
-            self.set_minimap()
-
-    def get_images(self):
-        url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
-        print(url)
-        fu = requests.get(url)
-        #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
-        if fu.status_code == 200:
-            photos = fu.json()
-            return photos
-        return
-
-
     def close(self):
         super().close()

@@ -29,44 +29,10 @@ import json
 import shutil
 import datetime
 from .roads_selector import RoadsSelector
+from .signs_data_downloader import SignDataDownloader
 
 FormClass, eck = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'signs_editor.ui'))
-
-
-class SignDataDownloader(QgsTask):
-    key = None
-    image_id = None
-    result = None
-    road_id: int = None
-    road_name: str = None
-    datatype: str = "imagery"
-
-    def run(self):
-        try:
-            if self.datatype == "imagery":
-                url = f"https://graph.mapillary.com/{self.image_id}?access_token={self.key}&fields={self.fields}"
-            if self.datatype == "geometry":
-                url = f'https://graph.mapillary.com/{self.image_id}/detections?access_token={self.key}&fields=geometry,value'
-            r = requests.get(url)
-            if r.status_code == 200:
-                self.result = r.json()
-                return True
-            print(r.status_code)
-            return False
-        except Exception as e:
-            print(e)
-            print("errorr")
-            self.exception = e
-            return False
-
-    def __init__(self, *args, **kwargs):
-        super().__init__("Downloading", QgsTask.CanCancel)
-        self.key = kwargs.get('mapillary_key')
-        self.image_id = kwargs.get('image').get("id")
-        self.fields = kwargs.get('fields')
-        if "datatype" in kwargs:
-            self.datatype = kwargs.get("datatype")
 
 
 class SignsEditor(QDockWidget, FormClass):
@@ -295,13 +261,14 @@ class SignsEditor(QDockWidget, FormClass):
         else:
             self.findChild(QLineEdit, "sign_id_edit").setText(str(int(self.sign["id"])) or "")
         self.findChild(QLineEdit, "sign_id_edit").setReadOnly(True)
-        
-        dt = datetime.datetime.fromtimestamp(
-            0.001*self.sign["first_seen_at"])
-        self.findChild(QLabel, "first_seen").setText(f'First seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
-        dt = datetime.datetime.fromtimestamp(
-            0.001*self.sign["last_seen_at"])
-        self.findChild(QLabel, "last_seen").setText(f'Last seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
+        if self.sign["first_seen_at"]:
+            dt = datetime.datetime.fromtimestamp(
+                0.001*self.sign["first_seen_at"])
+            self.findChild(QLabel, "first_seen").setText(f'First seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
+        if self.sign["last_seen_at"]:
+            dt = datetime.datetime.fromtimestamp(
+                0.001*self.sign["last_seen_at"])
+            self.findChild(QLabel, "last_seen").setText(f'Last seen: {dt.strftime("%m/%d/%Y, %H:%M:%S")}')
 
         if self.code != 'NULL':
             self.set_sign(self.code)
@@ -351,9 +318,7 @@ class SignsEditor(QDockWidget, FormClass):
 
     def get_images(self):
         url = f'https://graph.mapillary.com/{int(self.sign["id"])}?access_token={self.conf.get("mapillary_key")}&fields=images'
-        print(url)
         fu = requests.get(url)
-        #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
             photos = fu.json()
             return photos

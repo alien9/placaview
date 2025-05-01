@@ -21,6 +21,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+from .signs_data_downloader import SignDataDownloader
 from .tools import *
 import qgis
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
@@ -87,6 +88,7 @@ class PlacaView:
     seditor:SignsEditor=None
     download_parameters=None
     browser:Browser=None
+    url:str=None
     
 
     def __init__(self, iface):
@@ -341,26 +343,13 @@ class PlacaView:
             callback=self.download_signs_with_parameters,
             parent=self.iface.mainWindow()
         )
-        """
         self.add_action(
-            icon_path,
-            text="Cancel Download",
-            callback=self.cancel_download_signs,
+            os.path.join(self.plugin_dir,
+                         "styles/icons/location-camera.svg"),
+            text="Show Local Photos",
+            callback=self.show_browser,
             parent=self.iface.mainWindow()
         )
-        self.add_action(
-            icon_path,
-            text="Save Signs",
-            callback=self.save_signs_layer,
-            parent=self.iface.mainWindow()
-        )
-        self.add_action(
-            icon_path,
-            text="Load Signs",
-            callback=self.load_signs_layer,
-            parent=self.iface.mainWindow()
-        )
-        """
         self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/filter.svg"),
@@ -454,6 +443,20 @@ class PlacaView:
         del self.toolbar
 
     # --------------------------------------------------------------------------
+    def show_browser(self):
+        if self.browser == None:
+            self.browser=Browser()
+            self.iface.addDockWidget(Qt.RightDockWidgetArea, self.browser)
+            self.browser.show()
+            if self.url:
+                self.show_url(self.url)
+        else:
+            self.browser.close()
+            self.browser=None
+       
+    def change_local_view(self, v):
+        print(f"setting local view to {v}")
+        self.set_conf("viewer", v)
 
     def run(self):
         """Run method that loads and starts the plugin"""
@@ -465,14 +468,14 @@ class PlacaView:
                 self.browser=Browser()
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.browser)
             self.browser.show()
-            
-            
-            #if self.dockwidget == None:
-            self.dockwidget = PlacaViewDockWidget()
-            print("instance created")
-            print(self.dockwidget)
+            icon=None
+            if self.selected_sign is not None:
+                icon=os.path.join(
+                self.plugin_dir, "styles", str(self.selected_sign["value_code_face"]))
+            self.dockwidget = PlacaViewDockWidget(viewer=self.conf.get("viewer", "mapillary"), icon=icon)
             self.dockwidget.closingPlugin.connect(self.onClosePlugin)
             self.dockwidget.photoClick.connect(self.load_signs_editor)
+            self.dockwidget.localViewChange.connect(self.change_local_view)
             #self.dockwidget.findChild(QPushButton, "pushButton_edit").clicked.connect(self.load_signs_editor)
             self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
@@ -800,7 +803,6 @@ class PlacaView:
             pass
         self.save_signs_layer()
         self.load_signs_layer()
-        self.save_unique_values()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -849,6 +851,7 @@ class PlacaView:
     def load_signs_layer(self):
         if self.conf.get("connection_string", None):
             self.load_signs_layer_from_database()
+            self.save_unique_values()
             return
         title = QgsProject.instance().fileName()
         l = self.get_point_layer_by_name("traffic signs")
@@ -856,7 +859,6 @@ class PlacaView:
             QgsProject.instance().removeMapLayer(l.id())
         uri = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
-        print(f"will create {uri}")
         if not os.path.isfile(uri):
             self.create_signals_vector_layer()
         self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
@@ -978,7 +980,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def set_signs_style(self, filter=[], layer=None, size=6):
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
-        self.create_signs_fields()
+        #self.create_signs_fields()
         if self.conf.get("layer_filter"):
             lr=self.get_boundary_by_name(self.conf.get("layer_filter"))
         signs_layer = layer
@@ -986,10 +988,8 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         values = list(signs_layer.uniqueValues(idx))
         categories = []
         for value in values:
-            print("\FILTERING ", value)
             if not value:
                 v="unknown_sign.svg"
-            
             else:
                 v=value
             style = {
@@ -1024,10 +1024,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             with open(os.path.join(self.plugin_dir, f"filter.txt"), "r") as fu:
                 value = list(map(lambda x: x[0: -1], fu.readlines()))
             fu.close()
-        #if os.path.isfile(os.path.join(self.plugin_dir, f"existing.txt")):
-        #    with open(os.path.join(self.plugin_dir, f"existing.txt"), "r") as fu:
-        #        exists = set(map(lambda x: x[0: -1], fu.readlines()))
-        #    fu.close()
         return value
 
     def load_signs_filter(self):
@@ -1056,7 +1052,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.apply_filter(filter)
 
     def load_signs_editor(self):
-        print("will now load signs editor")
         self.create_signs_fields()
         if self.seditor is None:
             self.seditor = SignsEditor(signs_layer=self.signs_layer)
@@ -1095,24 +1090,25 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.apply_filter(self.read_filter())
         
     def insert_sign(self, point, button):
-        print(point)
-        print("insert a point here")
         layer=self.get_signs_layer()
+        layer.startEditing()
         vpr = layer.dataProvider()
         f = QgsFeature()
         f.setGeometry(QgsGeometry.fromPointXY(point))
-        #f.setAttributes([idx]) #added line
+        f.setFields(layer.fields())
+        f.setAttribute(layer.fields().indexOf("code"),'unknown_sign')
+        f.setAttribute(layer.fields().indexOf("value_code_face"),'symbols_br/unknown_sign.svg')
+        print("feature created")
         vpr.addFeatures([f])
         layer.commitChanges()
+        print("commited")
         layer.updateExtents()
         QgsProject.instance().reloadAllLayers()
 
     def start_insert_feature(self):
-        print("inserting point")
         self.signs_layer = self.get_signs_layer()
         if not self.signs_layer:
             return
-        print("got signs layer")
         self.iface.setActiveLayer(self.signs_layer)
         self.mapTool = SignsInsert(self.iface.mapCanvas())
         self.mapTool.canvasClicked.connect(self.insert_sign)
@@ -1140,6 +1136,12 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
+    def show_mapillary_image(self, image_id):
+        print("will show mapillary image", image_id)
+        self.image_id = image_id
+        self.imagetask = QgsTask.fromFunction(
+            'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
+        QgsApplication.taskManager().addTask(self.imagetask)
 
     def show_image(self, image_id):
         self.image_id = image_id
@@ -1170,47 +1172,83 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         image_layer.setRenderer(renderer)
         image_layer.triggerRepaint()
 
+    def after_get_mapillary_images(self, *args, **kwargs):
+        self.current_sign_images = []
+        photos = args[1]
+        if "images" in photos:
+            self.current_sign_images_index = 0
+            for photo in photos.get("images", {}).get("data", []):
+                self.current_sign_images.append(photo)
+            self.navigate()
+
+    def navigate(self):
+        if not self.current_sign_images_index:
+            self.current_sign_images_index=0
+        self.url=f"https://www.mapillary.com/app/?&z=17&pKey={self.current_sign_images[self.current_sign_images_index]['id']}&focus=photo&trafficSign=all"
+        self.show_url(self.url)
+
     def display_sign(self, *args, **kwargs):
-        # ckicked on the sign
-        if not self.dockwidget:
-            self.run()
-        self.dockwidget.show()
-        self.signs_layer.updateFields() 
+        print("DISPOAAJAKJAKAJAAJAKJAKA")
         self.selected_sign = args[1]
-        but = self.dockwidget.findChild(QPushButton, "mapillarytype")
-        icon=str(args[1]["value_code_face"])
-        but.setIcon(QIcon(os.path.join(
-            self.plugin_dir, "styles", icon)))
         if not args[1].attribute("id"):
             pass
         else:
             self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
-        ss_layer = self.get_selected_sign_layer()
-        self.fid = int(args[1].attribute("fid"))  # primary key
-        feature = self.get_signs_layer().getFeature(self.fid)
-        ss_layer.dataProvider().truncate()
-        ss_layer.startEditing()
-        
-        def match(task, wait_time):
-            self.dockwidget.findChild(QLabel, "street_label").setText("...")
-            self.match_segment_roads()
-        roads_layer: QgsVectorLayer = self.get_line_by_name(
-            self.conf.get("roads"))
-        if not roads_layer:
-            if not self.ask_roads_layer():
-                return
-        w: QWebView = self.dockwidget.findChild(QWebView, "webView")
-        w.setHtml("<html><body style='background-color:#000;'></body></html>")
-        w.load(QUrl('spinners.gif'))
+        if self.browser:
+            p=self.selected_sign.geometry().asPoint()
+            print(p)
+            if self.conf.get("viewer")=="gsw":
+                streetview = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
+                self.show_url(streetview)
+            else:
+                if not args[1].attribute("id"): # Não tem Mapillary
+                    url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
+                    print(url)
+                    self.show_url(url)
+                else:
+                    self.browser.spinners()
+                    def go(task, wait_time):
+                        return self.get_images()
+                    self.otask = QgsTask.fromFunction(
+                        'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
+                    QgsApplication.taskManager().addTask(self.otask)
+    
+        if self.dockwidget:
+            self.signs_layer.updateFields() 
+            but = self.dockwidget.findChild(QPushButton, "mapillarytype")
+            icon=str(args[1]["value_code_face"])
+            but.setIcon(QIcon(os.path.join(
+                self.plugin_dir, "styles", icon)))
+            if not args[1].attribute("id"):
+                pass
+            else:
+                self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
+            ss_layer = self.get_selected_sign_layer()
+            self.fid = int(args[1].attribute("fid"))  # primary key
+            feature = self.get_signs_layer().getFeature(self.fid)
+            ss_layer.dataProvider().truncate()
+            ss_layer.startEditing()
+            
+            def match(task, wait_time):
+                self.dockwidget.findChild(QLabel, "street_label").setText("...")
+                self.match_segment_roads()
+            roads_layer: QgsVectorLayer = self.get_line_by_name(
+                self.conf.get("roads"))
+            if not roads_layer:
+                if not self.ask_roads_layer():
+                    return
+            #w: QWebView = self.dockwidget.findChild(QWebView, "webView")
+            #w.setHtml("<html><body style='background-color:#000;'></body></html>")
+            #w.load(QUrl('spinners.gif'))
 
-        self.current_sign_images_index = -1
-        self.current_sign_images = []
+            self.current_sign_images_index = -1
+            self.current_sign_images = []
 
-        def go(task, wait_time):
-            return self.get_images()
-        self.otask = QgsTask.fromFunction(
-            'getting images', go, on_finished=self.after_get_images, wait_time=1000)
-        QgsApplication.taskManager().addTask(self.otask)
+            #def go(task, wait_time):
+            #    return self.get_images()
+            #self.otask = QgsTask.fromFunction(
+            #    'getting images', go, on_finished=self.after_get_images, wait_time=1000)
+            #QgsApplication.taskManager().addTask(self.otask)
 
         # self.get_images()
     def set_webview_url(self): 
@@ -1237,7 +1275,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             
     def get_images(self):
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
-        print(url)
         fu = requests.get(url)
         #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
@@ -1249,15 +1286,17 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.current_sign_images_index += 1
         self.current_sign_images_index = self.current_sign_images_index % len(
             self.current_sign_images)
-        self.show_image(
-            self.current_sign_images[self.current_sign_images_index]["id"])
+        self.navigate()
+        #self.show_mapillary_image(
+        #    self.current_sign_images[self.current_sign_images_index]["id"])
 
     def page_down(self):
         self.current_sign_images_index -= 1
         if self.current_sign_images_index < 0:
             self.current_sign_images_index = len(self.current_sign_images)-1
-        self.show_image(
-            self.current_sign_images[self.current_sign_images_index]["id"])
+        self.navigate()
+        #self.show_mapillary_image(
+        #    self.current_sign_images[self.current_sign_images_index]["id"])
 
     def match_progress_changed(self, *args, **kwargs):
         try:
@@ -1570,15 +1609,14 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             print("reloading the signs layer")
             signs_layer.reload()
             signs_layer.triggerRepaint()
+            self.save_unique_values()
         QgsProject.instance().reloadAllLayers()
     
     def show_url(self, url):
-        print("SOUKUHKUHKH", url)
         if self.browser:
-            print(self.browser)
-            print(self.browser.findChild(QWebEngineView, "webView"))
             if self.browser.findChild(QWebEngineView, "webView"):
                 current_url=self.browser.findChild(QWebEngineView, "webView").url().toString()
+                print(current_url)
                 if re.search("mapillary\.com", current_url) and re.search("mapillary\.com", url):
                     self.browser.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{url}\"")
                 else:

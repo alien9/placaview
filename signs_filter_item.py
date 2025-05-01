@@ -23,7 +23,6 @@ class SignsFilterItem(QWidget):
         else:
             name=sign_name
         svgWidget = QtSvg.QSvgWidget(os.path.join(os.path.dirname(__file__), "styles", name))
-        print(os.path.join(os.path.dirname(__file__),"styles",  name))
         svgWidget.setFixedWidth(30)
         svgWidget.setFixedHeight(30)
         self.row.addWidget(svgWidget)
