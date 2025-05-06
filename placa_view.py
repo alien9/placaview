@@ -1212,7 +1212,20 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                     self.otask = QgsTask.fromFunction(
                         'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
                     QgsApplication.taskManager().addTask(self.otask)
-    
+        if self.seditor:
+            print("I WILL LOAD THE EDITOR")
+            self.seditor.post_init(
+                iface=self.iface,
+                sign=self.selected_sign_id,
+                mapillary_key=self.conf.get("mapillary_key"),
+                sign_images=self.current_sign_images,
+                signs_layer=self.signs_layer,
+                roads_layer=self.get_roads_layer(),
+                selected_sign=self.selected_sign,
+                conf=self.conf,
+                filter=self.read_filter(),
+            )
+            
         if self.dockwidget:
             self.signs_layer.updateFields() 
             but = self.dockwidget.findChild(QPushButton, "mapillarytype")
@@ -1492,10 +1505,8 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             layer.featureAdded.connect(self.feature_added)
 
     def create_signs_fields(self):
-        print("creating the signs fields")
         if len(self.conf.get("connection_string", "")):
             self.migraine()
-        print("will modify the signs layer")
         roads_layer=self.get_roads_layer()
         signs_layer=self.get_signs_layer()
         roads_field_name=self.conf.get("roads_field_name")

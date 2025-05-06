@@ -207,9 +207,9 @@ class SignsEditor(QDockWidget, FormClass):
         layer.renderer().symbol().setColor(QColor.fromRgb(0, 255, 0))
         QgsProject.instance().addMapLayer(layer)
 
-        canvas.setLayers([layer, self.roads_layer])
-        canvas.setExtent(boulder.boundingBox())
-        canvas.redrawAllLayers()
+        #canvas.setLayers([layer, self.roads_layer])
+        #canvas.setExtent(boulder.boundingBox())
+        #canvas.redrawAllLayers()
 
         if not self.placas:
             with open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"), "r") as flu:
@@ -304,7 +304,7 @@ class SignsEditor(QDockWidget, FormClass):
             self.otask = QgsTask.fromFunction(
                 'getting images', go, on_finished=self.after_get_images, wait_time=1000)
             QgsApplication.taskManager().addTask(self.otask)
-        self.set_map_tool()
+        #self.set_map_tool()
 
     def after_get_images(self, *args, **kwargs):
         self.sign_images = []
@@ -641,10 +641,10 @@ class SignsEditor(QDockWidget, FormClass):
         arrows_layer.dataProvider().truncate()
         arrows_layer.dataProvider().addFeatures([fu])
         arrows_layer.updateExtents()
-        l = canvas.layers()
-        l.append(arrows_layer)
-        canvas.setLayers(l)
-        canvas.redrawAllLayers()
+        #l = canvas.layers()
+        #l.append(arrows_layer)
+        #canvas.setLayers(l)
+        #canvas.redrawAllLayers()
         self.showUrl.emit(self.mapillary)
 
     def set_map_tool(self):
