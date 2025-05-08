@@ -33,27 +33,17 @@ import base64
 import mapbox_vector_tile
 import threading
 import time
+from urllib.parse import unquote, unquote_plus
 
 FormClass, eck = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'browser.ui'))
 
 class Browser(QtWidgets.QDockWidget, FormClass):
-    url="about:blank"
     def __init__(self, parent=None):
         """Constructor."""
         super(Browser, self).__init__(parent)
         self.setupUi(self)
-        thread1 = threading.Thread(target=self.task, args=("One",))
-        thread1.start()
-        #thread1.join()
-
-    def task(self, name):
-        print(f"Thread {name}: starting")
-        while True:
-            time.sleep(200)
-            print(self.url)
-            print(self.findChild(QWebEngineView, "webView").url())
-
+       
     def open_mapillary(self):
         QDesktopServices.openUrl(QUrl(self.mapillary))
 

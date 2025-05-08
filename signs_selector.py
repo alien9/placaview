@@ -35,7 +35,6 @@ class SignsSelector(QgsMapToolIdentifyFeature):
     def canvasReleaseEvent(self, mouseEvent):
         results = self.identify(mouseEvent.x(), mouseEvent.y(), self.TopDownStopAtFirst, [self.layer], self.VectorLayer)       
         if results:
-            print("RESULTS", results[0].mFeature.geometry())
             self.geomIdentified.emit(results[0].mLayer, results[0].mFeature)
             
     def canvasPressEvent(self, event):

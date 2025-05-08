@@ -1059,12 +1059,19 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                 filter.append(self.selected_sign["value_code_face"])
             self.apply_filter(filter)
 
+    def select_sign(self, *args, **kwargs):
+        print("selecting sign ")
+        print(args)
+        self.selected_sign=args[0]
+
     def load_signs_editor(self):
+        print(self.selected_sign)
         self.create_signs_fields()
         if self.seditor is None:
             self.seditor = SignsEditor(signs_layer=self.signs_layer)
             self.seditor.reloadSign.connect(self.reload_sign)
             self.seditor.showUrl.connect(self.show_url)
+            self.seditor.selectSign.connect(self.display_sign)
             self.seditor.closeEvent = self.close_signs_editor
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.seditor)
             self.seditor.show()
@@ -1183,6 +1190,8 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def after_get_mapillary_images(self, *args, **kwargs):
         self.current_sign_images = []
         photos = args[1]
+        print("AFTER GET MAPILLARY IMAGES")
+        print(photos)
         if "images" in photos:
             self.current_sign_images_index = 0
             for photo in photos.get("images", {}).get("data", []):
@@ -1196,23 +1205,26 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.show_url(self.url)
 
     def display_sign(self, *args, **kwargs):
+        print("displaying sign")
+
         self.selected_sign = args[1]
         if not args[1].attribute("id"):
-            pass
+            self.selected_sign_id=None
         else:
             self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         if self.browser:
+            #self.browser.spinners()
             p=self.selected_sign.geometry().asPoint()
             if self.conf.get("viewer")=="gsw":
-                streetview = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
-                self.show_url(streetview)
+                self.url = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
+                self.show_url(self.url)
             else:
                 if not args[1].attribute("id"): # Não tem Mapillary
-                    url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
-                    print(url)
-                    self.show_url(url)
+                    self.url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
+                    print("MAPILLARYLESS going to", self.url)
+                    self.show_url(self.url)
                 else:
-                    self.browser.spinners()
+                    #self.browser.spinners()
                     def go(task, wait_time):
                         return self.get_images()
                     self.otask = QgsTask.fromFunction(
@@ -1302,21 +1314,21 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         return
 
     def page_up(self):
-        self.current_sign_images_index += 1
-        self.current_sign_images_index = self.current_sign_images_index % len(
-            self.current_sign_images)
-        self.navigate()
-        #self.show_mapillary_image(
-        #    self.current_sign_images[self.current_sign_images_index]["id"])
-
+        print("PAGE UP")
+        print(self.current_sign_images)
+        if len(self.current_sign_images):
+            self.current_sign_images_index += 1
+            self.current_sign_images_index = self.current_sign_images_index % len(
+                self.current_sign_images)
+            self.navigate()
+            
     def page_down(self):
-        self.current_sign_images_index -= 1
-        if self.current_sign_images_index < 0:
-            self.current_sign_images_index = len(self.current_sign_images)-1
-        self.navigate()
-        #self.show_mapillary_image(
-        #    self.current_sign_images[self.current_sign_images_index]["id"])
-
+        if len(self.current_sign_images):    
+            self.current_sign_images_index -= 1
+            if self.current_sign_images_index < 0:
+                self.current_sign_images_index = len(self.current_sign_images)-1
+            self.navigate()
+            
     def match_progress_changed(self, *args, **kwargs):
         try:
             self.geocoder_progress.setValue(round(args[0]))
@@ -1631,10 +1643,12 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     
     def show_url(self, url):
         if self.browser:
+            print("GOING AFTER IMAGE", url)
             if self.browser.findChild(QWebEngineView, "webView"):
                 current_url=self.browser.findChild(QWebEngineView, "webView").url().toString()
-                print(current_url)
-                if re.search("mapillary\.com", current_url) and re.search("mapillary\.com", url):
+                print("CURRENT URL IS", current_url)
+                if re.search("mapillary\.com", current_url) and re.search("mapillary\.com", url) and re.search("pKey=", url) and re.search("pKey=", current_url):
+                    print("shown")
                     self.browser.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{url}\"")
                 else:
                     self.browser.findChild(QWebEngineView, "webView").setUrl(QUrl(url))
