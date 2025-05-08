@@ -645,7 +645,6 @@ class SignsEditor(QDockWidget, FormClass):
         #l.append(arrows_layer)
         #canvas.setLayers(l)
         #canvas.redrawAllLayers()
-        #self.showUrl.emit(self.mapillary)
 
     def set_map_tool(self):
         canvas: QgsMapCanvas = self.findChild(QgsMapCanvas, "mapview")
