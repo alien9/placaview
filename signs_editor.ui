@@ -60,22 +60,6 @@
                             </item>
                           </layout>
                         </item>
-                        <item>
-                          <widget class="QgsMapCanvas" name="mapview" native="true">
-                            <property name="minimumSize">
-                              <size>
-                                <width>350</width>
-                                <height>350</height>
-                              </size>
-                            </property>
-                            <property name="maximumSize">
-                              <size>
-                                <width>350</width>
-                                <height>350</height>
-                              </size>
-                            </property>
-                          </widget>
-                        </item>
 
                         <item>
                           <widget class="QPushButton" name="streetview_url">

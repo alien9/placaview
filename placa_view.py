@@ -39,15 +39,8 @@ from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit, QgsMessageBar
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtGui import QFont, QColor
-from qgis.PyQt.QtSql import QSqlDatabase
 from qgis.core import QgsVectorLayer, QgsDataSourceUri, QgsEditorWidgetSetup
-
-# from qgis.core import *
-# from qgis.PyQt.QtWidgets import *
-# from qgis.PyQt.QtCore import *
-from .equidistance_buffer import EquidistanceBuffer
 from .signs_downloader import SignsDownloader
-# Initialize Qt resources from file resources.py
 from .resources import *
 from .signs_filter import SignsFilter
 from .signs_editor import SignsEditor
@@ -59,9 +52,9 @@ from .browser import Browser
 from .roads_matcher import RoadsMatcher
 from .placa_selector import PlacaSelector
 from .dl_parameters import DownloadParameters
-import os.path
 import os, json, requests, datetime, math, re, shutil, time
 from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
+from urllib.parse import unquote, unquote_plus
 
 class SignsLayer(QgsVectorLayer):
     pass
@@ -182,7 +175,6 @@ class PlacaView:
 
     def load_conf(self):
         if QgsProject.instance().fileName()=='':
-            print("cannot do anything without a project")
             self.iface.messageBar().pushMessage("Error", "Please save the project before starting the task.")
             return False
         self.check_path()
@@ -223,7 +215,6 @@ class PlacaView:
 
     def check_path(self):
         patty=QgsProject.instance().readPath("./")
-        print(QgsProject.instance().fileName())
         if not patty:
             return False
         if not os.path.isdir(f"{QgsProject.instance().fileName()}_data"):
@@ -443,9 +434,24 @@ class PlacaView:
         del self.toolbar
 
     # --------------------------------------------------------------------------
+    def browsed(self, *args, **kwargs):
+        decoded_url = unquote(args[0].toString())
+        #https://www.google.com/maps/@19.2338094,-99.1442848,3a,75y,78.29h,83.9t/data=!3m7!1e1!3m5!1sLdJlNWGvjJXIb9OkytjK8g!2e0!6shttps://streetviewpixels-pa.googleapis.com/v1/thumbnail?cb_client=maps_sv.tactile&w=900&h=600&pitch=6.096891635914773&panoid=LdJlNWGvjJXIb9OkytjK8g&yaw=78.29313041446795!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI1MDUwMy4wIKXMDSoASAFQAw==
+        print(decoded_url)
+        rs=re.search("@([\-0-9\.]+),([\-0-9\.]+)", decoded_url)
+        lat=None
+        lng=None
+        yaw=None
+        if rs:
+            lat,lng=rs.groups(1)
+        rt=re.search("yaw=([\d\-\.]*)",decoded_url)
+        if rt:
+            yaw=rs.groups(1)
+
     def show_browser(self):
         if self.browser == None:
             self.browser=Browser()
+            self.browser.findChild(QWebEngineView, "webView").urlChanged.connect(self.browsed)
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.browser)
             self.browser.show()
             if self.url:
@@ -457,6 +463,8 @@ class PlacaView:
     def change_local_view(self, v):
         print(f"setting local view to {v}")
         self.set_conf("viewer", v)
+        if self.selected_sign:
+            self.display_sign(None, self.selected_sign)
 
     def run(self):
         """Run method that loads and starts the plugin"""
@@ -1188,7 +1196,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.show_url(self.url)
 
     def display_sign(self, *args, **kwargs):
-        print("DISPOAAJAKJAKAJAAJAKJAKA")
         self.selected_sign = args[1]
         if not args[1].attribute("id"):
             pass
@@ -1196,7 +1203,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         if self.browser:
             p=self.selected_sign.geometry().asPoint()
-            print(p)
             if self.conf.get("viewer")=="gsw":
                 streetview = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
                 self.show_url(streetview)
