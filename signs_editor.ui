@@ -2,11 +2,17 @@
 <ui version="4.0">
   <class>SignsEditor</class>
   <widget class="QDockWidget" name="SignsEditor">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>350</width>
+        <height>495</height>
+      </rect>
+    </property>
     <property name="windowTitle">
       <string>Signs Editor</string>
     </property>
-
-
     <widget class="QWidget" name="verticalLayoutWidget">
       <layout class="QVBoxLayout" name="verticalLayout">
         <item>
@@ -17,50 +23,17 @@
             <widget class="QWidget" name="scrollAreaWidgetContents">
               <property name="geometry">
                 <rect>
-                 <x>0</x>
-                 <y>0</y>
-                 <width>372</width>
-                 <height>1132</height>
+                  <x>0</x>
+                  <y>-209</y>
+                  <width>316</width>
+                  <height>694</height>
                 </rect>
-               </property>
+              </property>
               <layout class="QVBoxLayout" name="verticalLayout">
-
                 <item>
                   <layout class="QHBoxLayout" name="horizontalLayout">
-
                     <item>
                       <layout class="QVBoxLayout" name="verticalLayoutInside">
-                        <item>
-                          <layout class="QHBoxLayout" name="butoes">
-                            <item>
-                              <widget class="QPushButton" name="pushButton_back">
-                                <property name="text">
-                                  <string>&lt;</string>
-                                </property>
-                                <property name="maximumSize">
-                                  <size>
-                                    <width>20</width>
-                                    <height>20</height>
-                                  </size>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QPushButton" name="pushButton_forward">
-                                <property name="text">
-                                  <string>&gt;</string>
-                                </property>
-                                <property name="maximumSize">
-                                  <size>
-                                    <width>20</width>
-                                    <height>20</height>
-                                  </size>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-
                         <item>
                           <layout class="QHBoxLayout" name="h_links">
                             <item>
@@ -78,20 +51,19 @@
                                     <height>55</height>
                                   </size>
                                 </property>
+                                <property name="text">
+                                  <string />
+                                </property>
                                 <property name="iconSize">
                                   <size>
                                     <width>50</width>
                                     <height>50</height>
                                   </size>
                                 </property>
-                                <property name="text">
-                                  <string />
-                                </property>
                               </widget>
                             </item>
                           </layout>
                         </item>
-
                         <item>
                           <widget class="QCheckBox" name="not_a_sign">
                             <property name="text">
@@ -99,19 +71,18 @@
                             </property>
                           </widget>
                         </item>
-
                         <item>
                           <layout class="QHBoxLayout" name="h_id">
                             <item>
                               <widget class="QLabel" name="id_label">
-                                <property name="text">
-                                  <string>Sign ID</string>
-                                </property>
                                 <property name="maximumSize">
                                   <size>
                                     <width>180</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Sign ID</string>
                                 </property>
                               </widget>
                             </item>
@@ -137,7 +108,6 @@
                             </item>
                           </layout>
                         </item>
-
                         <item>
                           <widget class="QLabel" name="mapillary_type_label">
                             <property name="text">
@@ -164,19 +134,12 @@
                                 </property>
                               </widget>
                             </item>
-
                             <item>
                               <widget class="QPushButton" name="brasiltype">
                                 <property name="maximumSize">
                                   <size>
                                     <width>55</width>
                                     <height>55</height>
-                                  </size>
-                                </property>
-                                <property name="iconSize">
-                                  <size>
-                                    <width>50</width>
-                                    <height>50</height>
                                   </size>
                                 </property>
                                 <property name="text">
@@ -187,23 +150,28 @@
                                     <normaloff>styles/symbols_br/A-2b.svg</normaloff>
                                     styles/symbols_br/A-2b.svg</iconset>
                                 </property>
+                                <property name="iconSize">
+                                  <size>
+                                    <width>50</width>
+                                    <height>50</height>
+                                  </size>
+                                </property>
                               </widget>
                             </item>
                           </layout>
                         </item>
-
                         <item>
                           <layout class="QHBoxLayout" name="h_face">
                             <item>
                               <widget class="QLabel" name="face_label">
-                                <property name="text">
-                                  <string>Face value</string>
-                                </property>
                                 <property name="maximumSize">
                                   <size>
                                     <width>280</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Face value</string>
                                 </property>
                               </widget>
                             </item>
@@ -219,20 +187,18 @@
                             </item>
                           </layout>
                         </item>
-
-
                         <item>
                           <layout class="QHBoxLayout">
                             <item>
-                              <widget class="QLabel">
-                                <property name="text">
-                                  <string>Text 1</string>
-                                </property>
+                              <widget class="QLabel" name="label">
                                 <property name="maximumSize">
                                   <size>
                                     <width>80</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Text 1</string>
                                 </property>
                               </widget>
                             </item>
@@ -258,19 +224,18 @@
                             </item>
                           </layout>
                         </item>
-
                         <item>
                           <layout class="QHBoxLayout">
                             <item>
-                              <widget class="QLabel">
-                                <property name="text">
-                                  <string>Text 2</string>
-                                </property>
+                              <widget class="QLabel" name="label">
                                 <property name="maximumSize">
                                   <size>
                                     <width>80</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Text 2</string>
                                 </property>
                               </widget>
                             </item>
@@ -296,20 +261,18 @@
                             </item>
                           </layout>
                         </item>
-
-
                         <item>
                           <layout class="QHBoxLayout">
                             <item>
-                              <widget class="QLabel">
-                                <property name="text">
-                                  <string>Segment</string>
-                                </property>
+                              <widget class="QPushButton" name="segment">
                                 <property name="maximumSize">
                                   <size>
                                     <width>80</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Segment</string>
                                 </property>
                               </widget>
                             </item>
@@ -325,20 +288,18 @@
                             </item>
                           </layout>
                         </item>
-
-
                         <item>
                           <layout class="QHBoxLayout">
                             <item>
-                              <widget class="QLabel">
-                                <property name="text">
-                                  <string>Observations</string>
-                                </property>
+                              <widget class="QLabel" name="label">
                                 <property name="maximumSize">
                                   <size>
                                     <width>80</width>
                                     <height>25</height>
                                   </size>
+                                </property>
+                                <property name="text">
+                                  <string>Observations</string>
                                 </property>
                               </widget>
                             </item>
@@ -354,7 +315,6 @@
                             </item>
                           </layout>
                         </item>
-
                         <item>
                           <layout class="QHBoxLayout" name="h_face">
                             <item>
@@ -365,10 +325,7 @@
                               </widget>
                             </item>
                           </layout>
-
                         </item>
-
-
                         <item>
                           <layout class="QHBoxLayout" name="h_suporte">
                             <item>
@@ -406,14 +363,28 @@
                             </item>
                           </layout>
                         </item>
-
-
+                        <item>
+                          <layout class="QHBoxLayout" name="h_suporte">
+                            <item>
+                              <widget class="QCheckBox" name="composta">
+                                <property name="text">
+                                  <string>Composite</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QPushButton" name="compost_choose">
+                                <property name="text">
+                                  <string>Select</string>
+                                </property>
+                              </widget>
+                            </item>
+                          </layout>
+                        </item>
                       </layout>
                     </item>
                   </layout>
                 </item>
-
-
                 <item>
                   <layout class="QVBoxLayout" name="h_date">
                     <item>
@@ -438,8 +409,6 @@
                     </item>
                   </layout>
                 </item>
-
-
                 <item>
                   <layout class="QVBoxLayout" name="vertbuttonLayout">
                     <item>
@@ -455,7 +424,6 @@
                         </property>
                       </widget>
                     </item>
-
                     <item>
                       <widget class="QPushButton" name="pushButton_next">
                         <property name="maximumSize">
@@ -469,8 +437,6 @@
                         </property>
                       </widget>
                     </item>
-
-
                     <item>
                       <widget class="QPushButton" name="pushButton_next_no_save">
                         <property name="maximumSize">
@@ -484,42 +450,15 @@
                         </property>
                       </widget>
                     </item>
-
                   </layout>
                 </item>
-
-
               </layout>
             </widget>
           </widget>
         </item>
-
-
       </layout>
     </widget>
   </widget>
-  <customwidgets>
-    <customwidget>
-      <class>QWebView</class>
-      <extends>QWidget</extends>
-      <header location="global">QtWebKitWidgets/QWebView</header>
-    </customwidget>
-    <customwidget>
-      <class>QWebEngineView</class>
-      <extends>QWidget</extends>
-      <header location="global">QtWebEngineWidgets/QWebEngineView</header>
-    </customwidget>
-    <customwidget>
-      <class>QgsMapCanvas</class>
-      <extends>QWidget</extends>
-      <header location="global">qgis/gui</header>
-    </customwidget>
-    <customwidget>
-      <class>QSvgWidget</class>
-      <extends>QWidget</extends>
-      <header location="global">QSvgWidget</header>
-    </customwidget>
-  </customwidgets>
   <resources />
   <connections />
 </ui>

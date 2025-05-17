@@ -31,10 +31,11 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVari
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit
 from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApplication, QgsTask, QgsMarkerSymbol, QgsFillSymbol
-from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
+from qgis.core import QgsPoint, QgsRectangle, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
 from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit, QgsMessageBar
+from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 
 from qgis.core import QgsSpatialIndex
 from qgis.PyQt.QtWebKitWidgets import QWebView
@@ -82,6 +83,7 @@ class PlacaView:
     download_parameters=None
     browser:Browser=None
     url:str=None
+    initialized=False
     
 
     def __init__(self, iface):
@@ -131,7 +133,8 @@ class PlacaView:
         self.dockwidget = None
         self.browser=None
         self.taskManager = QgsApplication.taskManager()
-        #self.create_signs_fields()
+        self.create_signs_fields()
+        self.generate_signs_form()
 
     def get_buffer(self):
         yield self.buffer.pop()
@@ -146,11 +149,7 @@ class PlacaView:
             myClone = mylayer.clone()
             parent = mylayer.parent()
             group.insertChildNode(0, myClone)
-            parent.removeChildNode(mylayer)
-
-    def change_layer(self, layer):
-        print("changed layer")
-        print(layer)
+            parent.removeChildNode(mylayer)        
 
     def deg2num(self, lat_deg, lon_deg, zoom):
         lat_rad = math.radians(lat_deg)
@@ -436,19 +435,33 @@ class PlacaView:
     # --------------------------------------------------------------------------
     def browsed(self, *args, **kwargs):
         decoded_url = unquote(args[0].toString())
+        
         #https://www.google.com/maps/@19.2338094,-99.1442848,3a,75y,78.29h,83.9t/data=!3m7!1e1!3m5!1sLdJlNWGvjJXIb9OkytjK8g!2e0!6shttps://streetviewpixels-pa.googleapis.com/v1/thumbnail?cb_client=maps_sv.tactile&w=900&h=600&pitch=6.096891635914773&panoid=LdJlNWGvjJXIb9OkytjK8g&yaw=78.29313041446795!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI1MDUwMy4wIKXMDSoASAFQAw==
-        print(decoded_url)
-        rs=re.search("@([\-0-9\.]+),([\-0-9\.]+)", decoded_url)
-        lat=None
-        lng=None
-        yaw=None
-        if rs:
-            lat,lng=rs.groups(1)
-        rt=re.search("yaw=([\d\-\.]*)",decoded_url)
-        if rt:
-            yaw=rs.groups(1)
+        if self.conf.get("viewer")=="gsw":
+            rs=re.search("@([\-0-9\.]+),([\-0-9\.]+)", decoded_url)
+            lat=None
+            lng=None
+            yaw=0
+            if rs:
+                lat,lng=rs.groups(1)
+            rt=re.search("yaw=([\d\-\.]*)",decoded_url)
+            if rt:
+                yaw=rt.groups(1)[0]
+            if lat and lng:
+                self.place_arrow(float(lat), float(lng), float(yaw))
+        else:
+            
+            rs=re.search("pKey=(\d+)", decoded_url)
+            if rs:
+                pky=rs.groups(1)[0]
+                
+                self.dl = SignDataDownloader(
+                mapillary_key=self.conf.get("mapillary_key"), image={"id":pky}, fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at,detections.value,detections.geometry')
+                self.dl.taskCompleted.connect(self.show_arrow)
+                QgsApplication.taskManager().addTask(self.dl)
 
     def show_browser(self):
+        self.initialize()
         if self.browser == None:
             self.browser=Browser()
             self.browser.findChild(QWebEngineView, "webView").urlChanged.connect(self.browsed)
@@ -461,7 +474,7 @@ class PlacaView:
             self.browser=None
        
     def change_local_view(self, v):
-        print(f"setting local view to {v}")
+        
         self.set_conf("viewer", v)
         if self.selected_sign:
             self.display_sign(None, self.selected_sign)
@@ -472,8 +485,9 @@ class PlacaView:
             return
         if not self.pluginIsActive:
             self.pluginIsActive = True
+            self.initialize()
             if self.browser == None:
-                self.browser=Browser()
+                self.show_browser()
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.browser)
             self.browser.show()
             icon=None
@@ -493,7 +507,6 @@ class PlacaView:
             self.dockwidget.findChild(
                 QPushButton, "pushButton_right").clicked.connect(self.page_up)
             self.prepare_roads_and_signs()
-            self.create_signs_fields()
             if not "from" in self.conf:
                 idx = self.signs_layer.fields().indexOf('last_seen_at')
                 self.conf["from"]=self.signs_layer.minimumValue(idx)
@@ -551,7 +564,7 @@ class PlacaView:
                     self.dockwidget.findChild(QLabel, "roads_label").setText(
                         f"Roads: {self.roads_layer.name()}")
         except Exception as x:
-            print(x)
+            
             self.roads_layer = None
         try:
             if self.boundary:
@@ -559,7 +572,7 @@ class PlacaView:
                     self.dockwidget.findChild(QLabel, "boundary_label").setText(
                         f"Boundary: {self.boundary.name()}")
         except Exception as x:
-            print(x)
+            
             self.boundary = None
 
     def ask_mapillary_key(self):
@@ -779,7 +792,6 @@ class PlacaView:
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
         total_work = (nw[0]-se[0])*(se[1] - nw[1])
         layer = self.create_signals_vector_layer()
-        self.create_signs_fields()
         layer.commitChanges()
         #layer.dataProvider().truncate()
         qgis.utils.iface.messageBar().clearWidgets()
@@ -849,10 +861,13 @@ class PlacaView:
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer, patty, QgsCoordinateTransformContext(), QgsVectorFileWriter.SaveVectorOptions())
 
-    def get_signs_layer(self):
-        print("creating signs layer")
+    def get_signs_layer(self, **kwargs):
         self.signs_layer = self.get_point_layer_by_name("traffic signs")
+        if not kwargs.get("force") and not self.signs_layer:
+            
+            return 
         if not self.signs_layer:
+            
             self.load_signs_layer()
         return self.signs_layer
 
@@ -912,22 +927,23 @@ class PlacaView:
     opened varchar NULL,
     value_code_face varchar NULL,
 	geom public.geometry(point, 4326) NULL,
+    composite_id integer NULL,
 	PRIMARY KEY (fid)
 );
 CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
+CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} (composite);
 CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (id);
 """
-            print("TABLE WAS CREATED")
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
             except:
-                print("I am unable to connect to the database") 
+                pass        
 
             cur = conn.cursor()
             try:
                 cur.execute(query)
             except:
-                print("I can't drop our test database!")
+                pass
 
             conn.commit() # <--- makes sure the change is shown in the database
             conn.close()
@@ -957,7 +973,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         """ get or create the photo layer"""
         layer = self.get_point_layer_by_name("traffic signs images")
         if not layer:
-            print("CREATING THE PHOTOS LAYER")
+            
             layer = QgsVectorLayer("Point", "traffic signs images", "memory")
             pr = layer.dataProvider()
             # Enter editing mode
@@ -988,7 +1004,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def set_signs_style(self, filter=[], layer=None, size=6):
         if layer is None:
             layer = self.get_point_layer_by_name("traffic signs")
-        #self.create_signs_fields()
         if self.conf.get("layer_filter"):
             lr=self.get_boundary_by_name(self.conf.get("layer_filter"))
         signs_layer = layer
@@ -1060,21 +1075,26 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.apply_filter(filter)
 
     def select_sign(self, *args, **kwargs):
-        print("selecting sign ")
-        print(args)
+        
+        
         self.selected_sign=args[0]
 
     def load_signs_editor(self):
-        print(self.selected_sign)
-        self.create_signs_fields()
+        self.initialize()
         if self.seditor is None:
-            self.seditor = SignsEditor(signs_layer=self.signs_layer)
+            self.iface.setActiveLayer(self.signs_layer)
+            self.seditor = SignsEditor(signs_layer=self.signs_layer, canvas=self.iface.mapCanvas())
             self.seditor.reloadSign.connect(self.reload_sign)
             self.seditor.showUrl.connect(self.show_url)
             self.seditor.selectSign.connect(self.display_sign)
             self.seditor.closeEvent = self.close_signs_editor
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.seditor)
             self.seditor.show()
+            canvas = self.iface.mapCanvas()
+            canvas.zoomToSelected()
+            canvas.refresh()
+            canvas.zoomByFactor(10)
+            canvas.refresh()
         else:
             self.seditor.setWindowState(self.seditor.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
             self.seditor.activateWindow()
@@ -1092,11 +1112,11 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
 
     def close_signs_editor(self, *args, **kwargs):
         self.seditor=None
-        try:
-            layer = self.get_point_layer_by_name("popup_sign")
-            QgsProject.instance().removeMapLayer(layer)
-        except:
-            pass
+        #try:
+        #    layer = self.get_point_layer_by_name("popup_sign")
+        #    QgsProject.instance().removeMapLayer(layer)
+        #except:
+        #    pass
         try:
             layer = self.get_point_layer_by_name("arrows_popup_layer")
             QgsProject.instance().removeMapLayer(layer)
@@ -1113,10 +1133,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         f.setFields(layer.fields())
         f.setAttribute(layer.fields().indexOf("code"),'unknown_sign')
         f.setAttribute(layer.fields().indexOf("value_code_face"),'symbols_br/unknown_sign.svg')
-        print("feature created")
+        
         vpr.addFeatures([f])
         layer.commitChanges()
-        print("commited")
+        
         layer.updateExtents()
         QgsProject.instance().reloadAllLayers()
 
@@ -1152,13 +1172,14 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
     def show_mapillary_image(self, image_id):
-        print("will show mapillary image", image_id)
+        
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
             'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
         QgsApplication.taskManager().addTask(self.imagetask)
 
     def show_image(self, image_id):
+        
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
             'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
@@ -1190,22 +1211,82 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def after_get_mapillary_images(self, *args, **kwargs):
         self.current_sign_images = []
         photos = args[1]
-        print("AFTER GET MAPILLARY IMAGES")
-        print(photos)
+        self.hide_arrow()
         if "images" in photos:
             self.current_sign_images_index = 0
             for photo in photos.get("images", {}).get("data", []):
                 self.current_sign_images.append(photo)
             self.navigate()
 
+    def hide_arrow(self):
+        arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
+        if not arrows_layer is None:
+            arrows_layer.dataProvider().truncate()
+            self.iface.mapCanvas().redrawAllLayers()
+
+
+    def place_arrow(self, lat, lng, azimuth):
+        
+        arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
+        if arrows_layer is None:
+            arrows_layer = QgsVectorLayer(
+                'Point?crs=EPSG:4326', 'arrows_popup_layer', 'memory')
+            arrows_layer.dataProvider().addAttributes([QgsField('id', QVariant.String),
+                                                       QgsField('compass', QVariant.Double)])
+            QgsProject.instance().addMapLayer(arrows_layer)
+        fu = QgsFeature()
+        fu.setAttributes(
+            [1, 0])
+        px=QgsPointXY(lng, lat)
+        rect = QgsRectangle(px,px)
+        canvas=self.iface.mapCanvas()
+        canvas.setExtent(rect)
+        canvas.refresh()
+
+        fu.setGeometry(QgsGeometry.fromPoint(QgsPoint(lng, lat)))
+        svg_path = os.path.join(os.path.dirname(__file__), f"styles/arrow.svg")
+        svg_marker = QgsSvgMarkerSymbolLayer(svg_path)
+        svg_marker.setAngle(azimuth)
+        svg_marker.setSize(8)
+
+        # Create a marker symbol and add the SVG marker to it
+        symbol = QgsMarkerSymbol.createSimple({})
+        symbol.changeSymbolLayer(0, svg_marker)
+
+        # Apply the symbol to the layer's renderer
+        arrows_layer.renderer().setSymbol(symbol)
+        arrows_layer.dataProvider().truncate()
+        arrows_layer.dataProvider().addFeatures([fu])
+        arrows_layer.updateExtents()
+        self.iface.mapCanvas().redrawAllLayers()
+
+    def show_arrow(self, *args, **kwargs):
+        if self.dl.result is None:
+            return
+        lng,lat = self.dl.result.get("computed_geometry").get("coordinates")
+        self.place_arrow(float(lat), float(lng), self.dl.result.get("computed_compass_angle"))
+ 
     def navigate(self):
         if not self.current_sign_images_index:
             self.current_sign_images_index=0
         self.url=f"https://www.mapillary.com/app/?&z=17&pKey={self.current_sign_images[self.current_sign_images_index]['id']}&focus=photo&trafficSign=all"
         self.show_url(self.url)
+        self.dl = SignDataDownloader(
+            mapillary_key=self.conf.get("mapillary_key"), image=self.current_sign_images[self.current_sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at,detections.value,detections.geometry')
+        self.dl.taskCompleted.connect(self.show_arrow)
+        QgsApplication.taskManager().addTask(self.dl)
 
     def display_sign(self, *args, **kwargs):
-        print("displaying sign")
+        canvas = self.iface.mapCanvas()
+        self.iface.setActiveLayer(self.signs_layer)
+        if self.seditor is not None:
+            self.seditor.selectSign.disconnect()
+            self.signs_layer.selectByExpression(f"\"fid\"={args[1].id()}")
+            canvas.zoomToSelected()
+            canvas.refresh()
+            canvas.zoomByFactor(10)
+            canvas.refresh()
+            self.seditor.selectSign.connect(self.display_sign)
 
         self.selected_sign = args[1]
         if not args[1].attribute("id"):
@@ -1213,25 +1294,30 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         else:
             self.selected_sign_id = int(args[1].attribute("id"))  # mapillary id
         if self.browser:
-            #self.browser.spinners()
-            p=self.selected_sign.geometry().asPoint()
-            if self.conf.get("viewer")=="gsw":
-                self.url = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
-                self.show_url(self.url)
+            self.browser.spinners()
+        p=self.selected_sign.geometry().asPoint()
+        if self.conf.get("viewer")=="gsw":
+            self.url = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
+            self.show_url(self.url)
+        else:
+            if not args[1].attribute("id"): # Não tem Mapillary id esta placa
+                def go_bb(task, wait_time):
+                    return self.get_images_in_bbox()
+                self.otask = QgsTask.fromFunction(
+                    'getting images', go_bb, on_finished=self.after_bbox, wait_time=1000)
+                QgsApplication.taskManager().addTask(self.otask)
+
+                #self.url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
+                #
+                #self.show_url(self.url)
             else:
-                if not args[1].attribute("id"): # Não tem Mapillary
-                    self.url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
-                    print("MAPILLARYLESS going to", self.url)
-                    self.show_url(self.url)
-                else:
-                    #self.browser.spinners()
-                    def go(task, wait_time):
-                        return self.get_images()
-                    self.otask = QgsTask.fromFunction(
-                        'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
-                    QgsApplication.taskManager().addTask(self.otask)
+                #self.browser.spinners()
+                def go(task, wait_time):
+                    return self.get_images()
+                self.otask = QgsTask.fromFunction(
+                    'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
+                QgsApplication.taskManager().addTask(self.otask)
         if self.seditor:
-            print("I WILL LOAD THE EDITOR")
             self.seditor.post_init(
                 iface=self.iface,
                 sign=self.selected_sign_id,
@@ -1275,16 +1361,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.current_sign_images_index = -1
             self.current_sign_images = []
 
-            #def go(task, wait_time):
-            #    return self.get_images()
-            #self.otask = QgsTask.fromFunction(
-            #    'getting images', go, on_finished=self.after_get_images, wait_time=1000)
-            #QgsApplication.taskManager().addTask(self.otask)
-
-        # self.get_images()
-    def set_webview_url(self): 
-        print("this is the main thread")
-
     def after_get_images(self, *args, **kwargs):
         photos = args[1]
         image_layer = self.get_signs_photo_layer()
@@ -1307,15 +1383,16 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def get_images(self):
         url = f'https://graph.mapillary.com/{self.selected_sign_id}?access_token={self.conf.get("mapillary_key")}&fields=images'
         fu = requests.get(url)
-        #    url, headers={'Authorization': "OAuth "+self.conf.get("mapillary_key")})
         if fu.status_code == 200:
             photos = fu.json()
             return photos
         return
+    
+    def after_bbox(self,*args, **kwargs):
+        self.url=f"https://www.mapillary.com/app/?&z=17&pKey={args[1]}&focus=photo&trafficSign=all"
+        self.show_url(self.url)
 
     def page_up(self):
-        print("PAGE UP")
-        print(self.current_sign_images)
         if len(self.current_sign_images):
             self.current_sign_images_index += 1
             self.current_sign_images_index = self.current_sign_images_index % len(
@@ -1346,10 +1423,11 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.signs_layer.commitChanges()
         #self.matcher = None
         try:
-            print("clising ")
+            
             self.geocoder_progress.close()
         except Exception as x:
-            print(x)
+            pass
+            
 
     def match_segment_roads(self):
         """
@@ -1369,12 +1447,11 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.geocoder_progress = QProgressBar()
-        self.create_signs_fields()
         progressMessageBar.pushWidget(self.geocoder_progress)
-        print("matcher ecsist")
+        
         if self.matcher is not None:
             self.matcher.cancel()
-        print("criando matcher")
+        
         self.matcher: RoadsMatcher = RoadsMatcher(
             signs_layer=signs_layer, roads_layer=roads_layer, on_finished=self.end_match, roads_field_name=self.conf.get("roads_field_name"), roads_pk=self.conf.get("roads_pk"))
         self.matcher.progressChanged.connect(self.match_progress_changed)
@@ -1389,7 +1466,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     def save_unique_values(self):
         signs_layer = self.get_signs_layer()
         if signs_layer is None:
-            print("NOTHING TO DO ")
+            
             return
         idx = signs_layer.fields().indexOf('value')
         with open(os.path.join(self.plugin_dir, "existing.txt"), "w+") as fu:
@@ -1448,13 +1525,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         fields=layer.fields()
         feature = layer.getFeature(args[0])
         attr=feature.attributes()
-        print(attr)        
-        print("this is my feature coder")
         if len(attr)==0:
             return
-        
         if fields.indexOf('code')>0:
-            print("has code")
+            
             if attr[fields.indexOf("code")] is not None:
                 vcf = attr[fields.indexOf("code")]
                 if attr[fields.indexOf("face")] != '' and attr[fields.indexOf("face")] is not None and str(attr[fields.indexOf("face")])!="NULL":
@@ -1464,74 +1538,75 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                 attr[fields.indexOf("value_code_face")]= placa_style
                 feature['value_code_face']= placa_style
                 
-        if fields.indexOf('first_seen_at') > 0:
-            if attr[fields.indexOf("first_seen_at")] is None:
-                if attr[fields.indexOf("first_seen_at_date")] is not None:
-                    dt=datetime.datetime.strptime(attr[fields.indexOf("first_seen_at_date")], "%Y-%m-%d")
-                    feature["first_seen_at"]=1000*time.mktime(dt.timetuple())                
-        if fields.indexOf('last_seen_at') > 0:
-            if attr[fields.indexOf("last_seen_at")] is None:
-                if attr[fields.indexOf("last_seen_at_date")] is not None:
-                    dt=datetime.datetime.strptime(attr[fields.indexOf("last_seen_at_date")], "%Y-%m-%d")
-                    feature["last_seen_at"]=1000*time.mktime(dt.timetuple())
-            layer.updateFeature(feature)    
+        #if fields.indexOf('first_seen_at') > 0:
+        ##    if attr[fields.indexOf("first_seen_at")] is None:
+        #        if attr[fields.indexOf("first_seen_at_date")] is not None:
+        #            dt=datetime.datetime.strptime(attr[fields.indexOf("first_seen_at_date")], "%Y-%m-%d")
+        #            feature["first_seen_at"]=1000*time.mktime(dt.timetuple())                
+        #if fields.indexOf('last_seen_at') > 0:
+        #    if attr[fields.indexOf("last_seen_at")] is None:
+        #        if attr[fields.indexOf("last_seen_at_date")] is not None:
+        #            dt=datetime.datetime.strptime(attr[fields.indexOf("last_seen_at_date")], "%Y-%m-%d")
+        #            feature["last_seen_at"]=1000*time.mktime(dt.timetuple())
+        #    layer.updateFeature(feature)    
             
     def generate_signs_form(self):
         QgsMessageLog.logMessage('generating the form')
         layer = self.get_signs_layer()
-        
-        
+        if not layer:
+            return
         date_config = {'allow_null': True,
               'calendar_popup': True,
               'display_format': 'yyyy-MM-dd',
               'field_format': 'yyyy-MM-dd',
               'field_iso_format': False}
         fields = layer.fields()
-        field_idx = fields.indexOf('last_seen_at_date')
-        
-        if field_idx >= 0:
-            date_widget_setup = QgsEditorWidgetSetup('DateTime',date_config)
-            layer.setEditorWidgetSetup(field_idx, date_widget_setup)
-            layer.setDefaultValueDefinition(field_idx, QgsDefaultValue('now()'))
-            layer.setEditorWidgetSetup(fields.indexOf('first_seen_at_date'), date_widget_setup)
-            layer.setDefaultValueDefinition(fields.indexOf('first_seen_at_date'), QgsDefaultValue('now()'))            
-            sign_names={}
-            for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])  :
-                sign_names[name]=name
-                
-            QgsMessageLog.logMessage("sign names discovered")
-            layer.setEditorWidgetSetup(fields.indexOf('value'), QgsEditorWidgetSetup('ValueMap', {"map": sign_names, "Editable":True}))
-            br_sign_names={}
-            for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols_br'))]):
-                br_sign_names[name]=name
-            layer.setEditorWidgetSetup(fields.indexOf('text1'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
-            layer.setEditorWidgetSetup(fields.indexOf('text2'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
-            layer.setEditorWidgetSetup(fields.indexOf('suporte'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
-            layer.setEditorWidgetSetup(fields.indexOf('code'), QgsEditorWidgetSetup('ValueMap', {"Editable":True, "map":br_sign_names}))
-            layer.setEditorWidgetSetup(fields.indexOf('first_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('last_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('user'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('open'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('status'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('value_code_face'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            layer.setEditorWidgetSetup(fields.indexOf('certain'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
-            try:
-                layer.featureAdded.disconnect()
-            except:
-                pass
-            # Connect the signal to the handler function
-            layer.featureAdded.connect(self.feature_added)
+        sign_names={}
+        for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])  :
+            sign_names[name]=name
+            
+        QgsMessageLog.logMessage("sign names discovered")
+        layer.setEditorWidgetSetup(fields.indexOf('value'), QgsEditorWidgetSetup('ValueMap', {"map": sign_names, "Editable":True}))
+        br_sign_names={}
+        for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols_br'))]):
+            br_sign_names[name]=name
+        layer.setEditorWidgetSetup(fields.indexOf('text1'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+        layer.setEditorWidgetSetup(fields.indexOf('text2'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+        layer.setEditorWidgetSetup(fields.indexOf('suporte'), QgsEditorWidgetSetup('UniqueValues', {"Editable":True}))
+        layer.setEditorWidgetSetup(fields.indexOf('code'), QgsEditorWidgetSetup('ValueMap', {"Editable":True, "map":br_sign_names}))
+        layer.setEditorWidgetSetup(fields.indexOf('first_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('last_seen_at'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('user'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('open'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('status'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('value_code_face'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        layer.setEditorWidgetSetup(fields.indexOf('certain'), QgsEditorWidgetSetup('Hidden', {"Editable":False}))
+        try:
+            layer.featureAdded.disconnect()
+        except:
+            pass
+        # Connect the signal to the handler function
+        layer.featureAdded.connect(self.feature_added)
+        self.initialized=True
 
-    def create_signs_fields(self):
+    def initialize(self):
+        if not self.initialized:
+            self.create_signs_fields(force=True)
+            self.generate_signs_form()
+            
+
+    def create_signs_fields(self, **kwargs):
+        
         if len(self.conf.get("connection_string", "")):
             self.migraine()
-        roads_layer=self.get_roads_layer()
-        signs_layer=self.get_signs_layer()
+        self.get_roads_layer()
+        self.get_signs_layer(force=kwargs.get("force", False))
         roads_field_name=self.conf.get("roads_field_name")
         roads_pk=self.conf.get("roads_pk")
-        if self.signs_layer is None:
+        if self.signs_layer is None or self.roads_layer is None:
             return
         self.signs_layer.updateFields() 
+        self.signs_layer.startEditing()
         if not "saved" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("saved", QVariant.Bool)])
@@ -1546,18 +1621,21 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                 [QgsField("last_seen_at", QVariant.Double)])
         if not "revision" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("revision", QVariant.Int)])
+                [QgsField("revision", QVariant.Int, "INTEGER")])
         if not "road" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("road", QVariant.Int)])
+                [QgsField("road", QVariant.Int, "INTEGER")])
+        if not "composite_id" in [f.name() for f in self.signs_layer.fields()]:
+            self.signs_layer.dataProvider().addAttributes(
+                [QgsField("composite_id", QVariant.Int, "INTEGER")])
         if not "out" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
-                [QgsField("out", QVariant.Int)])
+                [QgsField("out", QVariant.Int, "INTEGER")])
         if not "certain" in [f.name() for f in self.signs_layer.fields()]:
             self.signs_layer.dataProvider().addAttributes(
                 [QgsField("certain", QVariant.Double)])
         if not "status" in [f.name() for f in self.signs_layer.fields()]:
-            fi=QgsField("status", QVariant.Int)
+            fi=QgsField("status", QVariant.Int, "INTEGER")
             fi.setDefaultValueDefinition(QgsDefaultValue('0'))
             self.signs_layer.dataProvider().addAttributes([fi])
         if not "text1" in [f.name() for f in self.signs_layer.fields()]:
@@ -1584,13 +1662,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         if "value_code_face" not in [f.name() for f in self.signs_layer.fields()]:
             vface = QgsField("value_code_face", QVariant.String, "VARCHAR",100)
             self.signs_layer.dataProvider().addAttributes([vface])
-        if "first_seen_at_date" not in [f.name() for f in self.signs_layer.fields()]:
-            vface = QgsField("first_seen_at_date", QVariant.String, "VARCHAR",10)
-            self.signs_layer.dataProvider().addAttributes([vface])
-        if "last_seen_at_date" not in [f.name() for f in self.signs_layer.fields()]:
-            vface = QgsField("last_seen_at_date", QVariant.String, "VARCHAR",10)
-            self.signs_layer.dataProvider().addAttributes([vface])
-            
             with edit(self.signs_layer):
                 for feature in self.signs_layer.getFeatures():
                     feature.setAttribute(feature.fieldNameIndex('value_code_face'), f"symbols/{feature['value']}.svg")
@@ -1601,41 +1672,33 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             
         self.signs_layer.updateFields()        
         QgsProject.instance().reloadAllLayers()
-        self.generate_signs_form()
+        
 
     def migraine(self):
-        print("DOING MIGRATIONS")
-
-        uri = QgsDataSourceUri()
-
         cstring=self.conf.get("connection_string")
         m=re.findall("([^=^\s]+)=([^=^\s]+)",cstring)
         h={}
         for p in m:
             h[p[0]]=p[1]
-            
-            
         table_name=h.get("table_name", "signs")
         try:
             conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
         except:
-            print("I am unable to connect to the database") 
+            pass            
 
         cur = conn.cursor()
         
         cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS \"revision\" integer default 0;")
         cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS \"value_code_face\" VARCHAR(100);")
         cur.execute(f"UPDATE {table_name} set value_code_face=case when code is null then 'symbols/'||value else case when face is null then 'symbols_br/'||code else 'symbols_br_faced/'||code||'-'||face end end || '.svg';")
-
-
         conn.commit() # <--- makes sure the change is shown in the database
         conn.close()
         cur.close()
 
-        print("table was altered")
+        
         signs_layer=self.get_signs_layer()
         if signs_layer:
-            print("reloading the signs layer")
+            
             signs_layer.reload()
             signs_layer.triggerRepaint()
             self.save_unique_values()
@@ -1643,12 +1706,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
     
     def show_url(self, url):
         if self.browser:
-            print("GOING AFTER IMAGE", url)
+            self.url=url
             if self.browser.findChild(QWebEngineView, "webView"):
                 current_url=self.browser.findChild(QWebEngineView, "webView").url().toString()
-                print("CURRENT URL IS", current_url)
                 if re.search("mapillary\.com", current_url) and re.search("mapillary\.com", url) and re.search("pKey=", url) and re.search("pKey=", current_url):
-                    print("shown")
                     self.browser.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{url}\"")
                 else:
                     self.browser.findChild(QWebEngineView, "webView").setUrl(QUrl(url))

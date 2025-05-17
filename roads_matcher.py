@@ -32,9 +32,6 @@ class RoadsMatcher(QgsTask):
         self.total=kwargs.get("total")
         self.done=kwargs.get("done",0)
         self.feature_id=kwargs.get("feature_id")
-        #self.on_finished=kwargs.get("on_finished")
-       
-        
         self.buffet = EquidistanceBuffer()
         QgsMessageLog.logMessage('Instanced task geocoder "{}"'.format(
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
@@ -54,7 +51,7 @@ class RoadsMatcher(QgsTask):
         n=0
         self.setProgress(0)
 
-        print("create req")
+        
         request=QgsFeatureRequest(QgsExpression(" \"road\" is null and \"out\" is null"))
         #request.setLimit(100)
         fids=[f.id() for f in self.signs_layer.getFeatures(request)]
@@ -63,11 +60,14 @@ class RoadsMatcher(QgsTask):
         top=0
         #self.signs_layer.startEditing()
         provider:QgsDataProvider=self.signs_layer.dataProvider()
+        projector=None
+        xform=None
+        roads_xform=None
         while top<total:
             
             for fid in fids[top:top+10000]:
                 feature=self.signs_layer.getFeature(fid)
-                print(f"done {n} {top}")
+                
                 n+=1
                 self.setProgress(100*n/total)
                 d = 50
@@ -75,13 +75,13 @@ class RoadsMatcher(QgsTask):
                 if self.isCanceled():
                     return False
                 geom = feature.geometry()
-                projector = QgsCoordinateReferenceSystem(
-                    self.buffet.proj_string(geom))
-
-                xform = QgsCoordinateTransform(
-                    self.signs_layer.crs(), projector, QgsProject.instance())
-                roads_xform = QgsCoordinateTransform(
-                    self.roads_layer.crs(), projector, QgsProject.instance())
+                if projector is None:
+                    projector = QgsCoordinateReferenceSystem(
+                        self.buffet.proj_string(geom))
+                    xform = QgsCoordinateTransform(
+                        self.signs_layer.crs(), projector, QgsProject.instance())
+                    roads_xform = QgsCoordinateTransform(
+                        self.roads_layer.crs(), projector, QgsProject.instance())
                 gt = geom.asWkt()
                 projected = QgsGeometry.fromWkt(gt)
                 projected.transform(xform)
@@ -123,7 +123,7 @@ class RoadsMatcher(QgsTask):
                     provider.changeAttributeValues({feature.id():{self.signs_layer.fields().indexOf("out"):1}})
                     provider.leaveUpdateMode()
                     #self.signs_layer.changeAttributeValue(feature.id(), self.signs_layer.fields().indexOf("out"),1)
-            print("done", n)
+            
             top+=10000
             #self.signs_layer.commitChanges(False)
         return True

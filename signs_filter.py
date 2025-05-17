@@ -25,9 +25,6 @@ class SignsFilter(QDialog, FormClass):
         super().__init__(parent=kwargs.get("parent"))
         self.selected_signs=set(kwargs.get("filter", []))
         self.sign_names=sorted(kwargs.get("values",[]))
-        print("STARTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT")
-        print(self.selected_signs)
-        print(self.sign_names)
         self.setWindowTitle("Signs Filter")
         self.setupUi(self)
         self.search_term=QgsFilterLineEdit()
@@ -44,14 +41,7 @@ class SignsFilter(QDialog, FormClass):
             item.setSizeHint(row.minimumSizeHint())
             widget.setItemWidget(item, row)
         self.connect_signals()
-        #combover:QgsMapLayerComboBox=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox")
-        #combover.setFilters(QgsMapLayerProxyModel.PolygonLayer)
-        #combover.setAllowEmptyLayer(True)
-        #combover.setLayer(None)
-        #if kwargs["layer_filter"]:
-        #    combover.setLayer(kwargs["layer_filter"])
-            
-            
+
     def get_signs(self):
         if not self.sign_names:
             filename=os.path.join(os.path.dirname(__file__), "existing.txt")
@@ -78,8 +68,8 @@ class SignsFilter(QDialog, FormClass):
         layer_filter=None
         #if l:
         #    layer_filter=l.name()         
-        print("Will save the filter")
-        print(self.selected_signs)   
+        
+        
         self.applyClicked.emit(list(self.selected_signs),layer_filter)
         self.close()
                     

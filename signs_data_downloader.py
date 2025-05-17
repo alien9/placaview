@@ -21,11 +21,11 @@ class SignDataDownloader(QgsTask):
             if r.status_code == 200:
                 self.result = r.json()
                 return True
-            print(r.status_code)
+            
             return False
         except Exception as e:
-            print(e)
-            print("errorr")
+            
+            
             self.exception = e
             return False
 

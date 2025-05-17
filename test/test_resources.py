@@ -40,8 +40,8 @@ class PlacaViewResourcesTest(unittest.TestCase):
         """Runs before each test."""
         app=get_qgis_app()
         self.placaview=PlacaView(QgisInterfaceDummy())
-        print(PlacaView)
-        print("PlacaView")
+        
+        
         self.placaview.run()
     def tearDown(self):
         """Runs after each test."""

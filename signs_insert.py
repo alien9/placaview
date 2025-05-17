@@ -18,13 +18,13 @@ class SignsInsert(QgsMapToolEmitPoint):
         #canvas.setMapTool(self)
     """ 
     def insert_sign_at(self, *args, **kwargs):
-        print("inserting sifng oooo")
-        print(args)
+        
+        
                     
     def canvasReleaseEvent(self, mouseEvent):
-        print("canvas release")
+        
             
     def canvasPressEvent(self, event):
-        print("presss")
+        
     """
         
