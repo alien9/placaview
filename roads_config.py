@@ -10,7 +10,6 @@ from qgis.PyQt import uic
 
 from qgis.gui import QgsFilterLineEdit
 import os, re
-from .signs_filter_item import SignsFilterItem
 
 FormClass, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'roads_config.ui'))

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="camera-location">
+  <ellipse cx="32" cy="53.5" fill="#fccd1d" rx="29" ry="7.5"></ellipse>
+  <ellipse cx="32" cy="53.5" fill="#f9a215" rx="20" ry="3.5"></ellipse>
+  <path fill="#dd051d" d="M54 25a22 22 0 1 0-31.14 20l7.82 7.84a2 2 0 0 0 2.64 0L41.14 45A22 22 0 0 0 54 25Z"></path>
+  <circle cx="32" cy="25" r="18" fill="#fff"></circle>
+  <path fill="#212529" d="m38.09 17.9-2.64-3a1.05 1.05 0 0 0-.78-.35h-5.34a1.05 1.05 0 0 0-.78.35l-2.64 3a1.05 1.05 0 0 1-.78.35h-3.58a1 1 0 0 0-1.05 1.05v13.06a1 1 0 0 0 1.05 1h20.9a1 1 0 0 0 1-1V19.3a1 1 0 0 0-1-1.05h-3.58a1.05 1.05 0 0 1-.78-.35Z"></path>
+  <circle cx="32" cy="25.05" r="3.66" fill="#fff"></circle>
+</svg>

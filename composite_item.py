@@ -11,12 +11,12 @@ import os, re
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, pyqtSlot, QObject, pyqtSignal
 from qgis.gui import QgsFilterLineEdit
 
-class SignsFilterItem(QWidget):
+class CompositeItem(QWidget):
     check:QCheckBox
-    changed = pyqtSignal(str, bool)
+    changed = pyqtSignal(str, bool, int, int)
     
-    def __init__(self, sign_name, parent=None):
-        super(SignsFilterItem, self).__init__(parent)
+    def __init__(self, sign_name, sign_text, sign_id, composite_id, parent=None):
+        super(CompositeItem, self).__init__(parent)
         self.row = QHBoxLayout()
         if not sign_name:
             name="unknown_sign.svg"
@@ -26,18 +26,20 @@ class SignsFilterItem(QWidget):
         svgWidget.setFixedWidth(30)
         svgWidget.setFixedHeight(30)
         self.row.addWidget(svgWidget)
-        self.check=QCheckBox(text=name)
+        self.check=QCheckBox(text=sign_text)
         self.check.name=name
         self.row.addWidget(self.check)
         self.setLayout(self.row)
         self.name=name
+        self.sign_id=sign_id
+        self.composite_id=composite_id
         self.check.stateChanged.connect(self.valueChanged)
         
     def setValue(self, value):
         self.check.setChecked(value)
         
     def valueChanged(self, *args):
-        self.changed.emit(self.name, args[0]==2)
+        self.changed.emit(self.name, args[0]==2, self.sign_id, self.composite_id)
 
     def getValue(self):
         return self.check.isChecked()

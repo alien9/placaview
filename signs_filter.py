@@ -30,7 +30,7 @@ class SignsFilter(QDialog, FormClass):
         self.search_term=QgsFilterLineEdit()
         layout=self.findChild(QHBoxLayout, "searchLayout")
         layout.addWidget(self.search_term)
-        for name in self.sign_names: #get_signs():
+        for name in self.sign_names:
             widget=self.findChild(QListWidget, "listWidget")
             item = QListWidgetItem(widget)
             item.name=name
@@ -41,14 +41,7 @@ class SignsFilter(QDialog, FormClass):
             item.setSizeHint(row.minimumSizeHint())
             widget.setItemWidget(item, row)
         self.connect_signals()
-        #combover:QgsMapLayerComboBox=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox")
-        #combover.setFilters(QgsMapLayerProxyModel.PolygonLayer)
-        #combover.setAllowEmptyLayer(True)
-        #combover.setLayer(None)
-        #if kwargs["layer_filter"]:
-        #    combover.setLayer(kwargs["layer_filter"])
-            
-            
+
     def get_signs(self):
         if not self.sign_names:
             filename=os.path.join(os.path.dirname(__file__), "existing.txt")
@@ -74,7 +67,9 @@ class SignsFilter(QDialog, FormClass):
         #l=self.findChild(QgsMapLayerComboBox, "mMapLayerComboBox").currentLayer()
         layer_filter=None
         #if l:
-        #    layer_filter=l.name()            
+        #    layer_filter=l.name()         
+        
+        
         self.applyClicked.emit(list(self.selected_signs),layer_filter)
         self.close()
                     
@@ -87,7 +82,8 @@ class SignsFilter(QDialog, FormClass):
         #filtered_list = set(filter(lambda x: term in x, self.get_signs()))
         widget=self.findChild(QListWidget, "listWidget")
         for i in range(widget.count()):
-            widget.item(i).setHidden(term not in widget.item(i).name)
+            if widget.item(i).name:
+                widget.item(i).setHidden(term not in widget.item(i).name)
         c=self.findChild(QCheckBox, "select_all")
         c.blockSignals(True)
         c.setChecked(False)

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>Browser</class>
+    <widget class="QDockWidget" name="BrowserBase">
+        <property name="windowTitle">
+            <string>Local Image View</string>
+        </property>
+        <widget class="QWidget" name="BrowserContents">
+            <layout class="QGridLayout" name="gridLayout">
+                <item column="0" row="0">
+                    <widget class="QWebEngineView" name="webView">
+                        <property name="minimumSize">
+                            <size>
+                                <width>320</width>
+                                <height>180</height>
+                            </size>
+                        </property>
+                        <property name="maximumSize">
+                            <size>
+                                <width>1024</width>
+                                <height>572</height>
+                            </size>
+                        </property>
+                        <property name="url">
+                            <url>
+                                <string>about:blank</string>
+                            </url>
+                        </property>
+                    </widget>
+                </item>
+            </layout>
+        </widget>
+    </widget>
+    <customwidgets>
+        <customwidget>
+            <class>QgsDateEdit</class>
+            <extends>QDateEdit</extends>
+            <header>qgsdateedit.h</header>
+        </customwidget>
+        <customwidget>
+            <class>QWebView</class>
+            <extends>QWidget</extends>
+            <header location="global">QtWebKitWidgets/QWebView</header>
+        </customwidget>
+        <customwidget>
+            <class>QWebEngineView</class>
+            <extends>QWidget</extends>
+            <header location="global">QtWebEngineWidgets/QWebEngineView</header>
+        </customwidget>
+    </customwidgets>
+    <resources />
+    <connections />
+</ui>

@@ -30,6 +30,7 @@ from qgis.PyQt.QtWebKitWidgets import QWebView
 #from qgis.core import *
 from qgis.PyQt.QtWidgets import *
 #from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import QIcon
 
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -40,8 +41,9 @@ class PlacaViewDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
 
     closingPlugin = pyqtSignal()
     photoClick = pyqtSignal()
+    localViewChange=pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, viewer="mapillary", icon=None):
         """Constructor."""
         super(PlacaViewDockWidget, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -50,12 +52,26 @@ class PlacaViewDockWidget(QtWidgets.QDockWidget, FORM_CLASS):
         # http://doc.qt.io/qt-5/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.findChild(QCommandLinkButton, "editCommandLinkButton").clicked.connect(self.web_click)
-        
-
+        if viewer=="mapillary":
+            self.findChild(QRadioButton, "radio_mapillary").setChecked(True)
+        else:        
+            self.findChild(QRadioButton, "radio_gsw").setChecked(True)
+        if icon:
+            self.findChild(QPushButton, "mapillarytype").setIcon(QIcon(icon))
+        self.findChild(QRadioButton, "radio_gsw").toggled.connect(self.changeRadio_gsw)
+        self.findChild(QRadioButton, "radio_mapillary").toggled.connect(self.changeRadio_mapillary)
+            
     def closeEvent(self, event):
         self.closingPlugin.emit()
         event.accept()
         
     def web_click(self):
-        self.photoClick.emit()    
+        self.photoClick.emit()
+
+    def changeRadio_gsw(self, *args, **kwargs):
+        if args[0]:
+            self.localViewChange.emit("gsw")
+    
+    def changeRadio_mapillary(self, *args, **kwargs):
+        if args[0]:
+            self.localViewChange.emit("mapillary")

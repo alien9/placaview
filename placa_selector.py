@@ -24,7 +24,6 @@ from qgis.gui import QgsFilterLineEdit
 import os
 import requests
 import re
-from .signs_filter_item import SignsFilterItem
 
 FormClass, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'placa_selector.ui'))
@@ -39,7 +38,6 @@ class PlacaSelector(QDialog, FormClass):
 
     def __init__(self, *args, **kwargs):
         super().__init__(parent=kwargs.get("parent"))
-
         self.setWindowTitle("Select the Sign")
         self.setupUi(self)
         layout: QGridLayout = self.findChild(QGridLayout, "gridLayout")
