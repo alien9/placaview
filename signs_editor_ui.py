@@ -284,14 +284,8 @@ class Ui_SignsEditor(object):
 
         self.verticalLayout1.addLayout(self.h_date)
 
-        self.vertbuttonLayout = QVBoxLayout()
+        self.vertbuttonLayout = QHBoxLayout()
         self.vertbuttonLayout.setObjectName(u"vertbuttonLayout")
-        self.pushButton_save = QPushButton(self.scrollAreaWidgetContents)
-        self.pushButton_save.setObjectName(u"pushButton_save")
-        self.pushButton_save.setMaximumSize(QSize(250, 16777215))
-
-        self.vertbuttonLayout.addWidget(self.pushButton_save)
-
         self.pushButton_next = QPushButton(self.scrollAreaWidgetContents)
         self.pushButton_next.setObjectName(u"pushButton_next")
         self.pushButton_next.setMaximumSize(QSize(250, 16777215))
@@ -336,8 +330,7 @@ class Ui_SignsEditor(object):
         self.suporte_label.setText(QCoreApplication.translate("SignsEditor", u"Support", None))
         self.composta.setText(QCoreApplication.translate("SignsEditor", u"Composite", None))
         self.compost_choose.setText(QCoreApplication.translate("SignsEditor", u"Select", None))
-        self.pushButton_save.setText(QCoreApplication.translate("SignsEditor", u"Save", None))
-        self.pushButton_next.setText(QCoreApplication.translate("SignsEditor", u"Save And Go", None))
+        self.pushButton_next.setText(QCoreApplication.translate("SignsEditor", u"Save", None))
         self.pushButton_next_no_save.setText(QCoreApplication.translate("SignsEditor", u"Next", None))
     # retranslateUi
 
