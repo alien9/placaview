@@ -78,8 +78,6 @@ class SignsEditor(QDockWidget, FormClass):
                 f.setCompleter(completer)
         other_but: QPushButton = self.findChild(QPushButton, "brasiltype")
         other_but.clicked.connect(self.select_sign)
-        self.findChild(QPushButton, "pushButton_save").clicked.connect(
-            lambda: self.save_sign_close())
         self.findChild(QPushButton, "pushButton_next").clicked.connect(
             lambda: self.save_continue())
         self.findChild(QPushButton, "pushButton_next_no_save").clicked.connect(
@@ -338,11 +336,14 @@ class SignsEditor(QDockWidget, FormClass):
             self.navigate()
         else:
             if self.sign["id"]:
-                def go(task, wait_time):
-                    return self.get_images()
-                self.otask = QgsTask.fromFunction(
-                    'getting images', go, on_finished=self.after_get_images, wait_time=1000)
-                QgsApplication.taskManager().addTask(self.otask)
+                if self.conf.get("viewer")=="gsw":
+                    pass
+                else:
+                    def go(task, wait_time):
+                        return self.get_images()
+                    self.otask = QgsTask.fromFunction(
+                        'getting images', go, on_finished=self.after_get_images, wait_time=1000)
+                    QgsApplication.taskManager().addTask(self.otask)
 
     def after_get_images(self, *args, **kwargs):
         self.sign_images = []
@@ -421,12 +422,16 @@ class SignsEditor(QDockWidget, FormClass):
             self.sign_id = fids[found_index][1]
             self.sign_images = []
             self.selectSign.emit(None, self.sign)
-            def go(task, wait_time):
-                return self.get_images()
-            self.otask = QgsTask.fromFunction(
-                'getting images', go, on_finished=self.after_get_images, wait_time=1000)
-            QgsApplication.taskManager().addTask(self.otask)
-            self.set_minimap()
+
+            if self.conf.get("viewer")=="gsw":
+                pass
+            else:
+                def go(task, wait_time):
+                    return self.get_images()
+                self.otask = QgsTask.fromFunction(
+                    'getting images', go, on_finished=self.after_get_images, wait_time=1000)
+                QgsApplication.taskManager().addTask(self.otask)
+                self.set_minimap()
         else:
             dlsg = QMessageBox(self)
             dlsg.setText("There are no signs to edit")

@@ -29,7 +29,7 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsText
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl, QDate
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit
+from qgis.PyQt.QtWidgets import QMenu, QToolButton, QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit
 from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApplication, QgsTask, QgsMarkerSymbol, QgsFillSymbol
 from qgis.core import QgsPoint, QgsRectangle, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
@@ -270,8 +270,8 @@ class PlacaView:
         if whats_this is not None:
             action.setWhatsThis(whats_this)
 
-        if add_to_toolbar:
-            self.toolbar.addAction(action)
+        #if add_to_toolbar:
+        #    self.toolbar.addAction(action)
 
         if add_to_menu:
             self.iface.addPluginToMenu(
@@ -284,83 +284,95 @@ class PlacaView:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
-        icon_path = ':/plugins/placa_view/icon.png'
-        self.add_action(
-            icon_path,
+        icon = QIcon(os.path.join(self.plugin_dir,
+                         "styles/symbols_br/R-2.svg"))
+        action = QAction(icon, "Traffic Signs", self.iface.mainWindow())
+        self.popupMenu = QMenu(self.iface.mainWindow())
+        self.toolButton = QToolButton()
+        self.toolButton.setMenu(self.popupMenu)
+        self.toolButton.setObjectName("placaTool")
+        self.toolButton.setPopupMode(QToolButton.InstantPopup)
+        self.toolButton.setDefaultAction(action)
+        toolbarMenu = self.iface.mainWindow().findChild(QToolButton, 'placaTool')
+        if toolbarMenu is not None:
+            toolbarMenu.setParent(None)
+        self.iface.addToolBarWidget(self.toolButton) 
+        self.popupMenu.addAction(self.add_action(
+            os.path.join(self.plugin_dir,
+                         "styles/icons/modify-icon.svg"),
             text=self.tr(u'Manage Road Signs'),
             callback=self.run,
-            parent=self.iface.mainWindow())
-        self.add_action(
+            parent=self.iface.mainWindow()))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/key.svg"),
             text="Configure Mapillary Key",
             callback=self.ask_mapillary_key,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/postgresql-icon.svg"),
             text="Connection String",
             callback=self.ask_connectionstring,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
                         os.path.join(self.plugin_dir,
                          "styles/icons/globe.svg"),
             text="Set Boundary",
             callback=self.ask_boundary_layer,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/grid-svgrepo-com.svg"),
             text="Set Roads",
             callback=self.ask_roads_layer,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/dl.svg"),
             text="Download Signs",
             callback=self.download_signs,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/cloud-arrow-down-svgrepo-com.svg"),
             text="Download Signs with Parameters",
             callback=self.download_signs_with_parameters,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/location-camera.svg"),
             text="Show Local Photos",
             callback=self.show_browser,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/filter.svg"),
             text="Filter Signs",
             callback=self.load_signs_filter,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/direction-road-sign-icon.svg"),
             text="Match Roads",
             callback=self.match_segment_roads,
             parent=self.iface.mainWindow()
-        )
-        self.add_action(
+        ))
+        self.popupMenu.addAction(self.add_action(
             os.path.join(self.plugin_dir,
                          "styles/icons/run.svg"),
             text="Run",
             callback=self.start_editor,
             parent=self.iface.mainWindow()
-        )
+        ))
         for a in self.iface.attributesToolBar().actions():
             if a.statusTip() == 'Signs':
                 self.iface.attributesToolBar().removeAction(a)
@@ -378,6 +390,14 @@ class PlacaView:
         self.add_tool.setStatusTip("Signs")
         self.add_tool.setCheckable(True)
         self.add_tool.triggered.connect(self.start_insert_feature)
+        
+        self.view_tool = QAction(QIcon(os.path.join(
+            self.plugin_dir, f"styles/icons/camera-photo.svg")), "View", self.iface.mainWindow())
+        self.view_tool.setWhatsThis("Click on the map to see local images")
+        self.view_tool.setStatusTip("Signs")
+        self.view_tool.setCheckable(True)
+        self.view_tool.triggered.connect(self.start_view)
+        
         actionList = self.iface.mapNavToolToolBar().actions()
 
         # Add actions from QGIS attributes toolbar (handling QWidgetActions)
@@ -396,11 +416,12 @@ class PlacaView:
             group.addAction(action)
         group.addAction(self.click_tool)
         group.addAction(self.add_tool)
+        group.addAction(self.view_tool)
 
         # add toolbar button and menu item
         self.iface.attributesToolBar().addAction(self.click_tool)
         self.iface.attributesToolBar().addAction(self.add_tool)
-
+        self.iface.attributesToolBar().addAction(self.view_tool)
     # --------------------------------------------------------------------------
 
     def onClosePlugin(self):
@@ -460,7 +481,7 @@ class PlacaView:
                 self.dl.taskCompleted.connect(self.show_arrow)
                 QgsApplication.taskManager().addTask(self.dl)
 
-    def show_browser(self):
+    def show_browser(self, toggle=True):
         self.initialize()
         if self.browser == None:
             self.browser=Browser()
@@ -470,8 +491,9 @@ class PlacaView:
             if self.url:
                 self.show_url(self.url)
         else:
-            self.browser.close()
-            self.browser=None
+            if toggle:
+                self.browser.close()
+                self.browser=None
        
     def change_local_view(self, v):
         
@@ -906,7 +928,6 @@ class PlacaView:
         uri.setDataSource ("public", table_name, "geom")
         vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
-            #import psycopg2
             query=f"""CREATE TABLE if not exists  public.{table_name} (
 	fid serial4 NOT NULL,
 	id float8 NULL,
@@ -1091,10 +1112,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.iface.addDockWidget(Qt.RightDockWidgetArea, self.seditor)
             self.seditor.show()
             canvas = self.iface.mapCanvas()
-            canvas.zoomToSelected()
-            canvas.refresh()
-            canvas.zoomByFactor(10)
-            canvas.refresh()
+            if self.selected_sign is not None:
+                point=self.selected_sign.geometry().asPoint()
+                canvas.setCenter(point)
+                canvas.zoomScale(1000)
         else:
             self.seditor.setWindowState(self.seditor.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
             self.seditor.activateWindow()
@@ -1140,6 +1161,28 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         layer.updateExtents()
         QgsProject.instance().reloadAllLayers()
 
+    def view_location(self, *args, **kwargs):
+        p=args[0]
+        canvas = self.iface.mapCanvas()
+        canvas.setCenter(p)
+        canvas.zoomScale(1000)
+        self.show_browser(False)
+        if self.conf.get("viewer")=="gsw":
+            self.url = f"https://maps.google.com/maps?q=&layer=c&cbll={p.y()},{p.x()}"
+            self.show_url(self.url)
+        else:
+            def go_bb(task, wait_time):
+                return self.get_images_in_bbox(p)
+            self.otask = QgsTask.fromFunction(
+                'getting images', go_bb, on_finished=self.after_bbox, wait_time=1000)
+            QgsApplication.taskManager().addTask(self.otask)
+            
+    def start_view(self):
+        self.mapTool = SignsInsert(self.iface.mapCanvas())
+        self.mapTool.canvasClicked.connect(self.view_location)
+        self.iface.mapCanvas().setMapTool(self.mapTool)
+
+
     def start_insert_feature(self):
         self.signs_layer = self.get_signs_layer()
         if not self.signs_layer:
@@ -1171,15 +1214,13 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         url = QUrl(result.get("thumb_256_url"))
         self.dockwidget.findChild(QWebView, "webView").load(url)
 
-    def show_mapillary_image(self, image_id):
-        
+    def show_mapillary_image(self, image_id):        
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
             'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
         QgsApplication.taskManager().addTask(self.imagetask)
 
-    def show_image(self, image_id):
-        
+    def show_image(self, image_id):        
         self.image_id = image_id
         self.imagetask = QgsTask.fromFunction(
             'download', self.download_image_data, on_finished=self.after_download_image, wait_time=1000)
@@ -1224,9 +1265,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             arrows_layer.dataProvider().truncate()
             self.iface.mapCanvas().redrawAllLayers()
 
-
-    def place_arrow(self, lat, lng, azimuth):
-        
+    def place_arrow(self, lat, lng, azimuth):        
         arrows_layer = self.get_point_layer_by_name("arrows_popup_layer")
         if arrows_layer is None:
             arrows_layer = QgsVectorLayer(
@@ -1276,16 +1315,29 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.dl.taskCompleted.connect(self.show_arrow)
         QgsApplication.taskManager().addTask(self.dl)
 
+    def get_images_in_bbox(self, p):
+        size=0.0001
+        imagery=[]
+        while size<1 and len(imagery)<2:
+            url=f"https://graph.mapillary.com/images/?access_token={self.conf.get('mapillary_key')}&bbox={p.x()-size},{p.y()-size},{p.x()+size},{p.y()+size}"
+            size*=1.5
+            r = requests.get(url)
+            j=r.json()
+            imagery=j['data']
+        res=list(map(lambda x: (p.distance(QgsPointXY(x['geometry']['coordinates'][0],x['geometry']['coordinates'][1])),x["id"]), imagery))
+        res.sort()
+        return res[0][1]
+
     def display_sign(self, *args, **kwargs):
         canvas = self.iface.mapCanvas()
         self.iface.setActiveLayer(self.signs_layer)
         if self.seditor is not None:
             self.seditor.selectSign.disconnect()
             self.signs_layer.selectByExpression(f"\"fid\"={args[1].id()}")
-            canvas.zoomToSelected()
-            canvas.refresh()
-            canvas.zoomByFactor(10)
-            canvas.refresh()
+            if self.selected_sign is not None:
+                point=self.selected_sign.geometry().asPoint()
+                canvas.setCenter(point)
+                canvas.zoomScale(1000)
             self.seditor.selectSign.connect(self.display_sign)
 
         self.selected_sign = args[1]
@@ -1302,21 +1354,19 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         else:
             if not args[1].attribute("id"): # Não tem Mapillary id esta placa
                 def go_bb(task, wait_time):
-                    return self.get_images_in_bbox()
+                    return self.get_images_in_bbox(p)
                 self.otask = QgsTask.fromFunction(
                     'getting images', go_bb, on_finished=self.after_bbox, wait_time=1000)
                 QgsApplication.taskManager().addTask(self.otask)
-
-                #self.url = f"https://www.mapillary.com/app/?lat={p.y()}&lng={p.x()}&z=17&focus=photo&trafficSign=all"
-                #
-                #self.show_url(self.url)
             else:
-                #self.browser.spinners()
-                def go(task, wait_time):
-                    return self.get_images()
-                self.otask = QgsTask.fromFunction(
-                    'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
-                QgsApplication.taskManager().addTask(self.otask)
+                if self.conf.get("viewer")=="gsw":
+                    pass
+                else:
+                    def go(task, wait_time):
+                        return self.get_images()
+                    self.otask = QgsTask.fromFunction(
+                        'getting images', go, on_finished=self.after_get_mapillary_images, wait_time=1000)
+                    QgsApplication.taskManager().addTask(self.otask)
         if self.seditor:
             self.seditor.post_init(
                 iface=self.iface,
