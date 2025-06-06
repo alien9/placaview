@@ -51,7 +51,8 @@ class CompositeSelector(QDialog, FormClass):
             if placa["road"]==NULL:
                 item.name="Unknown road"
             else:
-                item.name=self.roads.getFeature(placa["road"])[self.conf.get("roads_field_name")]
+                if self.conf.get("roads_field_name") in self.roads.getFeature(placa["road"]):
+                    item.name=self.roads.getFeature(placa["road"])[self.conf.get("roads_field_name")]
             widget.addItem(item)
             row=CompositeItem(icon, str(item.name), placa.id(), self.sign["composite_id"])
             row.setValue(self.sign["composite_id"]==placa["composite_id"])
