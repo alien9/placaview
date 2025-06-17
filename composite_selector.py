@@ -54,7 +54,6 @@ class CompositeSelector(QDialog, FormClass):
                     item.name=self.roads.getFeature(placa["road"])[self.conf.get("roads_field_name")]
             widget.addItem(item)
             row=CompositeItem(icon, str(item.name), placa.id(), self.sign["composite_id"])
-            print(self.sign["composite_id"])
             row.setValue(self.sign["composite_id"] != NULL and (self.sign["composite_id"]==placa["composite_id"]))
             row.changed.connect(self.valueChanged)
             item.setSizeHint(row.minimumSizeHint())
