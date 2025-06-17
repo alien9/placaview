@@ -108,6 +108,7 @@ class SignsEditor(QDockWidget, FormClass):
                 self.sign.id(), self.sign.fieldNameIndex("composite_id"), max_v+1
             )
         self.signs_layer.commitChanges()
+        self.sign = self.signs_layer.getFeature(self.sign.id())
 
     def composite_select(self):
         

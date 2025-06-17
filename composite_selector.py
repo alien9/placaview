@@ -41,20 +41,20 @@ class CompositeSelector(QDialog, FormClass):
 
         vbox=QVBoxLayout()  
         for placa in self.placas:
-            
-            
             widget=self.findChild(QListWidget, "listWidget")
             item = QListWidgetItem(widget)
             icon=placa["value_code_face"]
+            item.name="No name"
             if icon is None or icon==NULL or icon=="":
                 icon=placa["value"]
             if placa["road"]==NULL:
                 item.name="Unknown road"
             else:
-                item.name=self.roads.getFeature(placa["road"])[self.conf.get("roads_field_name")]
+                if self.conf.get("roads_field_name") in self.roads.getFeature(placa["road"]):
+                    item.name=self.roads.getFeature(placa["road"])[self.conf.get("roads_field_name")]
             widget.addItem(item)
             row=CompositeItem(icon, str(item.name), placa.id(), self.sign["composite_id"])
-            row.setValue(self.sign["composite_id"]==placa["composite_id"])
+            row.setValue(self.sign["composite_id"] != NULL and (self.sign["composite_id"]==placa["composite_id"]))
             row.changed.connect(self.valueChanged)
             item.setSizeHint(row.minimumSizeHint())
             widget.setItemWidget(item, row)
