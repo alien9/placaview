@@ -1144,7 +1144,11 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         except:
             pass
         self.apply_filter(self.read_filter())
+    
+    def end_geocode(self):
+        self.get_signs_layer().updateExtents()
         
+    
     def insert_sign(self, point, button):
         layer=self.get_signs_layer()
         layer.startEditing()
@@ -1154,11 +1158,19 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         f.setFields(layer.fields())
         f.setAttribute(layer.fields().indexOf("code"),'unknown_sign')
         f.setAttribute(layer.fields().indexOf("value_code_face"),'symbols_br/unknown_sign.svg')
-        
-        vpr.addFeatures([f])
+        r,lf=vpr.addFeatures([f])
+        f=lf[0]
         layer.commitChanges()
-        
         layer.updateExtents()
+        # GEOCODE
+        self.matcher: RoadsMatcher = RoadsMatcher(
+            feature_id=f.id(),
+            signs_layer=layer, roads_layer=self.get_roads_layer(),
+            on_finished=self.end_geocode, 
+            roads_field_name=self.conf.get("roads_field_name"), 
+            roads_pk=self.conf.get("roads_pk"))
+        self.taskManager.addTask(self.matcher)        
+        
         QgsProject.instance().reloadAllLayers()
 
     def view_location(self, *args, **kwargs):
