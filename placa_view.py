@@ -853,6 +853,7 @@ class PlacaView:
                 QgsField("last_seen_at",  QVariant.Double),
                 QgsField("value",  QVariant.String),
                 QgsField("value_code_face",  QVariant.String),
+                QgsField("revision",  QVariant.Int),
                 ]
 
     def create_signals_vector_layer(self):
@@ -860,20 +861,21 @@ class PlacaView:
         if vl:
             return vl
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
-        pr = vl.dataProvider()
+        #pr = vl.dataProvider()
         # Enter editing mode
-        vl.startEditing()
+        #vl.startEditing()
         # add fields
-        pr.addAttributes(self.get_standard_attributes())
+        #pr.addAttributes(self.get_standard_attributes())
         QgsProject.instance().addMapLayer(vl)
         self.save_signs_layer()
         QgsProject.instance().removeMapLayer(vl)
         vl = self.get_point_layer_by_name("traffic signs")
+        pr = vl.dataProvider()
+        pr.addAttributes(self.get_standard_attributes())
         return vl
 
     def save_signs_layer(self):
         layer = self.get_point_layer_by_name("traffic signs")
-        print(layer)
         if not layer:
             dlsg = QMessageBox(self.dockwidget)
             dlsg.setText("Layer not Found")
