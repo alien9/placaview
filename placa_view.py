@@ -856,11 +856,9 @@ class PlacaView:
                 ]
 
     def create_signals_vector_layer(self):
-        print("will create")
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
             return vl
-        print("creatingh")
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
         pr = vl.dataProvider()
         # Enter editing mode
@@ -875,22 +873,31 @@ class PlacaView:
 
     def save_signs_layer(self):
         layer = self.get_point_layer_by_name("traffic signs")
+        print(layer)
         if not layer:
             dlsg = QMessageBox(self.dockwidget)
             dlsg.setText("Layer not Found")
             dlsg.exec()
             return
         title = QgsProject.instance().fileName()
-        m=re.match("\/([^\/]+)$",title)
-        
-        print(m)
-        print(title)    
-        print("directory")
+        m=re.search("\/([^\/]+)$",title).groups()
+        filename=m[0]
         patty = os.path.join(QgsProject.instance().readPath(
-            "./"), f"{title}_signs.gpkg")
-        print(patty)
+            "./"), f"{filename}_signs.gpkg")
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = 'GPKG'
+        options.layerName = "traffic signs"
+        options.fileEncoding = 'UTF-8'
+        options.destCRS = QgsCoordinateReferenceSystem(4326)
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(
-            layer, patty, QgsCoordinateTransformContext(), QgsVectorFileWriter.SaveVectorOptions())
+            layer, patty, QgsCoordinateTransformContext(), options)
+        if _writer==QgsVectorFileWriter.NoError:
+            print("done")
+        else:
+            print(f"Error saving layer: {_writer}")
+        # Add the layer to the QGIS project
+        # The arguments are: URI, layer display name, and provider name
+        vlayer = self.iface.addVectorLayer(patty, "traffic signs", "ogr")
 
     def get_signs_layer(self, **kwargs):
         self.signs_layer = self.get_point_layer_by_name("traffic signs")
