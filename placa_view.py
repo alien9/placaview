@@ -23,7 +23,7 @@
 """
 from .signs_data_downloader import SignDataDownloader
 from .tools import *
-import qgis
+import qgis, sip
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
@@ -789,10 +789,11 @@ class PlacaView:
         if not self.load_conf():
             return
         if self.download_task:
-            if self.download_task.status() == 2:
-                QgsMessageLog.logMessage('There is an ongoing download.'.format(
-                    self.work/self.total), "Messages", Qgis.Info)
-                return
+            if not sip.is_deleted(self.download_task):
+                if self.download_task.status() == 2:
+                    QgsMessageLog.logMessage('There is an ongoing download.'.format(
+                        self.work/self.total), "Messages", Qgis.Info)
+                    return
         self.update_actions({"Download Signs": False, "Cancel Download": True})
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
@@ -855,9 +856,11 @@ class PlacaView:
                 ]
 
     def create_signals_vector_layer(self):
+        print("will create")
         vl = self.get_point_layer_by_name("traffic signs")
         if vl:
             return vl
+        print("creatingh")
         vl = QgsVectorLayer("Point", "traffic signs", "memory")
         pr = vl.dataProvider()
         # Enter editing mode
@@ -878,8 +881,14 @@ class PlacaView:
             dlsg.exec()
             return
         title = QgsProject.instance().fileName()
+        m=re.match("\/([^\/]+)$",title)
+        
+        print(m)
+        print(title)    
+        print("directory")
         patty = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
+        print(patty)
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer, patty, QgsCoordinateTransformContext(), QgsVectorFileWriter.SaveVectorOptions())
 
