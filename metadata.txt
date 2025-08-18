@@ -6,7 +6,7 @@
 name=Road Sign Database
 qgisMinimumVersion=3.0
 description=This plugin manages road signs
-version=4.0.3
+version=4.0.4
 
 author=Tiago Barufi
 email=barufi@gmail.com
