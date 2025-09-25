@@ -944,7 +944,7 @@ class PlacaView:
         table_name=h.get("table_name", "signs")
         uri.setConnection(h.get("host","localhost"), h.get("port","5432"), h.get("dbname"), h.get("user"), h.get("password"))
         uri.setDataSource ("public", table_name, "geom")
-        vlayer=QgsVectorLayer (uri .uri(False), "traffic signs", "postgres")
+        vlayer=QgsVectorLayer (uri.uri(False), "traffic signs", "postgres")
         if not vlayer.isValid():
             query=f"""CREATE TABLE if not exists  public.{table_name} (
 	fid serial4 NOT NULL,
@@ -957,17 +957,18 @@ class PlacaView:
 	"out" int4 NULL,
 	certain float8 NULL,
 	status int4 NULL,
+	composite int4 NULL,
 	text1 varchar NULL,
 	text2 varchar NULL,
 	suporte varchar NULL,
 	"user" varchar NULL,
 	code varchar NULL,
 	face varchar NULL,
-    opened varchar NULL,
-    value_code_face varchar NULL,
+	opened varchar NULL,
 	geom public.geometry(point, 4326) NULL,
-    composite_id integer NULL,
-	PRIMARY KEY (fid)
+	last_seen timestamp NULL,
+	first_seen timestamp NULL,
+	CONSTRAINT signs_pkey PRIMARY KEY (fid)
 );
 CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} USING gist (geom);
 CREATE INDEX if not exists {table_name}_geom_geom_idx ON public.{table_name} (composite);
@@ -975,14 +976,15 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
 """
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
-            except:
-                pass        
+            except Exception as x:
+                QgsMessageLog.logMessage(f"Error {str(x)} while creating connection")
 
             cur = conn.cursor()
             try:
                 cur.execute(query)
-            except:
-                pass
+            except Exception as x:
+                QgsMessageLog.logMessage(f"Error {str(x)} while creating table")
+               
 
             conn.commit() # <--- makes sure the change is shown in the database
             conn.close()
@@ -1676,8 +1678,8 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             
 
     def create_signs_fields(self, **kwargs):
-        
         if len(self.conf.get("connection_string", "")):
+            self.load_signs_layer_from_database()
             self.migraine()
         self.get_roads_layer()
         self.get_signs_layer(force=kwargs.get("force", False))
@@ -1765,7 +1767,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
         except:
             pass            
-
         cur = conn.cursor()
         
         cur.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS \"revision\" integer default 0;")
