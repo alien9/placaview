@@ -32,15 +32,22 @@ class FieldsConfig(QDialog, FormClass):
         # load CSV configuration if present
         self.fields_config=self.load()
         self.fields=fields
-        widget=self.findChild(QListWidget, "listWidget")
-        for field in self.fields_config:
-            item = QListWidgetItem(widget)
-            item.name=field
-            fci=FieldsConfigItem(field)
-            item.setSizeHint(QSize(widget.width(),30))
-            widget.setItemWidget(item, fci)
+        self.render_fields(self.fields_config)
         self.findChild(QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton,"pushButton_ok").clicked.connect(self.save)
+
+    def render_fields(self, fields_config):
+        """Render fields in the QListWidget from self.fields_config."""
+        widget = self.findChild(QListWidget, "listWidget")
+        if widget is None:
+            return
+        widget.clear()
+        for field in fields_config:
+            item = QListWidgetItem(widget)
+            fci = FieldsConfigItem(field)
+            item.setSizeHint(QSize(widget.width(), 30))
+            widget.setItemWidget(item, fci)
+    
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
