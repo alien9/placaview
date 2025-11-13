@@ -742,3 +742,5 @@ symbols/information--road-bump--g1.svg
 symbols_br/A-32a.svg
 symbols/regulatory--end-of-pedestrians-only--g3.svg
 symbols/regulatory--no-motor-vehicles-or-buses--g1.svg
+symbols_br/.svg
+symbols_br_faced/R-19-30.svg

@@ -522,6 +522,28 @@ class SignsEditor(QDockWidget, FormClass):
                     words.add(
                         re.sub("^\\s|\\s*$", "", self.findChild(QLineEdit, f"text{k}").text()))
                     self.write_autocomplete(f"text{k}", words)
+            # Set custom fields
+            if hasattr(self, "custom_fields") and self.custom_fields:
+                layout = self.findChild(QVBoxLayout, "verticalLayoutInside")
+                for field in self.custom_fields:
+                    field_name = field['name']
+                    # Find QLineEdit for this field
+                    for i in range(layout.count()):
+                        item = layout.itemAt(i)
+                        if isinstance(item, QHBoxLayout):
+                            hbox = item
+                            print(hbox)
+                            label = hbox.itemAt(0).widget()
+                            print(label)
+                            print(label.text())
+                            if label.text() == field_name:
+                                edit = hbox.itemAt(1).widget()
+                                value = edit.text()
+                                try:
+                                    self.signs_layer.changeAttributeValue(
+                                        self.sign.id(), self.sign.fieldNameIndex(field_name), value)
+                                except Exception:
+                                    pass
             self.signs_layer.commitChanges()
 
             with open(os.path.join(os.path.dirname(__file__), f"filter.txt"), "a+") as fu:
