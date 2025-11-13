@@ -91,6 +91,15 @@ class SignsEditor(QDockWidget, FormClass):
         self.canvas=kwargs.get("canvas")
         self.custom_fields=kwargs['custom_fields']
         print(self.custom_fields)
+        if self.custom_fields:
+            layout = self.findChild(QVBoxLayout, "verticalLayoutInside")
+            for field in self.custom_fields:
+                hbox = QHBoxLayout()
+                label = QLabel(field['name'])
+                edit = QLineEdit()
+                hbox.addWidget(label)
+                hbox.addWidget(edit)
+                layout.addLayout(hbox)
 
     def compost(self, *args, **kwargs):
         self.signs_layer.startEditing()
