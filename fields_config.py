@@ -45,9 +45,14 @@ class FieldsConfig(QDialog, FormClass):
         for field in fields_config:
             item = QListWidgetItem(widget)
             fci = FieldsConfigItem(field)
+            fci.changed.connect(self.on_field_changed)
             item.setSizeHint(QSize(widget.width(), 30))
             widget.setItemWidget(item, fci)
     
+    def on_field_changed(self, name: str, enabled: bool):
+        """Handle changes from FieldsConfigItem instances."""
+        # Placeholder for handling changes if needed
+        print("changed something")
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

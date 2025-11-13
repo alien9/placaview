@@ -49,7 +49,7 @@ class FieldsConfigItem(QWidget):
         self.type_combo.currentTextChanged.connect(self._type_changed)
         
     def _name_changed(self, text):
-        self.name = text
+        self.changed.emit(text, True)   
 
     def _type_changed(self, text):
         # placeholder if external listeners are needed in future
