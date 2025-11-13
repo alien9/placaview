@@ -90,13 +90,13 @@ class SignsEditor(QDockWidget, FormClass):
         self.findChild(QPushButton, "segment").clicked.connect(self.set_map_tool)
         self.canvas=kwargs.get("canvas")
         self.custom_fields=kwargs['custom_fields']
-        print(self.custom_fields)
         if self.custom_fields:
             layout = self.findChild(QVBoxLayout, "verticalLayoutInside")
             for field in self.custom_fields:
                 hbox = QHBoxLayout()
                 label = QLabel(field['name'])
                 edit = QLineEdit()
+                edit.setObjectName(f"custom_field_{field['name']}")
                 hbox.addWidget(label)
                 hbox.addWidget(edit)
                 layout.addLayout(hbox)
@@ -265,7 +265,7 @@ class SignsEditor(QDockWidget, FormClass):
         else:
             self.findChild(QCheckBox, "composta").setChecked(False)
             self.findChild(QPushButton, "compost_choose").setEnabled(False)
-
+        
         self.findChild(QCheckBox, "composta").stateChanged.connect(self.compost)
         if not self.sign["value"]:
             self.findChild(QLabel, "mapillary_type_label").setText("")
@@ -273,6 +273,7 @@ class SignsEditor(QDockWidget, FormClass):
             self.findChild(QLabel, "mapillary_type_label").setText(
                 self.sign["value"])
 
+        
         self.code = str(self.sign["code"])
         self.face = str(self.sign["face"])
         self.value = str(self.sign["value"])
@@ -356,6 +357,10 @@ class SignsEditor(QDockWidget, FormClass):
                     self.otask = QgsTask.fromFunction(
                         'getting images', go, on_finished=self.after_get_images, wait_time=1000)
                     QgsApplication.taskManager().addTask(self.otask)
+        if self.custom_fields:
+            for field in self.custom_fields:
+                if self.sign[field['name']] is not None:
+                    self.findChild(QLineEdit, f"custom_field_{field['name']}").setText(str(self.sign[field['name']]) or "")
 
     def after_get_images(self, *args, **kwargs):
         self.sign_images = []
@@ -527,18 +532,21 @@ class SignsEditor(QDockWidget, FormClass):
                 layout = self.findChild(QVBoxLayout, "verticalLayoutInside")
                 for field in self.custom_fields:
                     field_name = field['name']
+                    field_type = field.get('type', 'Text')
                     # Find QLineEdit for this field
                     for i in range(layout.count()):
                         item = layout.itemAt(i)
                         if isinstance(item, QHBoxLayout):
                             hbox = item
-                            print(hbox)
                             label = hbox.itemAt(0).widget()
-                            print(label)
-                            print(label.text())
                             if label.text() == field_name:
                                 edit = hbox.itemAt(1).widget()
                                 value = edit.text()
+                                if field_type.lower() == "numeric":
+                                    try:
+                                        value = float(value)
+                                    except Exception:
+                                        value = None
                                 try:
                                     self.signs_layer.changeAttributeValue(
                                         self.sign.id(), self.sign.fieldNameIndex(field_name), value)
