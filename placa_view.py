@@ -52,6 +52,7 @@ from .placa_view_dockwidget import PlacaViewDockWidget
 from .browser import Browser
 from .roads_matcher import RoadsMatcher
 from .placa_selector import PlacaSelector
+from .fields_config import FieldsConfig
 from .dl_parameters import DownloadParameters
 import os, json, requests, datetime, math, re, shutil, time
 from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
@@ -195,6 +196,7 @@ class PlacaView:
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
         self.roads_field_name = self.conf.get("roads_field_name", False)
+
         return True
 
     # noinspection PyMethodMayBeStatic
@@ -315,6 +317,13 @@ class PlacaView:
                          "styles/icons/postgresql-icon.svg"),
             text="Connection String",
             callback=self.ask_connectionstring,
+            parent=self.iface.mainWindow()
+        ))
+        self.popupMenu.addAction(self.add_action(
+            os.path.join(self.plugin_dir,
+                         "styles/icons/edit-fields.svg"),
+            text="Custom Fields",
+            callback=self.load_fields_config,
             parent=self.iface.mainWindow()
         ))
         self.popupMenu.addAction(self.add_action(
@@ -844,7 +853,9 @@ class PlacaView:
             self.download_progress.close()
         except:
             pass
+        print("rendering signs layer after download")
         self.save_signs_layer()
+        print("saved signs layer after download")
         self.load_signs_layer()
 
     def get_standard_attributes(self):
@@ -866,9 +877,10 @@ class PlacaView:
         #vl.startEditing()
         # add fields
         #pr.addAttributes(self.get_standard_attributes())
+        print("adding signs layer at create_signals_vector_layer")
         QgsProject.instance().addMapLayer(vl)
         self.save_signs_layer()
-        QgsProject.instance().removeMapLayer(vl)
+        #QgsProject.instance().removeMapLayer(vl)
         vl = self.get_point_layer_by_name("traffic signs")
         pr = vl.dataProvider()
         pr.addAttributes(self.get_standard_attributes())
@@ -891,14 +903,25 @@ class PlacaView:
         options.layerName = "traffic signs"
         options.fileEncoding = 'UTF-8'
         options.destCRS = QgsCoordinateReferenceSystem(4326)
+        
+        if os.path.exists(patty):
+            print("file exists")
+            options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+        else:
+            print("create file")
+            # If the file doesn't exist, use CreateOrOverwriteFile (the default)
+            # This ensures a new file is created if necessary
+            options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer, patty, QgsCoordinateTransformContext(), options)
         if _writer==QgsVectorFileWriter.NoError:
             print("done")
         else:
             print(f"Error saving layer: {_writer}")
+        QgsProject.instance().removeMapLayer(layer.id())
         # Add the layer to the QGIS project
         # The arguments are: URI, layer display name, and provider name
+        print("adding signs layer from file at save_signs_layer ")
         vlayer = self.iface.addVectorLayer(patty, "traffic signs", "ogr")
 
     def get_signs_layer(self, **kwargs):
@@ -918,13 +941,17 @@ class PlacaView:
             return
         title = QgsProject.instance().fileName()
         l = self.get_point_layer_by_name("traffic signs")
+        print("verify if I already have the layer at load_signs_layer")
         if l is not None:
+            print("removing existing signs layer at load_signs_layer")
             QgsProject.instance().removeMapLayer(l.id())
         uri = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
         if not os.path.isfile(uri):
+            print("creating signs layer at load_signs_layer")
             self.create_signals_vector_layer()
         self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
+        print("adding signs layer at load_signs_layer")
         QgsProject.instance().addMapLayer(self.signs_layer)
         self.set_signs_style(filter=self.read_filter(),
                                 layer=self.signs_layer)
@@ -957,7 +984,7 @@ class PlacaView:
 	"out" int4 NULL,
 	certain float8 NULL,
 	status int4 NULL,
-	composite int4 NULL,
+	composite_id int4 NULL,
 	text1 varchar NULL,
 	text2 varchar NULL,
 	suporte varchar NULL,
@@ -1007,6 +1034,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         layer = self.get_point_layer_by_name("traffic signs")
         if layer:
             QgsProject.instance().instance().removeMapLayer(layer)
+        print("adding signs layer from database at load_signs_layer_from_database")
         QgsProject.instance().instance().addMapLayer(vlayer)
         self.set_signs_style(filter=self.read_filter(), layer=vlayer, size=5)
 
@@ -1794,3 +1822,111 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                     self.browser.findChild(QWebEngineView, "webView").page().runJavaScript(f"window.location.hash=\"{url}\"")
                 else:
                     self.browser.findChild(QWebEngineView, "webView").setUrl(QUrl(url))
+
+    def apply_fields_config(self, value):
+        """Create fields from configuration list and apply visibility.
+
+        Expected value: list of dicts with keys 'name', 'type', 'enabled'.
+        """
+        QgsMessageLog.logMessage('applying fields config', 'PlacaView', Qgis.Info)
+        try:
+            items = value or []
+            if not isinstance(items, list):
+                return
+
+            # Ensure signs layer exists
+            layer = self.get_point_layer_by_name("traffic signs")
+            if layer is None:
+                # try to create/load the signs layer
+                self.create_signs_fields(force=True)
+                layer = self.get_point_layer_by_name("traffic signs")
+                if layer is None:
+                    QgsMessageLog.logMessage('traffic signs layer not found, cannot apply fields', 'PlacaView', Qgis.Warning)
+                    return
+
+            # Iterate and create fields
+            for entry in items:
+                try:
+                    if isinstance(entry, dict):
+                        name = entry.get('name')
+                        ftype = entry.get('type', 'Text')
+                        #enabled = bool(entry.get('enabled', False))
+                    else:
+                        # fallback if entry is a tuple/list
+                        name = entry[0] if len(entry) > 0 else None
+                        ftype = entry[1] if len(entry) > 1 else 'Text'
+                        #enabled = bool(entry[2]) if len(entry) > 2 else False
+
+                    if not name:
+                        continue
+
+                    # add field (will skip if exists)
+                    added = self.add_field_to_signs_layer(name, ftype)
+
+                    # try to set visibility according to enabled flag
+                    #try:
+                    #    layer = self.get_point_layer_by_name("traffic signs")
+                    #    if layer is not None:
+                    #        self.setColumnVisibility(layer, name, enabled)
+                    #except Exception:
+                    #    pass
+                except Exception as exc:
+                    QgsMessageLog.logMessage(f'Error applying field {entry}: {exc}', 'PlacaView', Qgis.Warning)
+
+            # refresh and regenerate form to include new fields
+            self.create_signs_fields(force=True)
+            self.generate_signs_form()
+        except Exception as e:
+            QgsMessageLog.logMessage(f'apply_fields_config failed: {e}', 'PlacaView', Qgis.Critical)
+            return
+
+    def load_fields_config(self):
+        """Read fields.csv from the project _data directory and load FieldsConfig dialog."""
+        import csv
+        from pathlib import Path
+        patty = f'{QgsProject.instance().fileName()}_data/'
+        csv_path = Path(patty) / 'fields.csv'
+        fields = []
+        if csv_path.is_file():
+            try:
+                with open(csv_path, newline='', encoding='utf-8') as fh:
+                    reader = csv.DictReader(fh)
+                    for row in reader:
+                        name = row.get('name', '').strip()
+                        ftype = row.get('type', 'Text').strip()
+                        enabled = row.get('enabled', '0').strip()
+                        try:
+                            enabled_bool = bool(int(enabled))
+                        except Exception:
+                            enabled_bool = enabled.lower() in ('1', 'true', 'yes')
+                        fields.append({'name': name, 'type': ftype, 'enabled': enabled_bool})
+            except Exception as e:
+                QgsMessageLog.logMessage(f'Error reading fields.csv: {e}', 'PlacaView', Qgis.Warning)
+        fu = FieldsConfig(parent=self.iface.mainWindow(), fields=fields)
+        fu.applyClicked.connect(self.apply_fields_config)
+        fu.exec()
+
+    def add_field_to_signs_layer(self, field_name: str, field_type: str) -> bool:
+        """Create a field in the 'traffic signs' layer with the given name and type.
+        field_type: 'Text' or 'Numeric'. Returns True if added, False otherwise.
+        """
+        layer = self.get_point_layer_by_name("traffic signs")
+        if layer is None:
+            layer = self.get_signs_layer()
+        if layer is None:
+            return False
+        fname = str(field_name).strip()
+        if not fname:
+            return False
+        if fname in [f.name() for f in layer.fields()]:
+            return False
+        if str(field_type).lower() == "numeric":
+            new_field = QgsField(fname, QVariant.Double, "DOUBLE")
+        else:
+            new_field = QgsField(fname, QVariant.String, "VARCHAR", 255)
+        layer.startEditing()
+        layer.dataProvider().addAttributes([new_field])
+        layer.updateFields()
+        layer.commitChanges()
+        QgsProject.instance().reloadAllLayers()
+        return True
