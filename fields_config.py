@@ -30,9 +30,9 @@ class FieldsConfig(QDialog, FormClass):
         self.setupUi(self)
         self.load_conf()
         # load CSV configuration if present
-        self.fields_config=self.load()
         self.fields=fields
-        self.render_fields(self.fields_config)
+        print("loading from file")
+        self.render_fields(self.load())
         self.findChild(QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton,"pushButton_ok").clicked.connect(self.save)
 
@@ -40,9 +40,12 @@ class FieldsConfig(QDialog, FormClass):
         """Render fields in the QListWidget from self.fields_config."""
         widget = self.findChild(QListWidget, "listWidget")
         if widget is None:
+            print("list not found")
             return
         widget.clear()
         for field in fields_config:
+            print("adding field")
+            print(field)
             item = QListWidgetItem(widget)
             fci = FieldsConfigItem(field)
             fci.changed.connect(self.on_field_changed)
@@ -53,7 +56,16 @@ class FieldsConfig(QDialog, FormClass):
         """Handle changes from FieldsConfigItem instances."""
         # Placeholder for handling changes if needed
         print("changed something")
-
+        values=self.get_fields_values()
+        print("got values:")
+        print(values)
+        if len(values):
+            values=list(filter(lambda v: v['name']!='' and v['name'] is not None, values))
+            print(values)
+            values.append({'name': '', 'type': 'Text', 'enabled': False})
+            self.render_fields(values)
+        
+        
     def _setup_ui(self):
         layout = QVBoxLayout(self)
 
@@ -81,23 +93,16 @@ class FieldsConfig(QDialog, FormClass):
             con.touch()
         self.fields=open(con).readlines()
 
-    def save(self):
-        """Save the fields configuration to a CSV file in the project's _data folder.
-        CSV columns: name,type,enabled
-        """
-        patty = f'{QgsProject.instance().fileName()}_data/'
-        from pathlib import Path
-        p = Path(patty)
-        p.mkdir(parents=True, exist_ok=True)
-        out = p / 'fields.csv'
-
+    def get_fields_values(self):
+        print("getting fields values")
         list_widget = self.findChild(QListWidget, "listWidget")
         if list_widget is None:
+            print("list not found")
             return
 
-        lines = ["name,type,enabled"]
         objects = []
         for i in range(list_widget.count()):
+            print(i)
             item = list_widget.item(i)
             widget = list_widget.itemWidget(item)
             if widget is None:
@@ -118,8 +123,30 @@ class FieldsConfig(QDialog, FormClass):
                 enabled = widget.getValue() if hasattr(widget, 'getValue') else False
             except Exception:
                 enabled = False
-            lines.append(f'{name},{ftype},{1 if enabled else 0}')
-            objects.append({'name': name, 'type': ftype, 'enabled': enabled})
+            if name is not None:
+                if name!="":
+                    objects.append({'name': name, 'type': ftype, 'enabled': enabled})
+        print(objects)
+        return objects
+        
+    def save(self):
+        """Save the fields configuration to a CSV file in the project's _data folder.
+        CSV columns: name,type,enabled
+        """
+        patty = f'{QgsProject.instance().fileName()}_data/'
+        from pathlib import Path
+        p = Path(patty)
+        p.mkdir(parents=True, exist_ok=True)
+        out = p / 'fields.csv'
+
+        list_widget = self.findChild(QListWidget, "listWidget")
+        if list_widget is None:
+            return
+
+        lines = ["name,type,enabled"]
+        objects = self.get_fields_values()
+        for i in range(len(objects)):
+            lines.append(f'{objects[i]["name"]},{objects[i]["type"]},{1 if objects[i]["enabled"] else 0}')
         with open(out, 'w', encoding='utf-8') as fh:
             fh.write("\n".join(lines))
 
@@ -161,7 +188,8 @@ class FieldsConfig(QDialog, FormClass):
                         enabled_bool = bool(int(enabled))
                     except Exception:
                         enabled_bool = enabled.lower() in ('1', 'true', 'yes')
-                    fields_config.append({'name': name, 'type': ftype, 'enabled': enabled_bool})
+                    if name!='':
+                        fields_config.append({'name': name, 'type': ftype, 'enabled': enabled_bool})
             fields_config.append({'name': '', 'type': 'Text', 'enabled': False})
         except Exception:
             # on error keep fields_config empty
@@ -182,3 +210,10 @@ class FieldsConfig(QDialog, FormClass):
 
         widget.addItem(item)
         
+    def clear_invalid_items(self):
+        """Clear all items from the QListWidget."""
+        widget = self.findChild(QListWidget, "listWidget")
+        if widget is None:
+            return
+        
+        widget.clear()

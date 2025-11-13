@@ -865,6 +865,13 @@ class PlacaView:
                 QgsField("value",  QVariant.String),
                 QgsField("value_code_face",  QVariant.String),
                 QgsField("revision",  QVariant.Int),
+                QgsField("certain", QVariant.Int),
+                QgsField("status", QVariant.Int),
+                QgsField("composite_id", QVariant.Int),
+                QgsField("user", QVariant.String),
+                QgsField("code", QVariant.String),
+                QgsField("face", QVariant.String),
+                QgsField("opened", QVariant.String),                
                 ]
 
     def create_signals_vector_layer(self):
@@ -1152,7 +1159,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         self.initialize()
         if self.seditor is None:
             self.iface.setActiveLayer(self.signs_layer)
-            self.seditor = SignsEditor(signs_layer=self.signs_layer, canvas=self.iface.mapCanvas())
+            self.seditor = SignsEditor(signs_layer=self.signs_layer, canvas=self.iface.mapCanvas(), custom_fields=self.read_fields_config())
             self.seditor.reloadSign.connect(self.reload_sign)
             self.seditor.showUrl.connect(self.show_url)
             self.seditor.selectSign.connect(self.display_sign)
@@ -1880,7 +1887,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             QgsMessageLog.logMessage(f'apply_fields_config failed: {e}', 'PlacaView', Qgis.Critical)
             return
 
-    def load_fields_config(self):
+    def read_fields_config(self) -> list:
         """Read fields.csv from the project _data directory and load FieldsConfig dialog."""
         import csv
         from pathlib import Path
@@ -1902,7 +1909,10 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                         fields.append({'name': name, 'type': ftype, 'enabled': enabled_bool})
             except Exception as e:
                 QgsMessageLog.logMessage(f'Error reading fields.csv: {e}', 'PlacaView', Qgis.Warning)
-        fu = FieldsConfig(parent=self.iface.mainWindow(), fields=fields)
+        return fields
+    
+    def load_fields_config(self):
+        fu = FieldsConfig(parent=self.iface.mainWindow(), fields=self.read_fields_config())
         fu.applyClicked.connect(self.apply_fields_config)
         fu.exec()
 

@@ -89,6 +89,8 @@ class SignsEditor(QDockWidget, FormClass):
         self.findChild(QCheckBox, "composta").stateChanged.connect(self.compost)
         self.findChild(QPushButton, "segment").clicked.connect(self.set_map_tool)
         self.canvas=kwargs.get("canvas")
+        self.custom_fields=kwargs['custom_fields']
+        print(self.custom_fields)
 
     def compost(self, *args, **kwargs):
         self.signs_layer.startEditing()

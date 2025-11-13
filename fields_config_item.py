@@ -45,11 +45,11 @@ class FieldsConfigItem(QWidget):
 
         # signals
         self.check.stateChanged.connect(self.valueChanged)
-        self.name_text.textChanged.connect(self._name_changed)
+        self.name_text.editingFinished.connect(self._name_changed)
         self.type_combo.currentTextChanged.connect(self._type_changed)
         
-    def _name_changed(self, text):
-        self.changed.emit(text, True)   
+    def _name_changed(self):
+        self.changed.emit('', True)   
 
     def _type_changed(self, text):
         # placeholder if external listeners are needed in future
