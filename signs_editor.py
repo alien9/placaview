@@ -67,6 +67,7 @@ class SignsEditor(QDockWidget, FormClass):
         self.signs_layer: QgsVectorLayer = kwargs.get("signs_layer")
         self.filter = kwargs.get("filter")
         self.setupUi(self)
+        self.load_placas()
         edits = self.findChildren(QLineEdit)
         for f in edits:
             field_name = f.objectName()
@@ -248,16 +249,6 @@ class SignsEditor(QDockWidget, FormClass):
             self.sign.geometry(
             ), 35, self.signs_layer.crs()
         )
-        if not self.placas:
-            with open(os.path.join(os.path.dirname(__file__), "styles/codes_br.txt"), "r") as flu:
-                self.placas = [fu[:-1] for fu in flu.readlines()]
-                flu.close()
-            with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as flu:
-                self.dictionary = json.loads(flu.read())
-                flu.close()
-            with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
-                self.faces = json.loads(flu.read())
-                flu.close()
         self.findChild(QCheckBox, "composta").stateChanged.disconnect()
         if self.sign["composite_id"]!=NULL:
             self.findChild(QCheckBox, "composta").setChecked(True)
@@ -731,3 +722,13 @@ class SignsEditor(QDockWidget, FormClass):
         self.road_id = args[1][self.conf.get("roads_pk")]
         road_name = args[1][self.conf.get("roads_field_name")]
         self.findChild(QTextEdit, "road_segment").setText(road_name)
+
+    def load_placas(self):
+        self.symbols_dir = os.path.join(os.path.dirname(__file__), "styles/symbols_br")
+        self.placas = [os.path.splitext(f)[0] for f in os.listdir(self.symbols_dir) if f.endswith('.svg')]
+        with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as flu:
+            self.dictionary = json.loads(flu.read())
+            flu.close()
+        with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
+            self.faces = json.loads(flu.read())
+            flu.close()
