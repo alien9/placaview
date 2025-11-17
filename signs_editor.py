@@ -31,6 +31,7 @@ import re
 import json
 import shutil
 import datetime
+from lxml import etree
 from .roads_selector import RoadsSelector
 from .signs_data_downloader import SignDataDownloader
 from .composite_selector import CompositeSelector
@@ -350,8 +351,8 @@ class SignsEditor(QDockWidget, FormClass):
                     QgsApplication.taskManager().addTask(self.otask)
         if self.custom_fields:
             for field in self.custom_fields:
-                if self.sign[field['name']] is not None:
-                    self.findChild(QLineEdit, f"custom_field_{field['name']}").setText(str(self.sign[field['name']]) or "")
+                value = self.sign[field['name']]
+                self.findChild(QLineEdit, f"custom_field_{field['name']}").setText(str(value) if value is not None and not value.isNull() else "")
 
     def after_get_images(self, *args, **kwargs):
         self.sign_images = []
@@ -567,7 +568,7 @@ class SignsEditor(QDockWidget, FormClass):
                 fu.write(json.dumps(self.faces))
 
     def select_sign(self):
-        fu = PlacaSelector(placas=self.placas)
+        fu = PlacaSelector(placas=self.get_placas(), parent=self.iface.mainWindow())
         fu.applyClicked.connect(self.set_sign)
         fu.exec()
 
@@ -581,27 +582,33 @@ class SignsEditor(QDockWidget, FormClass):
         self.face = args[0][0:4]
         if self.code is None:
             return
-        if not os.path.isfile(os.path.join(
-                os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")):
+        svg_path = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols", f"{self.code}.svg")
+        if not os.path.isfile(svg_path):
             return
-        with open(os.path.join(
-                os.path.dirname(__file__), f"styles/symbols_br/{self.code}.svg")) as fu:
-            svg = fu.read()
-        fu.close()
-
-        if self.code == "R-15":
-            svg = svg.replace(
-                "</svg>", f'<text x="400" y="470" font-size="200" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
-        elif self.code == "R-19":
-            svg = svg.replace(
-                "</svg>", f'<text x="400" y="500" font-size="400" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
-        else:
-            svg = svg.replace(
-                "</svg>", f'<text x="400" y="500" font-size="400" fill="black" text-anchor="middle" font-family="sans-serif">{self.face}</text></svg>')
-        with open(os.path.join(
-                os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg"), "w") as fu:
-            svg = fu.write(svg)
-        fu.close()
+        try:
+            tree = etree.parse(svg_path)
+            root = tree.getroot()
+            
+            # Define SVG namespace
+            ns = {'svg': 'http://www.w3.org/2000/svg'}
+            
+            # Find text element with id "face"
+            face_element = root.find(".//svg:text[@id='face']", ns)
+            if face_element is None:
+                # Try without namespace
+                face_element = root.find(".//text[@id='face']")
+            
+            if face_element is not None:
+                face_element.text = self.face
+            
+            # Save modified SVG to symbols_br_faced directory
+            output_path = os.path.join(os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg")
+            tree.write(output_path, encoding='utf-8', xml_declaration=True, pretty_print=True)
+            
+        except Exception as e:
+            QgsMessageLog.logMessage(f"Error modifying SVG with lxml: {e}", "PlacaView", Qgis.Warning)
+            return
+        
         self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
             os.path.dirname(__file__), f"styles/symbols_br_faced/{self.code}-{self.face}.svg")))
 
@@ -724,11 +731,17 @@ class SignsEditor(QDockWidget, FormClass):
         self.findChild(QTextEdit, "road_segment").setText(road_name)
 
     def load_placas(self):
-        self.symbols_dir = os.path.join(os.path.dirname(__file__), "styles/symbols_br")
+        self.symbols_dir = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols")
         self.placas = [os.path.splitext(f)[0] for f in os.listdir(self.symbols_dir) if f.endswith('.svg')]
+        print(self.placas)
         with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as flu:
             self.dictionary = json.loads(flu.read())
             flu.close()
         with open(os.path.join(os.path.dirname(__file__), f"placafaces.json"), "r") as flu:
             self.faces = json.loads(flu.read())
             flu.close()
+            
+    def get_placas(self):
+        self.symbols_dir = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols")
+        placas = [os.path.splitext(f)[0] for f in os.listdir(self.symbols_dir) if f.endswith('.svg')]
+        return placas.sorted()
