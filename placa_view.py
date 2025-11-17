@@ -195,6 +195,19 @@ class PlacaView:
         if self.conf.get("roads", False):
             self.roads_layer = self.get_line_by_name(
                 self.conf.get("roads"))
+        # Ensure symbols directory exists and copy styles/symbols_br if needed
+        symbols_dir = f"{patty}/symbols"
+        src_symbols_br = os.path.join(self.plugin_dir, "styles/symbols_br")
+        if not os.path.isdir(symbols_dir):
+            os.mkdir(symbols_dir)
+            try:
+                for fname in os.listdir(src_symbols_br):
+                    src_file = os.path.join(src_symbols_br, fname)
+                    dst_file = os.path.join(symbols_dir, fname)
+                    if os.path.isfile(src_file):
+                        shutil.copy(src_file, dst_file)
+            except Exception as e:
+                QgsMessageLog.logMessage(f"Error copying symbols_br: {e}", "PlacaView", Qgis.Warning)
         self.roads_field_name = self.conf.get("roads_field_name", False)
 
         return True
@@ -1653,19 +1666,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                 else:
                     placa_style = f"symbols_br/{vcf}.svg"
                 attr[fields.indexOf("value_code_face")]= placa_style
-                feature['value_code_face']= placa_style
-                
-        #if fields.indexOf('first_seen_at') > 0:
-        ##    if attr[fields.indexOf("first_seen_at")] is None:
-        #        if attr[fields.indexOf("first_seen_at_date")] is not None:
-        #            dt=datetime.datetime.strptime(attr[fields.indexOf("first_seen_at_date")], "%Y-%m-%d")
-        #            feature["first_seen_at"]=1000*time.mktime(dt.timetuple())                
-        #if fields.indexOf('last_seen_at') > 0:
-        #    if attr[fields.indexOf("last_seen_at")] is None:
-        #        if attr[fields.indexOf("last_seen_at_date")] is not None:
-        #            dt=datetime.datetime.strptime(attr[fields.indexOf("last_seen_at_date")], "%Y-%m-%d")
-        #            feature["last_seen_at"]=1000*time.mktime(dt.timetuple())
-        #    layer.updateFeature(feature)    
+                feature['value_code_face']= placa_style  
             
     def generate_signs_form(self):
         QgsMessageLog.logMessage('generating the form')

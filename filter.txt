@@ -751,3 +751,4 @@ symbols_br_faced/R-19-30.svg
 symbols_br/R-2.svg
 symbols_br/R-2.svg
 symbols_br/R-2.svg
+symbols_br_faced/R-19-30.svg
