@@ -744,4 +744,4 @@ class SignsEditor(QDockWidget, FormClass):
     def get_placas(self):
         self.symbols_dir = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols")
         placas = [os.path.splitext(f)[0] for f in os.listdir(self.symbols_dir) if f.endswith('.svg')]
-        return placas.sorted()
+        return sorted(placas)
