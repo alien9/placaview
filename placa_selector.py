@@ -50,7 +50,7 @@ class PlacaSelector(QDialog, FormClass):
             button = QPushButton("", self)
             button.setAccessibleName(p)
             button.setFixedSize(QSize(50,50))
-            button.setIcon(QIcon(os.path.join(os.path.dirname(__file__),f"styles/symbols_br/{p}.svg")))
+            button.setIcon(QIcon(os.path.join(f'{QgsProject.instance().fileName()}_data',"symbols",f"{p}.svg")))
             button.setIconSize(QSize(40,40))
             button.setToolTip(p)    
             button.clicked.connect(partial(self.apply, p))

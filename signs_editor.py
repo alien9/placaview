@@ -486,7 +486,14 @@ class SignsEditor(QDockWidget, FormClass):
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
             else:
-                placa_style = f"symbols_br/{vcf}.svg"
+                placa_style = f"symbols_br_faced/{vcf}.svg"
+                faced_svg_path = os.path.join(os.path.dirname(__file__), f"styles/symbols_br_faced/{vcf}.svg")
+                if not os.path.isfile(faced_svg_path):
+                    # Copy from project symbols directory
+                    project_symbols_path = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols", f"{vcf}.svg")
+                    if os.path.isfile(project_symbols_path):
+                        shutil.copy(project_symbols_path, faced_svg_path)
+                
                 self.signs_layer.changeAttributeValue(
                     self.sign.id(), self.sign.fieldNameIndex("value_code_face"), placa_style)
 
@@ -573,11 +580,13 @@ class SignsEditor(QDockWidget, FormClass):
         fu.exec()
 
     def set_sign(self, *args, **kwargs):
-        self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(
-            os.path.dirname(__file__), f"styles/symbols_br/{args[0]}.svg")))
+        self.findChild(QPushButton, "brasiltype").setIcon(QIcon(os.path.join(self.get_project_path(),"symbols", f"{args[0]}.svg")))
         self.findChild(QTextEdit, "code_text").setText(args[0])
         self.code = args[0]
-
+    
+    def get_project_path(self):
+        return f'{QgsProject.instance().fileName()}_data'
+        
     def set_sign_face(self, *args, **kwargs):
         self.face = args[0][0:4]
         if self.code is None:
@@ -625,10 +634,6 @@ class SignsEditor(QDockWidget, FormClass):
             mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='thumb_1024_url,computed_compass_angle,computed_geometry,captured_at,detections.value,detections.geometry')
         self.dl.taskCompleted.connect(self.show_image)
         QgsApplication.taskManager().addTask(self.dl)
-        # self.geo_dl=SignDataDownloader(
-        #    mapillary_key=self.key, image=self.sign_images[self.sign_images_index], fields='geometry', datatype="geometry")
-        # self.geo_dl.taskCompleted.connect(self.show_geometry)
-        # QgsApplication.taskManager().addTask(self.geo_dl)
 
     def backward(self):
         self.sign_images_index -= 1
