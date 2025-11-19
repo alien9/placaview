@@ -21,8 +21,9 @@
  *                                                                         *
  ***************************************************************************/
 """
-from .signs_data_downloader import SignDataDownloader
+
 from .tools import *
+from .signs_data_downloader import SignDataDownloader
 import qgis, sip
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
