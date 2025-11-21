@@ -41,12 +41,13 @@ class FieldsConfig(QDialog, FormClass):
         if widget is None:
             return
         widget.clear()
-        for field in fields_config:
-            item = QListWidgetItem(widget)
-            fci = FieldsConfigItem(field)
-            fci.changed.connect(self.on_field_changed)
-            item.setSizeHint(QSize(widget.width(), 30))
-            widget.setItemWidget(item, fci)
+        if fields_config is not None:
+            for field in fields_config:
+                item = QListWidgetItem(widget)
+                fci = FieldsConfigItem(field)
+                fci.changed.connect(self.on_field_changed)
+                item.setSizeHint(QSize(widget.width(), 30))
+                widget.setItemWidget(item, fci)
     
     def on_field_changed(self, name: str, enabled: bool):
         """Handle changes from FieldsConfigItem instances."""
@@ -160,8 +161,14 @@ class FieldsConfig(QDialog, FormClass):
 
         fields_config = []
         
+        # ensure fields.csv exists with header if absent so load can proceed
         if not out.is_file():
-            return
+            try:
+                with open(out, 'w', encoding='utf-8') as fh:
+                    fh.write('name,type,enabled\n')
+            except Exception:
+                # if we can't create the file, return empty list to avoid breaking callers
+                return []
 
         try:
             with open(out, newline='', encoding='utf-8') as fh:
