@@ -31,7 +31,6 @@ class FieldsConfig(QDialog, FormClass):
         self.load_conf()
         # load CSV configuration if present
         self.fields=fields
-        print("loading from file")
         self.render_fields(self.load())
         self.findChild(QPushButton, "pushButton_cancel").clicked.connect(self.close)
         self.findChild(QPushButton,"pushButton_ok").clicked.connect(self.save)
@@ -40,12 +39,9 @@ class FieldsConfig(QDialog, FormClass):
         """Render fields in the QListWidget from self.fields_config."""
         widget = self.findChild(QListWidget, "listWidget")
         if widget is None:
-            print("list not found")
             return
         widget.clear()
         for field in fields_config:
-            print("adding field")
-            print(field)
             item = QListWidgetItem(widget)
             fci = FieldsConfigItem(field)
             fci.changed.connect(self.on_field_changed)
@@ -55,13 +51,9 @@ class FieldsConfig(QDialog, FormClass):
     def on_field_changed(self, name: str, enabled: bool):
         """Handle changes from FieldsConfigItem instances."""
         # Placeholder for handling changes if needed
-        print("changed something")
         values=self.get_fields_values()
-        print("got values:")
-        print(values)
         if len(values):
             values=list(filter(lambda v: v['name']!='' and v['name'] is not None, values))
-            print(values)
             values.append({'name': '', 'type': 'Text', 'enabled': False})
             self.render_fields(values)
         
@@ -94,15 +86,12 @@ class FieldsConfig(QDialog, FormClass):
         self.fields=open(con).readlines()
 
     def get_fields_values(self):
-        print("getting fields values")
         list_widget = self.findChild(QListWidget, "listWidget")
         if list_widget is None:
-            print("list not found")
             return
 
         objects = []
         for i in range(list_widget.count()):
-            print(i)
             item = list_widget.item(i)
             widget = list_widget.itemWidget(item)
             if widget is None:
@@ -126,7 +115,6 @@ class FieldsConfig(QDialog, FormClass):
             if name is not None:
                 if name!="":
                     objects.append({'name': name, 'type': ftype, 'enabled': enabled})
-        print(objects)
         return objects
         
     def save(self):
@@ -151,7 +139,6 @@ class FieldsConfig(QDialog, FormClass):
             fh.write("\n".join(lines))
 
         # keep previous signal behavior for compatibility
-        print(objects)
         try:
             self.applyClicked.emit(objects)
         except Exception as xx:

@@ -55,7 +55,6 @@ class SignsDownloader(QgsTask):
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
         QgsMessageLog.logMessage('Parameters for task "{}"'.format(
             str(self.params)), MESSAGE_CATEGORY, Qgis.Info)
-        
         nw, se=self.extents
         z=14        
         fields=self.layer.dataProvider().fields()
@@ -72,14 +71,18 @@ class SignsDownloader(QgsTask):
         QgsMessageLog.logMessage(f"Revision is {revision}", MESSAGE_CATEGORY, level=Qgis.Info)
         inserted_records=0
         updated_records=0
-        self.layer.startEditing()        
-        for x in range(nw[0], se[0]):
-            for y in range(se[1], nw[1]):
+        QgsMessageLog.logMessage("Starting editing layer", MESSAGE_CATEGORY, level=Qgis.Info)
+        self.layer.startEditing() 
+        QgsMessageLog.logMessage(f"Downloading tiles from {nw} to {se}", MESSAGE_CATEGORY, level=Qgis.Info)      
+        for x in range(nw[0], se[0]+1):
+            for y in range(se[1], nw[1]+1):
+                QgsMessageLog.logMessage(f"Processing tile {x},{y},{z}", MESSAGE_CATEGORY, level=Qgis.Info)
                 self.work += 1
                 if self.isCanceled():
                     return False
-                self.setProgress(100*self.work/self.total)
                 
+                if self.total>0:
+                    self.setProgress(100*self.work/self.total)
                 if(self.params is not None): 
                     northwest=self.num2deg(x,y,z)
                     southeast=self.num2deg(x+1,y+1,z)

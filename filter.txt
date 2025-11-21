@@ -747,3 +747,10 @@ symbols/regulatory--texts-three-lines--g1.svg
 symbols/information--overtaking-allowed-heavy-good-vehicles--g1.svg
 symbols/regulatory--end-of-pedestrians-only--g3.svg
 symbols_br_faced/A-37-3,0m.svg
+symbols_br_faced/.svg
+symbols_br_faced/.svg
+symbols_br_faced/A-30a.svg
+symbols_br_faced/.svg
+symbols_br_faced/.svg
+symbols_br_faced/R-13.svg
+symbols_br_faced/R-29.svg
