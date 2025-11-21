@@ -102,6 +102,21 @@ class SignsEditor(QDockWidget, FormClass):
                 hbox.addWidget(label)
                 hbox.addWidget(edit)
                 layout.addLayout(hbox)
+                
+                # Add QCompleter for enabled custom fields
+                if field.get('enabled', False):
+                    try:
+                        field_idx = self.signs_layer.fields().indexOf(field['name'])
+                        if field_idx >= 0:
+                            unique_values = list(self.signs_layer.uniqueValues(field_idx))
+                            unique_values = [str(v) for v in unique_values if v is not None and str(v) != 'NULL']
+                            if unique_values:
+                                completer = QCompleter(unique_values, self)
+                                completer.setCaseSensitivity(Qt.CaseInsensitive)
+                                completer.setFilterMode(Qt.MatchContains)
+                                edit.setCompleter(completer)
+                    except Exception as e:
+                        QgsMessageLog.logMessage(f"Error setting completer for field {field['name']}: {e}", "PlacaView", Qgis.Warning)
 
     def compost(self, *args, **kwargs):
         self.signs_layer.startEditing()
@@ -738,7 +753,6 @@ class SignsEditor(QDockWidget, FormClass):
     def load_placas(self):
         self.symbols_dir = os.path.join(f'{QgsProject.instance().fileName()}_data', "symbols")
         self.placas = [os.path.splitext(f)[0] for f in os.listdir(self.symbols_dir) if f.endswith('.svg')]
-        print(self.placas)
         with open(os.path.join(os.path.dirname(__file__), f"placatype.json"), "r") as flu:
             self.dictionary = json.loads(flu.read())
             flu.close()

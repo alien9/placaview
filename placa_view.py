@@ -21,9 +21,9 @@
  *                                                                         *
  ***************************************************************************/
 """
-
-from .tools import *
+from logging import INFO
 from .signs_data_downloader import SignDataDownloader
+from .tools import *
 import qgis, sip
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
@@ -829,26 +829,31 @@ class PlacaView:
             self.ask_mapillary_key()
         if not self.boundary:
             return
+        QgsMessageLog.logMessage('Preparing Download', "Messages", Qgis.Info)
         sourceCrs = self.boundary.crs()
         tr = QgsCoordinateTransform(
             sourceCrs, QgsCoordinateReferenceSystem.fromEpsgId(4326), QgsProject.instance())
         trans = tr.transformBoundingBox(self.boundary.extent())
+        QgsMessageLog.logMessage('Transformed Boundary', "Messages", Qgis.Info)
         z = 14
         nw = self.deg2num(trans.yMinimum(), trans.xMinimum(), z)
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
-        total_work = (nw[0]-se[0])*(se[1] - nw[1])
+        total_work = (nw[0]-se[0]+1)*(se[1] - nw[1]+1)
+        QgsMessageLog.logMessage('Tiles to download: {}'.format(
+            total_work), "Messages", Qgis.Info)
         layer = self.create_signals_vector_layer()
         layer.commitChanges()
-        #layer.dataProvider().truncate()
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
         progressMessageBar.pushWidget(self.download_progress)
+        QgsMessageLog.logMessage('Download Ready to go', "Messages", Qgis.Info)
         self.download_task = SignsDownloader(self.conf.get(
             'mapillary_key'), layer, total_work, self.boundary, (nw, se), 
                                              self.conf.get("from"),self.conf.get("to"), self.read_filter(), params)
         self.download_task.progressChanged.connect(self.update_progress)
         self.download_task.taskCompleted.connect(self.render_signs_layer)
+        QgsMessageLog.logMessage('Starting Download Task', "Messages", Qgis.Info)
         self.taskManager.addTask(self.download_task)
 
     def update_progress(self, *args):
@@ -867,10 +872,8 @@ class PlacaView:
             self.download_progress.close()
         except:
             pass
-        print("rendering signs layer after download")
-        self.save_signs_layer()
-        print("saved signs layer after download")
-        self.load_signs_layer()
+        #self.save_signs_layer()
+        #self.load_signs_layer()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -898,7 +901,6 @@ class PlacaView:
         #vl.startEditing()
         # add fields
         #pr.addAttributes(self.get_standard_attributes())
-        print("adding signs layer at create_signals_vector_layer")
         QgsProject.instance().addMapLayer(vl)
         self.save_signs_layer()
         #QgsProject.instance().removeMapLayer(vl)
@@ -926,23 +928,20 @@ class PlacaView:
         options.destCRS = QgsCoordinateReferenceSystem(4326)
         
         if os.path.exists(patty):
-            print("file exists")
             options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
         else:
-            print("create file")
             # If the file doesn't exist, use CreateOrOverwriteFile (the default)
             # This ensures a new file is created if necessary
             options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
         _writer = QgsVectorFileWriter.writeAsVectorFormatV3(
             layer, patty, QgsCoordinateTransformContext(), options)
         if _writer==QgsVectorFileWriter.NoError:
-            print("done")
+            QgsMessageLog.logMessage("done", "PlacaView", INFO)
         else:
-            print(f"Error saving layer: {_writer}")
+            QgsMessageLog.logMessage(f"Error saving layer: {_writer}", "PlacaView", INFO)
         QgsProject.instance().removeMapLayer(layer.id())
         # Add the layer to the QGIS project
         # The arguments are: URI, layer display name, and provider name
-        print("adding signs layer from file at save_signs_layer ")
         vlayer = self.iface.addVectorLayer(patty, "traffic signs", "ogr")
 
     def get_signs_layer(self, **kwargs):
@@ -962,17 +961,13 @@ class PlacaView:
             return
         title = QgsProject.instance().fileName()
         l = self.get_point_layer_by_name("traffic signs")
-        print("verify if I already have the layer at load_signs_layer")
         if l is not None:
-            print("removing existing signs layer at load_signs_layer")
             QgsProject.instance().removeMapLayer(l.id())
         uri = os.path.join(QgsProject.instance().readPath(
             "./"), f"{title}_signs.gpkg")
         if not os.path.isfile(uri):
-            print("creating signs layer at load_signs_layer")
             self.create_signals_vector_layer()
         self.signs_layer = QgsVectorLayer(uri, 'traffic signs', 'ogr')
-        print("adding signs layer at load_signs_layer")
         QgsProject.instance().addMapLayer(self.signs_layer)
         self.set_signs_style(filter=self.read_filter(),
                                 layer=self.signs_layer)
@@ -1055,7 +1050,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         layer = self.get_point_layer_by_name("traffic signs")
         if layer:
             QgsProject.instance().instance().removeMapLayer(layer)
-        print("adding signs layer from database at load_signs_layer_from_database")
         QgsProject.instance().instance().addMapLayer(vlayer)
         self.set_signs_style(filter=self.read_filter(), layer=vlayer, size=5)
 
