@@ -836,7 +836,9 @@ class PlacaView:
         z = 14
         nw = self.deg2num(trans.yMinimum(), trans.xMinimum(), z)
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
-        total_work = (nw[0]-se[0])*(se[1] - nw[1])
+        total_work = (nw[0]-se[0]+1)*(nw[1] - se[1]+1)
+        QgsMessageLog.logMessage('Downloading signs in area: NW {}, SE {}, Zoom {}, Total Tiles: {}'.format(
+            str(nw), str(se), str(z), str(total_work)), "Messages", Qgis.Info)
         layer = self.create_signals_vector_layer()
         layer.commitChanges()
         #layer.dataProvider().truncate()

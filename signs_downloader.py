@@ -73,8 +73,8 @@ class SignsDownloader(QgsTask):
         inserted_records=0
         updated_records=0
         self.layer.startEditing()        
-        for x in range(nw[0], se[0]):
-            for y in range(se[1], nw[1]):
+        for x in range(nw[0], se[0]+1):
+            for y in range(se[1], nw[1]+1):
                 self.work += 1
                 if self.isCanceled():
                     return False
