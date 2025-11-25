@@ -814,8 +814,7 @@ class PlacaView:
         if self.download_task:
             if not sip.is_deleted(self.download_task):
                 if self.download_task.status() == 2:
-                    QgsMessageLog.logMessage('There is an ongoing download.'.format(
-                        self.work/self.total), "Messages", Qgis.Info)
+                    QgsMessageLog.logMessage('There is an ongoing download.', "Messages", Qgis.Info)
                     return
         self.update_actions({"Download Signs": False, "Cancel Download": True})
         if not self.conf.get("boundary"):
@@ -836,7 +835,7 @@ class PlacaView:
         z = 14
         nw = self.deg2num(trans.yMinimum(), trans.xMinimum(), z)
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
-        total_work = (nw[0]-se[0])*(se[1] - nw[1])
+        total_work = (nw[0]-se[0]+1)*(se[1] - nw[1]+1)
         layer = self.create_signals_vector_layer()
         layer.commitChanges()
         #layer.dataProvider().truncate()
@@ -923,8 +922,7 @@ class PlacaView:
         options.driverName = 'GPKG'
         options.layerName = "traffic signs"
         options.fileEncoding = 'UTF-8'
-        options.destCRS = QgsCoordinateReferenceSystem(4326)
-        
+        options.destCRS = QgsCoordinateReferenceSystem.fromEpsgId(4326)
         if os.path.exists(patty):
             print("file exists")
             options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
