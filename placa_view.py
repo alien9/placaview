@@ -22,6 +22,7 @@
  ***************************************************************************/
 """
 
+from tkinter.messagebox import INFO
 from .tools import *
 from .signs_data_downloader import SignDataDownloader
 import qgis, sip
@@ -30,7 +31,7 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsText
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl, QDate
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QMenu, QToolButton, QAction, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit
+from qgis.PyQt.QtWidgets import QMenu, QToolButton, QAction, QDialog, QVBoxLayout, QInputDialog, QLineEdit, QLabel, QMessageBox, QProgressBar, QWidgetAction, QActionGroup, QPushButton, QDateEdit, QTextEdit
 from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApplication, QgsTask, QgsMarkerSymbol, QgsFillSymbol
 from qgis.core import QgsPoint, QgsRectangle, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
@@ -860,16 +861,28 @@ class PlacaView:
         #self.get_signs_layer().triggerRepaint()
 
     def render_signs_layer(self):
+        results=self.download_task.result
         self.download_task=None
         self.update_actions({"Download Signs": True, "Cancel Download": False})
         try:
             self.download_progress.close()
         except:
             pass
-        print("rendering signs layer after download")
         self.save_signs_layer()
-        print("saved signs layer after download")
         self.load_signs_layer()
+        
+        # Show download results dialog
+        results = {
+            "Status": "Download completed successfully",
+            "Signs Layer": "traffic signs",
+            "Data Location": f"{QgsProject.instance().readPath('./')}_signs.gpkg",
+            "Downloaded": results["downloaded"],
+            "Inserted":results["inserted"],
+            "Updated":results["updated"]
+        }
+        QgsMessageLog.logMessage(f"Downloaded {results}", "Messages", Qgis.Info)
+        dialog = DownloadResultsDialog(parent=self.iface.mainWindow(), results=results)
+        dialog.exec()
 
     def get_standard_attributes(self):
         return [QgsField("id",  QVariant.Double),
@@ -1940,3 +1953,48 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         layer.commitChanges()
         QgsProject.instance().reloadAllLayers()
         return True
+
+
+class DownloadResultsDialog(QDialog):
+    """Dialog to display download task results."""
+    
+    def __init__(self, parent=None, results=None):
+        super().__init__(parent)
+        self.setWindowTitle("Download Results")
+        self.setGeometry(100, 100, 500, 300)
+        
+        layout = QVBoxLayout()
+        
+        # Title label
+        title = QLabel("Download Task Completed")
+        title.setStyleSheet("font-weight: bold; font-size: 12pt;")
+        layout.addWidget(title)
+        
+        # Results text
+        results_text = QTextEdit()
+        results_text.setReadOnly(True)
+        
+        if results:
+            message = self._format_results(results)
+        else:
+            message = "Download completed successfully."
+        
+        results_text.setText(message)
+        layout.addWidget(results_text)
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+        
+        self.setLayout(layout)
+    
+    def _format_results(self, results):
+        """Format results dictionary into readable text."""
+        if isinstance(results, dict):
+            lines = []
+            for key, value in results.items():
+                lines.append(f"{key}: {value}")
+            return "\n".join(lines)
+        else:
+            return str(results)
