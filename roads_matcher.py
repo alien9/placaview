@@ -11,7 +11,7 @@ from qgis.PyQt.QtCore import *
 from .tools import vt_bytes_to_geojson
 from .equidistance_buffer import EquidistanceBuffer
 
-MESSAGE_CATEGORY = 'Download task'
+MESSAGE_CATEGORY = 'PlacaView'
 
 class RoadsMatcher(QgsTask):
     signs_layer:QgsVectorLayer

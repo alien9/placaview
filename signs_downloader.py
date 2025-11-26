@@ -9,7 +9,7 @@ from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.PyQt.QtCore import *
 from .tools import vt_bytes_to_geojson
 
-MESSAGE_CATEGORY = 'Download task'
+MESSAGE_CATEGORY = 'PlacaView'
 
 class SignsDownloader(QgsTask):
     layer:QgsVectorLayer
@@ -27,7 +27,7 @@ class SignsDownloader(QgsTask):
         self.extents=extents
         self.exception = None
         self.key=key
-        self.result=[]
+        self.result={}
         self.interval=(from_, to_)
         self.filter=filter_
         if params_:
@@ -72,13 +72,15 @@ class SignsDownloader(QgsTask):
         QgsMessageLog.logMessage(f"Revision is {revision}", MESSAGE_CATEGORY, level=Qgis.Info)
         inserted_records=0
         updated_records=0
+        downloaded_records=0
         self.layer.startEditing()        
-        for x in range(nw[0], se[0]):
-            for y in range(se[1], nw[1]):
+        for x in range(nw[0], se[0]+1):
+            for y in range(se[1], nw[1]+1):
                 self.work += 1
                 if self.isCanceled():
                     return False
-                self.setProgress(100*self.work/self.total)
+                if self.total>0:
+                    self.setProgress(100*self.work/self.total)
                 
                 if(self.params is not None): 
                     northwest=self.num2deg(x,y,z)
@@ -117,7 +119,7 @@ class SignsDownloader(QgsTask):
 
                                 if inside_boundary:
                                     e=QgsFeatureRequest()
-                                    e.setFilterExpression(f"\"id\"='{point.get('id')}'")
+                                    e.setFilterExpression(f"\"id\"={point.get('id')}")
                                     fui=self.layer.dataProvider().getFeatures(e)
                                     feature=None
                                     for f in fui:
@@ -145,8 +147,9 @@ class SignsDownloader(QgsTask):
                                             })
                                             self.layer.dataProvider().leaveUpdateMode()
                                     else:
+                                        QgsMessageLog.logMessage(f"FAILED for {point.get('id')}")
                                         fet.setGeometry(geo)
-                                        fet["id"] = point.get("id")
+                                        fet["id"] = int(point.get("id"))
                                         fet["first_seen_at"] = parser.parse(point.get(
                                             "first_seen_at")).timestamp()
                                         fet["last_seen_at"] = parser.parse(point.get(
@@ -183,35 +186,38 @@ class SignsDownloader(QgsTask):
                                     inside_boundary = True
 
                             if inside_boundary:
+                                downloaded_records+=1
                                 e=QgsFeatureRequest()
-                                e.setFilterExpression(f"\"id\"='{properties.get('id')}'")
+                                e.setFilterExpression(f"\"id\"={int(properties.get('id'))}")
                                 fui=self.layer.dataProvider().getFeatures(e)
                                 feature=None
+                                i=0
                                 for f in fui:
                                     feature = f
-                                if feature is not None:
-                                    if str(feature["fid"])!='NULL':
-                                        self.layer.dataProvider().enterUpdateMode()
-                                        if feature["first_seen_at"] != properties.get("first_seen_at") or feature["last_seen_at"] != properties.get("last_seen_at") or feature["value"] != properties.get("value"):
-                                            updated_records+=1
-                                        feature["first_seen_at"] = properties.get(
-                                            "first_seen_at")
-                                        feature["last_seen_at"] = properties.get(
-                                            "last_seen_at")
-                                        feature["value"] = properties.get("value")
-                                        feature["revision"]=revision
-                                        self.layer.dataProvider().changeAttributeValues({
-                                            int(feature["fid"]):{
-                                                fields.indexOf("value"):properties.get("value"),
-                                                fields.indexOf("first_seen_at"):properties.get(
-                                            "first_seen_at"),
-                                                fields.indexOf("last_seen_at"):properties.get(
-                                            "last_seen_at"),
-                                                fields.indexOf("revision"):revision
-                                            }
-                                        })
-                                        self.layer.dataProvider().leaveUpdateMode()
+                                    i+=1
+                                if i>0:
+                                    self.layer.dataProvider().enterUpdateMode()
+                                    if feature["first_seen_at"] != properties.get("first_seen_at") or feature["last_seen_at"] != properties.get("last_seen_at") or feature["value"] != properties.get("value"):
+                                        updated_records+=1
+                                    feature["first_seen_at"] = properties.get(
+                                        "first_seen_at")
+                                    feature["last_seen_at"] = properties.get(
+                                        "last_seen_at")
+                                    feature["value"] = properties.get("value")
+                                    feature["revision"]=revision
+                                    self.layer.dataProvider().changeAttributeValues({
+                                        int(feature["fid"]):{
+                                            fields.indexOf("value"):properties.get("value"),
+                                            fields.indexOf("first_seen_at"):properties.get(
+                                        "first_seen_at"),
+                                            fields.indexOf("last_seen_at"):properties.get(
+                                        "last_seen_at"),
+                                            fields.indexOf("revision"):revision
+                                        }
+                                    })
+                                    self.layer.dataProvider().leaveUpdateMode()
                                 else:
+                                    QgsMessageLog.logMessage(f"at {downloaded_records} an expression {properties.get('id')} not found: "+f"\"id\"={properties.get('id')}", MESSAGE_CATEGORY, level=Qgis.Info)
                                     fet.setGeometry(geo)
                                     fet["id"] = properties.get("id")
                                     fet["first_seen_at"] = properties.get(
@@ -224,10 +230,16 @@ class SignsDownloader(QgsTask):
                                     try:
                                         self.layer.dataProvider().addFeatures([fet])
                                         inserted_records+=1
+                                        QgsMessageLog.logMessage(f"inserted : {properties.get('id')}")
                                     except:
                                         QgsMessageLog.logMessage("cannot insert",MESSAGE_CATEGORY, level=Qgis.Info)
         self.layer.commitChanges()
-        QgsMessageLog.logMessage(f"{inserted_records}  inserted, {updated_records} updated",MESSAGE_CATEGORY, level=Qgis.Info)
+        QgsMessageLog.logMessage(f"{downloaded_records} valid downloaded, {inserted_records}  inserted, {updated_records} updated",MESSAGE_CATEGORY, level=Qgis.Info)
+        self.result={
+            "downloaded": downloaded_records,
+            "inserted": inserted_records,
+            "updated": updated_records
+        }
         return True
 
     def finished(self, result):        

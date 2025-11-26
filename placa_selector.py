@@ -13,9 +13,6 @@ from qgis.PyQt.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from qgis.PyQt.QtSvg import QSvgWidget, QSvgRenderer
 from qgis.PyQt.QtGui import QTransform, QDesktopServices
 from functools import partial
-
-
-from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
 from qgis.PyQt.QtWebKitWidgets import QWebView
 from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.gui import QgsMapCanvas
