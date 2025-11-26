@@ -60,6 +60,7 @@ import os, json, requests, datetime, math, re, shutil, time
 from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import unquote, unquote_plus
 
+LOGGER_ALIAS="PlacaView"
 class SignsLayer(QgsVectorLayer):
     pass
     
@@ -809,13 +810,13 @@ class PlacaView:
             
     def download_signs(self, params=None):
         QgsMessageLog.logMessage('Download "{}"'.format(
-            str(params)), "Messages", Qgis.Info)
+            str(params)), "PlacaView", Qgis.Info)
         if not self.load_conf():
             return
         if self.download_task:
             if not sip.is_deleted(self.download_task):
                 if self.download_task.status() == 2:
-                    QgsMessageLog.logMessage('There is an ongoing download.', "Messages", Qgis.Info)
+                    QgsMessageLog.logMessage('There is an ongoing download.', "PlacaView", Qgis.Info)
                     return
         self.update_actions({"Download Signs": False, "Cancel Download": True})
         if not self.conf.get("boundary"):
@@ -880,7 +881,7 @@ class PlacaView:
             "Inserted":results["inserted"],
             "Updated":results["updated"]
         }
-        QgsMessageLog.logMessage(f"Downloaded {results}", "Messages", Qgis.Info)
+        QgsMessageLog.logMessage(f"Downloaded {results}", "PlacaView", Qgis.Info)
         dialog = DownloadResultsDialog(parent=self.iface.mainWindow(), results=results)
         dialog.exec()
 
@@ -1036,13 +1037,13 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             try:
                 conn=psycopg2.connect(host=h.get("host","localhost"), port=h.get("port","5432"), database=h.get("dbname"), user=h.get("user"), password=h.get("password"))
             except Exception as x:
-                QgsMessageLog.logMessage(f"Error {str(x)} while creating connection")
+                QgsMessageLog.logMessage(f"Error {str(x)} while creating connection", "PlacaView", Qgis.Info)
 
             cur = conn.cursor()
             try:
                 cur.execute(query)
             except Exception as x:
-                QgsMessageLog.logMessage(f"Error {str(x)} while creating table")
+                QgsMessageLog.logMessage(f"Error {str(x)} while creating table", "PlacaView", Qgis.Info)
                
 
             conn.commit() # <--- makes sure the change is shown in the database
@@ -1649,7 +1650,7 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
             self.load_signs_editor()
         """
     def setColumnVisibility(self, layer, columnName, visible ):
-        QgsMessageLog.logMessage(f"setting {columnName} Vidibility")
+        QgsMessageLog.logMessage(f"setting {columnName} Vidibility", "PlacaView", Qgis.Info)
         config = layer.attributeTableConfig()
         columns = config.columns()
         for column in columns:

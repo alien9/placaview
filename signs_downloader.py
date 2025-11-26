@@ -9,7 +9,7 @@ from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
 from qgis.PyQt.QtCore import *
 from .tools import vt_bytes_to_geojson
 
-MESSAGE_CATEGORY = 'Download task'
+MESSAGE_CATEGORY = 'PlacaView'
 
 class SignsDownloader(QgsTask):
     layer:QgsVectorLayer

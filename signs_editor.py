@@ -627,7 +627,7 @@ class SignsEditor(QDockWidget, FormClass):
             self.sign_images_index = self.sign_images_index % len(self.sign_images)
             self.navigate()
         else:
-            QgsMessageLog.logMessage('No images to this place')
+            QgsMessageLog.logMessage('No images to this place', "placaView", Qgis.Info)
 
     def navigate(self):
         self.dl = SignDataDownloader(

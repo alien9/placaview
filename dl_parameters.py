@@ -54,7 +54,7 @@ class DownloadParameters(QDialog, ParametersFormClass):
         if fro is not None:
             if fro.year()>0:
                 QgsMessageLog.logMessage('last from "{}"'.format(
-                str(fro)), "Messages", Qgis.Info)
+                str(fro)), "PlacaView", Qgis.Info)
                 params["start_last_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat()
         fro=self.findChild(QgsDateEdit, "last_to").date()
         if fro is not None:

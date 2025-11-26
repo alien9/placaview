@@ -3,11 +3,11 @@ import os, platform
 import sys, time
 import subprocess
 from pathlib import Path
-from qgis.core import QgsMessageLog
+from qgis.core import QgsMessageLog, Qgis
 
 def install_requirements():
     if platform.uname().system=="Windows":
-        QgsMessageLog.logMessage("Installing requirements for windows...")
+        QgsMessageLog.logMessage("Installing requirements for windows...", "PlacaView", Qgis.Info)
         #definition of the bat file as as string
         #it will be equivalent to manually type these commands line by line
         batF="""@echo off
@@ -34,7 +34,7 @@ def install_requirements():
         subprocess.run([f"{os.path.expanduser('~')}/INSTALL.bat"])
     else:
         import pip
-        QgsMessageLog.logMessage("installing requirements")
+        QgsMessageLog.logMessage("installing requirements", "PlacaView", Qgis.Info)
         pip.main(["install","mapbox-vector-tile"])
         pip.main(["install","vt2geojson"])
         pip.main(["install","psycopg2"])
