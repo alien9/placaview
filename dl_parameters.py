@@ -55,19 +55,19 @@ class DownloadParameters(QDialog, ParametersFormClass):
             if fro.year()>0:
                 QgsMessageLog.logMessage('last from "{}"'.format(
                 str(fro)), "PlacaView", Qgis.Info)
-                params["start_last_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat()
+                params["start_last_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat() + "Z"
         fro=self.findChild(QgsDateEdit, "last_to").date()
         if fro is not None:
             if fro.year()>0:
-                params["end_last_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat()
+                params["end_last_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat() + "Z"
         fro=self.findChild(QgsDateEdit, "first_from").date()
         if fro is not None:
             if fro.year()>0:
-                params["start_first_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat()
+                params["start_first_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat() + "Z"
         fro=self.findChild(QgsDateEdit, "first_to").date()
         if fro is not None:
             if fro.year()>0:
-                params["end_first_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat()
+                params["end_first_seen_at"]=datetime.datetime(fro.year(), fro.month(), fro.day()).isoformat() + "Z"
         fro=self.findChild(QLineEdit, "term").text()
         if fro is not None:
             params["object_values"]=fro
