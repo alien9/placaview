@@ -52,7 +52,7 @@ from .signs_selector import SignsSelector
 from .signs_insert import SignsInsert
 from .placa_view_dockwidget import PlacaViewDockWidget
 from .browser import Browser
-from .roads_matcher import RoadsMatcher
+from .roads_matcher import MESSAGE_CATEGORY, RoadsMatcher
 from .placa_selector import PlacaSelector
 from .fields_config import FieldsConfig
 from .dl_parameters import DownloadParameters
@@ -814,10 +814,13 @@ class PlacaView:
         if not self.load_conf():
             return
         if self.download_task:
-            if not sip.is_deleted(self.download_task):
+            try:
+                #if not sip.is_deleted(self.download_task):
                 if self.download_task.status() == 2:
                     QgsMessageLog.logMessage('There is an ongoing download.', "PlacaView", Qgis.Info)
                     return
+            except Exception as xxx:
+                QgsMessageLog.logMessage(str(xxx), MESSAGE_CATEGORY, Qgis.Info)
         self.update_actions({"Download Signs": False, "Cancel Download": True})
         if not self.conf.get("boundary"):
             self.ask_boundary_layer()
@@ -882,11 +885,11 @@ class PlacaView:
             "Updated":results["updated"]
         }
         QgsMessageLog.logMessage(f"Downloaded {results}", "PlacaView", Qgis.Info)
-        dialog = DownloadResultsDialog(parent=self.iface.mainWindow(), results=results)
-        dialog.exec()
+        #self.complete_dialog = DownloadResultsDialog(parent=self.iface.mainWindow(), results=results)
+        #self.complete_dialog.exec()
 
     def get_standard_attributes(self):
-        return [QgsField("id",  QVariant.Double),
+        return [QgsField("id",  QVariant.String),
                 QgsField("first_seen_at",  QVariant.Double),
                 QgsField("last_seen_at",  QVariant.Double),
                 QgsField("value",  QVariant.String),
@@ -1661,7 +1664,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         layer.setAttributeTableConfig( config )
          
     def feature_added(self, *args, **kwargs):
-        QgsMessageLog.logMessage("adding a feature")
         """Handles the QgsFeatureAdded event."""
         # Do something when a new feature is added, e.g., print feature_id or layer information.
         layer=self.get_signs_layer()
@@ -1682,7 +1684,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
                 feature['value_code_face']= placa_style  
             
     def generate_signs_form(self):
-        QgsMessageLog.logMessage('generating the form')
         layer = self.get_signs_layer()
         if not layer:
             return
@@ -1696,7 +1697,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
         for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols'))])  :
             sign_names[name]=name
             
-        QgsMessageLog.logMessage("sign names discovered")
         layer.setEditorWidgetSetup(fields.indexOf('value'), QgsEditorWidgetSetup('ValueMap', {"map": sign_names, "Editable":True}))
         br_sign_names={}
         for name in sorted([re.split(r"(\.svg)$", filename).pop(0) for filename in os.listdir(os.path.join(os.path.dirname(__file__), 'styles/symbols_br'))]):
@@ -1849,7 +1849,6 @@ CREATE UNIQUE INDEX  if not exists  {table_name}_id_idx ON public.{table_name} (
 
         Expected value: list of dicts with keys 'name', 'type', 'enabled'.
         """
-        QgsMessageLog.logMessage('applying fields config', 'PlacaView', Qgis.Info)
         try:
             items = value or []
             if not isinstance(items, list):

@@ -1,4 +1,4 @@
-import random, requests, math
+import random, requests, math, os
 from time import sleep
 from dateutil import parser
 from qgis.core import (Qgis, QgsApplication, QgsMessageLog, QgsTask)
@@ -55,9 +55,10 @@ class SignsDownloader(QgsTask):
             self.description()), MESSAGE_CATEGORY, Qgis.Info)
         QgsMessageLog.logMessage('Parameters for task "{}"'.format(
             str(self.params)), MESSAGE_CATEGORY, Qgis.Info)
-        
+        self.layer.dataProvider().reloadData()
+        self.layer.triggerRepaint()
         nw, se=self.extents
-        z=14        
+        z=14
         fields=self.layer.dataProvider().fields()
         boundary_features = list(self.boundary.getFeatures())
         idx = fields.indexOf('revision')
@@ -85,7 +86,6 @@ class SignsDownloader(QgsTask):
                 if(self.params is not None): 
                     northwest=self.num2deg(x,y,z)
                     southeast=self.num2deg(x+1,y+1,z)
-                    bbox=(northwest[0], southeast[1], southeast[0], northwest[1],)
                     url=f"https://graph.mapillary.com/map_features/?access_token={self.key}&fields=id,geometry,object_value,last_seen_at,first_seen_at&bbox={northwest[0]},{southeast[1]},{southeast[0]},{northwest[1]}"
                     if "object_values" in self.params:
                         url+=f'&object_values={self.params["object_values"]}'
@@ -95,8 +95,9 @@ class SignsDownloader(QgsTask):
                         url+=f'&end_first_seen_at={self.params["end_first_seen_at"]}'
                     if "start_last_seen_at" in self.params:
                         url+=f'&start_last_seen_at={self.params["start_last_seen_at"]}'
-                    if "end_first_seen_at" in self.params:
+                    if "end_last_seen_at" in self.params:
                         url+=f'&end_last_seen_at={self.params["end_last_seen_at"]}'
+                    QgsMessageLog.logMessage(url, MESSAGE_CATEGORY, Qgis.Info)
                     r = requests.get(url)
                     if r.status_code == 403:
                         self.exception=403
@@ -118,36 +119,35 @@ class SignsDownloader(QgsTask):
                                         inside_boundary = True
 
                                 if inside_boundary:
+                                    downloaded_records+=1
                                     e=QgsFeatureRequest()
-                                    e.setFilterExpression(f"\"id\"={point.get('id')}")
+                                    e.setFilterExpression(f"\"id\"='{point.get('id')}'")
                                     fui=self.layer.dataProvider().getFeatures(e)
                                     feature=None
                                     for f in fui:
                                         feature = f
                                     if feature is not None:
-                                        if str(feature["fid"])!='NULL':
-                                            self.layer.dataProvider().enterUpdateMode()
-                                            if feature["first_seen_at"] != parser.parse(point.get("first_seen_at")).timestamp() or feature["last_seen_at"] != parser.parse(point.get("last_seen_at")).timestamp() or feature["value"] != point.get("object_value"):
-                                                updated_records+=1
-                                            feature["first_seen_at"] = parser.parse(point.get(
-                                                "first_seen_at")).timestamp()
-                                            feature["last_seen_at"] = parser.parse(point.get(
-                                                "last_seen_at")).timestamp()
-                                            feature["value"] = point.get("object_value")
-                                            feature["revision"]=revision
-                                            self.layer.dataProvider().changeAttributeValues({
-                                                int(feature["fid"]):{
-                                                    fields.indexOf("value"):point.get("object_value"),
-                                                    fields.indexOf("first_seen_at"):parser.parse(point.get(
-                                                "first_seen_at")).timestamp(),
-                                                    fields.indexOf("last_seen_at"):parser.parse(point.get(
-                                                "last_seen_at")).timestamp(),
-                                                    fields.indexOf("revision"):revision
-                                                }
-                                            })
-                                            self.layer.dataProvider().leaveUpdateMode()
+                                        self.layer.dataProvider().enterUpdateMode()
+                                        if feature["first_seen_at"] != parser.parse(point.get("first_seen_at")).timestamp() or feature["last_seen_at"] != parser.parse(point.get("last_seen_at")).timestamp() or feature["value"] != point.get("object_value"):
+                                            updated_records+=1
+                                        feature["first_seen_at"] = parser.parse(point.get(
+                                            "first_seen_at")).timestamp()
+                                        feature["last_seen_at"] = parser.parse(point.get(
+                                            "last_seen_at")).timestamp()
+                                        feature["value"] = point.get("object_value")
+                                        feature["revision"]=revision
+                                        self.layer.dataProvider().changeAttributeValues({
+                                            int(feature["fid"]):{
+                                                fields.indexOf("value"):point.get("object_value"),
+                                                fields.indexOf("first_seen_at"):parser.parse(point.get(
+                                            "first_seen_at")).timestamp(),
+                                                fields.indexOf("last_seen_at"):parser.parse(point.get(
+                                            "last_seen_at")).timestamp(),
+                                                fields.indexOf("revision"):revision
+                                            }
+                                        })
+                                        self.layer.dataProvider().leaveUpdateMode()
                                     else:
-                                        QgsMessageLog.logMessage(f"FAILED for {point.get('id')}")
                                         fet.setGeometry(geo)
                                         fet["id"] = int(point.get("id"))
                                         fet["first_seen_at"] = parser.parse(point.get(
@@ -178,6 +178,7 @@ class SignsDownloader(QgsTask):
                             properties = f.get("properties")
                             fet = QgsFeature()
                             fet.setFields(fields)
+                            
                             geo = QgsGeometry.fromPointXY(QgsPointXY(
                                 geometry.get("coordinates")[0], geometry.get("coordinates")[1]))
                             inside_boundary = False
@@ -188,7 +189,7 @@ class SignsDownloader(QgsTask):
                             if inside_boundary:
                                 downloaded_records+=1
                                 e=QgsFeatureRequest()
-                                e.setFilterExpression(f"\"id\"={int(properties.get('id'))}")
+                                e.setFilterExpression(f"\"id\"='{properties.get('id')}'")
                                 fui=self.layer.dataProvider().getFeatures(e)
                                 feature=None
                                 i=0
@@ -217,22 +218,26 @@ class SignsDownloader(QgsTask):
                                     })
                                     self.layer.dataProvider().leaveUpdateMode()
                                 else:
-                                    QgsMessageLog.logMessage(f"at {downloaded_records} an expression {properties.get('id')} not found: "+f"\"id\"={properties.get('id')}", MESSAGE_CATEGORY, level=Qgis.Info)
                                     fet.setGeometry(geo)
-                                    fet["id"] = properties.get("id")
-                                    fet["first_seen_at"] = properties.get(
-                                        "first_seen_at")
-                                    fet["last_seen_at"] = properties.get(
-                                        "last_seen_at")
-                                    fet["value"] = properties.get("value")
-                                    fet["revision"]=revision
-                                    fet["value_code_face"] = f'symbols/{properties.get("value")}.svg'
-                                    try:
-                                        self.layer.dataProvider().addFeatures([fet])
-                                        inserted_records+=1
-                                        QgsMessageLog.logMessage(f"inserted : {properties.get('id')}")
-                                    except:
-                                        QgsMessageLog.logMessage("cannot insert",MESSAGE_CATEGORY, level=Qgis.Info)
+                                    if geo.isGeosValid():
+                                        fet["id"] = properties.get("id")
+                                        fet["first_seen_at"] = properties.get(
+                                            "first_seen_at")
+                                        fet["last_seen_at"] = properties.get(
+                                            "last_seen_at")
+                                        fet["value"] = properties.get("value")
+                                        fet["revision"]=revision
+                                        # Verify SVG file exists, use unknown_sign.svg as fallback
+                                        symbol_value = properties.get("value")
+                                        svg_path = f'symbols/{symbol_value}.svg'
+                                        fet["value_code_face"] = svg_path if os.path.isfile(os.path.join(os.path.dirname(__file__), f'styles/{svg_path}')) else 'symbols/unknown_sign.svg'
+                                        try:
+                                            self.layer.dataProvider().addFeatures([fet])
+                                            inserted_records+=1
+                                        except:
+                                            QgsMessageLog.logMessage("cannot insert",MESSAGE_CATEGORY, level=Qgis.Info)
+                                    else:
+                                        QgsMessageLog.logMessage(f"Invalid geometry for feature {properties.get('id')}", MESSAGE_CATEGORY, level=Qgis.Warning)
         self.layer.commitChanges()
         QgsMessageLog.logMessage(f"{downloaded_records} valid downloaded, {inserted_records}  inserted, {updated_records} updated",MESSAGE_CATEGORY, level=Qgis.Info)
         self.result={
