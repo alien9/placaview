@@ -25,7 +25,7 @@ from .tools import *
 from .signs_data_downloader import SignDataDownloader
 import qgis
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
-
+from qgis.gui import QgsDateEdit
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, QVariant, QUrl, QDate
 from qgis.PyQt.QtGui import QIcon
