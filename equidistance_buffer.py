@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing, QgsProcessingFeatureBasedAlgorithm, 
-    QgsProcessingParameterDistance, QgsPoint, QgsFeature, QgsGeometry, 
+    QgsProcessingParameterDistance, QgsGeometry, 
     QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsProject)
     
 

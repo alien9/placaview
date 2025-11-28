@@ -23,7 +23,7 @@
 """
 from .tools import *
 from .signs_data_downloader import SignDataDownloader
-import qgis, sip
+import qgis
 from qgis.core import QgsCoordinateReferenceSystem, QgsPalLayerSettings, QgsTextFormat, QgsTextBufferSettings, QgsVectorLayerSimpleLabeling,QgsFeatureRequest,QgsExpression
 
 from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsGeometry, QgsPointXY, QgsField, QgsProject, edit, QgsDefaultValue
@@ -34,7 +34,7 @@ from qgis.core import QgsProject, QgsWkbTypes, QgsVectorFileWriter, Qgis, QgsApp
 from qgis.core import QgsPoint, QgsRectangle, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsMessageLog
 from qgis.core import QgsCategorizedSymbolRenderer, QgsSingleSymbolRenderer
 from qgis.core import QgsStyle, QgsSymbol, QgsRendererCategory, QgsSvgMarkerSymbolLayer
-from qgis.gui import QgsMapToolIdentifyFeature, QgsDateEdit, QgsMessageBar
+from qgis.gui import QgsMapToolIdentifyFeature
 from qgis.core import QgsCoordinateTransform, QgsCoordinateTransformContext, QgsCoordinateReferenceSystem, QgsGeometry, QgsPoint
 
 from qgis.core import QgsSpatialIndex
@@ -54,9 +54,9 @@ from .roads_matcher import MESSAGE_CATEGORY, RoadsMatcher
 from .placa_selector import PlacaSelector
 from .fields_config import FieldsConfig
 from .dl_parameters import DownloadParameters
-import os, json, requests, datetime, math, re, shutil, time
+import os, json, requests, datetime, math, re, shutil
 from qgis.PyQt.QtWebEngineWidgets import QWebEngineView
-from urllib.parse import unquote, unquote_plus
+from urllib.parse import unquote
 
 LOGGER_ALIAS="PlacaView"
 class SignsLayer(QgsVectorLayer):
