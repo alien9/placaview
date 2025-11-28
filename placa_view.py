@@ -21,8 +21,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-
-from tkinter.messagebox import INFO
 from .tools import *
 from .signs_data_downloader import SignDataDownloader
 import qgis, sip
@@ -840,10 +838,9 @@ class PlacaView:
         z = 14
         nw = self.deg2num(trans.yMinimum(), trans.xMinimum(), z)
         se = self.deg2num(trans.yMaximum(), trans.xMaximum(), z)
-        total_work = (nw[0]-se[0]+1)*(se[1] - nw[1]+1)
+        total_work = abs((nw[0]-se[0]+1)*(se[1] - nw[1]+1))
         layer = self.create_signals_vector_layer()
         layer.commitChanges()
-        #layer.dataProvider().truncate()
         qgis.utils.iface.messageBar().clearWidgets()
         progressMessageBar = qgis.utils.iface.messageBar()
         self.download_progress = QProgressBar()
