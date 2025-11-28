@@ -24,9 +24,8 @@
 
 import os
 
-from qgis.PyQt import QtGui, QtWidgets, uic
+from qgis.PyQt import QtWidgets, uic
 from qgis.PyQt.QtCore import pyqtSignal
-from qgis.PyQt.QtWebKitWidgets import QWebView
 #from qgis.core import *
 from qgis.PyQt.QtWidgets import *
 #from qgis.PyQt.QtCore import *
